@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiểm thử frontend - Schedule Manager</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    body { padding: 24px; }
+    .test-runner { max-width: 900px; margin: 0 auto; }
+    #test-results { margin: 16px 0; padding-left: 24px; }
+    #test-results li { margin: 6px 0; }
+    #test-results .passed { color: var(--success); }
+    #test-results .failed { color: var(--danger); }
+    #app-under-test { display: block; width: 100%; height: 720px; margin-top: 20px; border: 1px solid var(--border); background: white; }
+  </style>
+</head>
+<body>
+  <main class="test-runner">
+    <h1 class="page-title">Kiểm thử frontend</h1>
+    <p class="page-subtitle">Chạy các smoke test trong trình duyệt. Dùng một browser profile dành riêng cho kiểm thử.</p>
+    <button id="run-tests" class="btn btn-primary" type="button">Chạy kiểm thử</button>
+    <p id="test-status" role="status" aria-live="polite"></p>
+    <ol id="test-results"></ol>
+    <iframe id="app-under-test" title="Ứng dụng đang được kiểm thử"></iframe>
+  </main>
+  <script src="browser-smoke.js"></script>
+</body>
+</html>

@@ -15,20 +15,22 @@
     <form id="login-form" class="login-form" novalidate>
       <div class="form-group">
         <label for="login-username">Tên đăng nhập</label>
-        <input type="text" id="login-username" name="username" placeholder="Nhập tên đăng nhập" autocomplete="username" />
-        <span class="field-error" id="login-username-err"></span>
+        <input type="text" id="login-username" name="username" placeholder="Nhập tên đăng nhập"
+               autocomplete="username" aria-describedby="login-username-err" aria-invalid="false" />
+        <span class="field-error" id="login-username-err" aria-live="polite"></span>
       </div>
       <div class="form-group">
         <label for="login-password">Mật khẩu</label>
         <div class="input-password-wrap">
-          <input type="password" id="login-password" name="password" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+          <input type="password" id="login-password" name="password" placeholder="Nhập mật khẩu"
+                 autocomplete="current-password" aria-describedby="login-password-err" aria-invalid="false" />
           <button type="button" class="btn-toggle-pw" aria-label="Hiện/ẩn mật khẩu" onclick="togglePasswordVisibility('login-password', this)">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
-        <span class="field-error" id="login-password-err"></span>
+        <span class="field-error" id="login-password-err" aria-live="polite"></span>
       </div>
-      <span class="field-error" id="login-general-err"></span>
+      <span class="field-error" id="login-general-err" role="alert" aria-live="assertive"></span>
       <button type="submit" class="btn btn-primary btn-block" id="login-btn">Đăng nhập</button>
     </form>
 

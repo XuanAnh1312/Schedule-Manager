@@ -1,6 +1,7 @@
-<div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+<div id="sidebar-overlay" class="sidebar-overlay hidden" aria-hidden="true"></div>
 
-<div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true">
+<div id="modal-container" class="modal-container hidden" role="dialog" aria-modal="true"
+     aria-labelledby="modal-title" tabindex="-1">
   <div class="modal-backdrop" id="modal-backdrop"></div>
   <div class="modal-box" id="modal-box">
     <div class="modal-header">
@@ -16,7 +17,8 @@
 
 <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-<div id="confirm-dialog" class="confirm-dialog hidden" role="alertdialog" aria-modal="true">
+<div id="confirm-dialog" class="confirm-dialog hidden" role="alertdialog" aria-modal="true"
+     aria-labelledby="confirm-title" aria-describedby="confirm-message" tabindex="-1">
   <div class="confirm-backdrop"></div>
   <div class="confirm-box">
     <div class="confirm-icon" id="confirm-icon"></div>

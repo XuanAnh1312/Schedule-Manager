@@ -1,5 +1,5 @@
 <div id="app-shell" class="app-shell hidden">
-  <aside id="sidebar" class="sidebar">
+  <aside id="sidebar" class="sidebar" aria-label="Điều hướng chính">
     <div class="sidebar-header">
       <div class="sidebar-logo">
         <svg width="32" height="32" viewBox="0 0 48 48" fill="none">
@@ -25,7 +25,8 @@
   <div class="main-wrapper">
     <header class="topbar" id="topbar">
       <div class="topbar-left">
-        <button class="btn-mobile-menu" id="mobile-menu-btn" aria-label="Menu">
+        <button class="btn-mobile-menu" id="mobile-menu-btn" aria-label="Mở menu điều hướng"
+                aria-controls="sidebar" aria-expanded="false">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
         </button>
         <nav class="breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
@@ -36,13 +37,16 @@
           <div class="role-tabs" id="role-tabs"></div>
         </div>
         <div class="topbar-user" id="topbar-user">
-          <div class="user-avatar" id="topbar-avatar">A</div>
-          <div class="user-meta">
-            <span class="user-name" id="topbar-name"></span>
-            <span class="user-role-badge" id="topbar-role"></span>
-          </div>
-          <div class="user-dropdown" id="user-dropdown">
-            <button class="dropdown-item" onclick="App.navigate('profile')">
+          <button type="button" class="topbar-user-toggle" id="topbar-user-toggle"
+                  aria-label="Mở menu tài khoản" aria-controls="user-dropdown" aria-expanded="false">
+            <span class="user-avatar" id="topbar-avatar" aria-hidden="true">A</span>
+            <span class="user-meta">
+              <span class="user-name" id="topbar-name"></span>
+              <span class="user-role-badge" id="topbar-role"></span>
+            </span>
+          </button>
+          <div class="user-dropdown" id="user-dropdown" aria-label="Tùy chọn tài khoản">
+            <button class="dropdown-item" onclick="App.navigate('profile'); App.closeUserMenu()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               Thông tin cá nhân
             </button>
@@ -55,6 +59,6 @@
       </div>
     </header>
 
-    <main class="main-content" id="main-content"></main>
+    <main class="main-content" id="main-content" tabindex="-1"></main>
   </div>
 </div>

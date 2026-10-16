@@ -31,6 +31,8 @@ const USER_ROUTES = [
 const App = (() => {
   let _currentRoute = null;
   let _initialized  = false;
+  let _modalOpener  = null;
+  let _confirmOpener = null;
 
   /* ── Bootstrap ─────────────────────────────────────────── */
   function init() {
@@ -57,6 +59,7 @@ const App = (() => {
       if (saved) State.mut.clearCurrentUser();
       _showLogin();
     }
+
     // 4. Bind form and global events once
     _bindLoginForm();
     _bindGlobalEvents();
@@ -65,6 +68,7 @@ const App = (() => {
   function _showLogin() {
     document.getElementById('login-screen').classList.remove('hidden');
     document.getElementById('app-shell').classList.add('hidden');
+    document.getElementById('login-username')?.focus();
   }
 
   function _showApp(user) {
@@ -90,12 +94,12 @@ const App = (() => {
   function _doLogin() {
     const un = document.getElementById('login-username')?.value?.trim();
     const pw = document.getElementById('login-password')?.value;
-    document.getElementById('login-username-err').textContent = '';
-    document.getElementById('login-password-err').textContent = '';
+    _setLoginFieldError('login-username', '');
+    _setLoginFieldError('login-password', '');
     document.getElementById('login-general-err').textContent  = '';
 
-    if (!un) { document.getElementById('login-username-err').textContent = 'Vui lòng nhập tên đăng nhập.'; return; }
-    if (!pw) { document.getElementById('login-password-err').textContent = 'Vui lòng nhập mật khẩu.'; return; }
+    if (!un) { _setLoginFieldError('login-username', 'Vui lòng nhập tên đăng nhập.'); return; }
+    if (!pw) { _setLoginFieldError('login-password', 'Vui lòng nhập mật khẩu.'); return; }
 
     const users = State.get.users();
     const user  = users.find(u => u.username === un && u.password === pw);
@@ -105,6 +109,13 @@ const App = (() => {
 
     State.mut.setCurrentUser({ id: user.id, username: user.username, role: user.role, fullName: user.fullName });
     _showApp(State.get.currentUser());
+  }
+
+  function _setLoginFieldError(inputId, message) {
+    const input = document.getElementById(inputId);
+    const error = document.getElementById(`${inputId}-err`);
+    if (error) error.textContent = message;
+    if (input) input.setAttribute('aria-invalid', message ? 'true' : 'false');
   }
 
   function logout() {
@@ -128,13 +139,14 @@ const App = (() => {
         currentSection = r.section;
         html += `<div class="sidebar-nav-section"><div class="sidebar-nav-label">${r.section}</div>`;
       }
-      html += `<button class="sidebar-nav-item" data-route="${r.id}" onclick="App.navigate('${r.id}')">
+      html += `<button class="sidebar-nav-item" data-route="${r.id}" onclick="App.navigate('${r.id}')"
+        aria-current="${_currentRoute === r.id ? 'page' : 'false'}">
         <span class="nav-item-icon">${r.icon}</span>
         <span class="nav-item-text">${escHtml(r.label)}</span>
       </button>`;
     });
     // Close last section
-    html += '</div>';
+    if (currentSection) html += '</div>';
     nav.innerHTML = html;
 
     // Sidebar user info
@@ -201,6 +213,45 @@ const App = (() => {
     toast(`Đã chuyển sang tài khoản: ${user.fullName}`, 'info');
   }
 
+  function closeUserMenu(restoreFocus = false) {
+    const userMenu = document.getElementById('topbar-user');
+    const toggle = document.getElementById('topbar-user-toggle');
+    const focusWasInMenu = Boolean(userMenu?.contains(document.activeElement));
+    userMenu?.classList.remove('open');
+    toggle?.setAttribute('aria-expanded', 'false');
+    if (restoreFocus || focusWasInMenu) toggle?.focus();
+  }
+
+  function setMobileNavigation(open, restoreFocus = false) {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const menuButton = document.getElementById('mobile-menu-btn');
+    if (!sidebar || !overlay || !menuButton) return;
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const shouldOpen = isMobile && open;
+    sidebar.classList.toggle('mobile-open', shouldOpen);
+    sidebar.inert = isMobile && !shouldOpen;
+    overlay.classList.toggle('hidden', !shouldOpen);
+    overlay.setAttribute('aria-hidden', String(!shouldOpen));
+    menuButton.setAttribute('aria-expanded', String(shouldOpen));
+    menuButton.setAttribute('aria-label', shouldOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng');
+    if (shouldOpen) sidebar.querySelector('.sidebar-nav-item')?.focus();
+    else if (restoreFocus) menuButton.focus();
+  }
+
+  function _syncTableKeyboardAccess() {
+    document.querySelectorAll('#main-content .table-container').forEach(container => {
+      if (container.scrollWidth > container.clientWidth) {
+        container.tabIndex = 0;
+        container.setAttribute('aria-label', 'Bảng có thể cuộn ngang');
+      } else {
+        container.removeAttribute('tabindex');
+        container.removeAttribute('aria-label');
+      }
+    });
+  }
+
   /* ── Router ────────────────────────────────────────────── */
   function navigate(routeId) {
     const user   = State.get.currentUser();
@@ -218,6 +269,7 @@ const App = (() => {
     // Update sidebar active state
     document.querySelectorAll('.sidebar-nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.route === routeId);
+      el.setAttribute('aria-current', el.dataset.route === routeId ? 'page' : 'false');
     });
 
     // Update breadcrumb
@@ -233,19 +285,21 @@ const App = (() => {
     const main = document.getElementById('main-content');
     if (main) {
       main.innerHTML = route.render();
+      _syncTableKeyboardAccess();
       if (route.afterRender) {
         setTimeout(() => {
           if (_currentRoute === routeId && main.isConnected) route.afterRender();
         }, 0);
       }
       main.scrollTop = 0;
+      main.focus();
     }
 
     // Update role switcher active
     _buildRoleSwitcher(user);
     // A route change also dismisses the mobile navigation.
-    document.getElementById('sidebar')?.classList.remove('mobile-open');
-    document.getElementById('sidebar-overlay')?.classList.add('hidden');
+    setMobileNavigation(false);
+    closeUserMenu();
   }
 
   /* ── Modal ─────────────────────────────────────────────── */
@@ -262,6 +316,7 @@ const App = (() => {
       return;
     }
 
+    if (container.classList.contains('hidden')) _modalOpener = document.activeElement;
     titleEl.textContent = title;
     bodyEl.innerHTML    = body;
 
@@ -279,7 +334,8 @@ const App = (() => {
     });
 
     container.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
+    _syncDialogState();
+    closeBtn.focus();
 
     // Close on backdrop click
     backdrop.onclick = () => closeModal();
@@ -288,16 +344,54 @@ const App = (() => {
 
   function closeModal() {
     const container = document.getElementById('modal-container');
-    if (container) container.classList.add('hidden');
-    _syncBodyScrollLock();
+    if (!container || container.classList.contains('hidden')) return;
+    container.classList.add('hidden');
+    _syncDialogState();
+    _restoreFocus(_modalOpener);
+    _modalOpener = null;
   }
 
-  function _syncBodyScrollLock() {
+  function _syncDialogState() {
     const modal = document.getElementById('modal-container');
     const confirmDialog = document.getElementById('confirm-dialog');
     const modalOpen = Boolean(modal && !modal.classList.contains('hidden'));
     const confirmOpen = Boolean(confirmDialog && !confirmDialog.classList.contains('hidden'));
     document.body.style.overflow = modalOpen || confirmOpen ? 'hidden' : '';
+    const appShell = document.getElementById('app-shell');
+    if (appShell) {
+      if (modalOpen || confirmOpen) appShell.setAttribute('aria-hidden', 'true');
+      else appShell.removeAttribute('aria-hidden');
+    }
+  }
+
+  function _restoreFocus(element) {
+    if (element instanceof HTMLElement && element.isConnected
+      && !element.closest('.hidden') && element.getClientRects().length > 0) {
+      element.focus();
+    }
+  }
+
+  function _trapDialogFocus(dialog, event) {
+    if (event.key !== 'Tab') return;
+    const focusable = [...dialog.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(element => !element.closest('.hidden') && element.getClientRects().length > 0);
+
+    if (!focusable.length) {
+      event.preventDefault();
+      dialog.focus();
+      return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   /* ── Confirm Dialog ─────────────────────────────────────── */
@@ -316,6 +410,7 @@ const App = (() => {
       return;
     }
 
+    if (dialog.classList.contains('hidden')) _confirmOpener = document.activeElement;
     const type = options.type || 'info';
     titleEl.textContent  = title;
     msgEl.textContent    = message || '';
@@ -343,7 +438,7 @@ const App = (() => {
     }
 
     dialog.classList.remove('hidden');
-    _syncBodyScrollLock();
+    _syncDialogState();
 
     // Clean up old listeners
     const newOk     = okBtn.cloneNode(true);
@@ -363,12 +458,16 @@ const App = (() => {
     newCancel.addEventListener('click', _closeConfirm);
     // Backdrop
     dialog.querySelector('.confirm-backdrop').onclick = _closeConfirm;
+    newCancel.focus();
   }
 
   function _closeConfirm() {
     const dialog = document.getElementById('confirm-dialog');
-    if (dialog) dialog.classList.add('hidden');
-    _syncBodyScrollLock();
+    if (!dialog || dialog.classList.contains('hidden')) return;
+    dialog.classList.add('hidden');
+    _syncDialogState();
+    _restoreFocus(_confirmOpener);
+    _confirmOpener = null;
   }
 
   /* ── Toast ─────────────────────────────────────────────── */
@@ -436,36 +535,55 @@ const App = (() => {
     const overlay   = document.getElementById('sidebar-overlay');
     if (mobileBtn && overlay) {
       mobileBtn.addEventListener('click', () => {
-        document.getElementById('sidebar')?.classList.add('mobile-open');
-        overlay.classList.remove('hidden');
+        const isOpen = mobileBtn.getAttribute('aria-expanded') === 'true';
+        setMobileNavigation(!isOpen, isOpen);
       });
     }
     if (overlay) {
       overlay.addEventListener('click', () => {
-        document.getElementById('sidebar').classList.remove('mobile-open');
-        overlay.classList.add('hidden');
+        setMobileNavigation(false, true);
       });
     }
+    setMobileNavigation(false);
+    window.addEventListener('resize', () => {
+      if (!window.matchMedia('(max-width: 768px)').matches) setMobileNavigation(false);
+      else setMobileNavigation(mobileBtn?.getAttribute('aria-expanded') === 'true');
+      _syncTableKeyboardAccess();
+    });
 
     // Topbar user menu
     const topbarUser = document.getElementById('topbar-user');
-    if (topbarUser) {
-      topbarUser.addEventListener('click', e => {
-        if (e.target.closest('.user-dropdown')) return;
-        e.stopPropagation();
-        topbarUser.classList.toggle('open');
+    const userToggle = document.getElementById('topbar-user-toggle');
+    if (topbarUser && userToggle) {
+      userToggle.addEventListener('click', () => {
+        const isOpen = topbarUser.classList.toggle('open');
+        userToggle.setAttribute('aria-expanded', String(isOpen));
       });
-      document.addEventListener('click', () => topbarUser.classList.remove('open'));
+      document.addEventListener('click', event => {
+        if (event.target instanceof Element && event.target.closest('#confirm-dialog, #modal-container')) return;
+        if (!topbarUser.contains(event.target)) closeUserMenu();
+      });
     }
 
     // ESC key
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        const confirmDialog = document.getElementById('confirm-dialog');
-        if (confirmDialog && !confirmDialog.classList.contains('hidden')) {
+      const confirmDialog = document.getElementById('confirm-dialog');
+      const modal = document.getElementById('modal-container');
+      if (confirmDialog && !confirmDialog.classList.contains('hidden')) {
+        _trapDialogFocus(confirmDialog, e);
+        if (e.key === 'Escape') {
           _closeConfirm();
-        } else {
+        }
+      } else if (modal && !modal.classList.contains('hidden')) {
+        _trapDialogFocus(modal, e);
+        if (e.key === 'Escape') {
           closeModal();
+        }
+      } else if (e.key === 'Escape') {
+        if (document.getElementById('topbar-user')?.classList.contains('open')) {
+          closeUserMenu(true);
+        } else if (document.getElementById('sidebar')?.classList.contains('mobile-open')) {
+          setMobileNavigation(false, true);
         }
       }
     });
@@ -504,7 +622,7 @@ const App = (() => {
   }
 
   return {
-    init, navigate, logout, switchDemoUser,
+    init, navigate, logout, switchDemoUser, closeUserMenu,
     openModal, closeModal,
     confirm, toast,
     resetDemo,

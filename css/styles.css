@@ -90,6 +90,14 @@ body {
 /* ── Utility ──────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.bootstrap-status {
+  position: fixed; inset: 0; z-index: 3000; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px; padding: 24px;
+  background: var(--bg-page); color: var(--text-primary); text-align: center;
+}
+.bootstrap-status.error { background: var(--bg-page); }
+.bootstrap-status p { max-width: 460px; }
+.bootstrap-status .btn { margin-top: 4px; }
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
@@ -162,6 +170,8 @@ body {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  width: 100%;
+  min-width: 0;
 }
 
 /* ── Sidebar ──────────────────────────────────────────────────── */
@@ -261,6 +271,7 @@ body {
 /* ── Main Wrapper ─────────────────────────────────────────────── */
 .main-wrapper {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
   display: flex;
   flex-direction: column;
@@ -307,7 +318,13 @@ body {
 .role-tab.active { background: var(--primary); color: white; }
 .role-tab:hover:not(.active) { background: var(--gray-100); }
 
-.topbar-user { display: flex; align-items: center; gap: 10px; cursor: pointer; position: relative; }
+.topbar-user { display: flex; align-items: center; position: relative; }
+.topbar-user-toggle {
+  display: flex; align-items: center; gap: 10px; padding: 4px;
+  color: inherit; background: none; border: 0; border-radius: var(--radius);
+  cursor: pointer; text-align: left;
+}
+.topbar-user-toggle:hover { background: var(--gray-50); }
 .user-avatar {
   width: 34px; height: 34px; border-radius: var(--radius-full);
   background: var(--primary); color: white;
@@ -344,6 +361,7 @@ body {
 /* ── Main Content ─────────────────────────────────────────────── */
 .main-content {
   flex: 1;
+  min-width: 0;
   padding: 24px;
   overflow-y: auto;
 }
@@ -410,6 +428,10 @@ body {
   border-radius: var(--radius); border: 1px solid transparent;
   cursor: pointer; transition: all var(--transition); white-space: nowrap;
   text-decoration: none; line-height: 1.4;
+}
+button:focus-visible, a:focus-visible, [tabindex="0"]:focus-visible {
+  outline: 3px solid var(--primary-light);
+  outline-offset: 3px;
 }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn svg { flex-shrink: 0; }
@@ -588,7 +610,7 @@ select { cursor: pointer; appearance: none;
 }
 .modal-box {
   position: relative; background: var(--bg-card); border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl); width: 100%; max-width: 600px; max-height: 90vh;
+  box-shadow: var(--shadow-xl); width: 100%; max-width: 600px; max-height: 90vh; max-height: 90dvh;
   display: flex; flex-direction: column; z-index: 1;
 }
 .modal-box.modal-sm { max-width: 440px; }
@@ -829,7 +851,7 @@ select { cursor: pointer; appearance: none;
   .topbar-role-switcher { display: none; }
   .stat-grid { grid-template-columns: 1fr 1fr; }
   .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
-  .modal-box { margin: 0; max-height: 100vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; align-self: flex-end; }
+  .modal-box { margin: 0; max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); border-radius: var(--radius-lg) var(--radius-lg) 0 0; align-self: flex-end; }
   .page-header { flex-direction: column; }
   .page-actions { width: 100%; justify-content: flex-end; }
   .user-meta { display: none; }
@@ -843,6 +865,14 @@ select { cursor: pointer; appearance: none;
   .calendar-grid { gap: 0; }
   .cal-day { min-height: 60px; }
   .demo-accounts-grid { grid-template-columns: 1fr; }
+  .main-content { padding: 12px; }
+  .topbar { padding: 0 12px; gap: 8px; }
+  .topbar-left { gap: 6px; }
+  .table-toolbar { padding: 12px; }
+  .search-input-wrap { min-width: 100%; max-width: none; }
+  .filter-select { flex: 1; min-width: 0; }
+  .modal-container { padding: 8px; }
+  .modal-header, .modal-body, .modal-footer { padding-left: 16px; padding-right: 16px; }
 }
 
 /* ── Loading States ───────────────────────────────────────────── */
@@ -850,6 +880,17 @@ select { cursor: pointer; appearance: none;
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .loading-spinner { width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 
 /* ── Misc ─────────────────────────────────────────────────────── */
 .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }

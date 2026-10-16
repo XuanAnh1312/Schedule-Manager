@@ -575,9 +575,9 @@ function render() {
 </div>
 <div class="card">
   <div class="table-toolbar">
-    <input type="date" class="form-input" style="width:auto" value="${_shiftDateFilter}"
+    <input type="date" class="form-input" style="width:auto" value="${_shiftDateFilter}" aria-label="Lọc ca theo ngày"
            onchange="AdminShift.filterShifts('date', this.value)" title="Lọc theo ngày">
-    <select class="form-input filter-select" onchange="AdminShift.filterShifts('status', this.value)">
+    <select class="form-input filter-select" aria-label="Lọc ca theo trạng thái" onchange="AdminShift.filterShifts('status', this.value)">
       <option value="">Tất cả trạng thái</option>
       <option value="not_scheduled" ${_shiftStatusFilter==='not_scheduled'?'selected':''}>Chưa phân lịch</option>
       <option value="draft"         ${_shiftStatusFilter==='draft'        ?'selected':''}>Nháp</option>
@@ -758,14 +758,14 @@ function _renderUserConfig(mandatory, preferred) {
   ${[...mandatory.map(u=>({...u,_type:'mandatory'})), ...preferred.map(u=>({...u,_type:'preferred'}))].map((u,i) => _userAssignRow(u, i)).join('')}
 </div>
 <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
-  <select id="user-pick-select" class="form-input" style="width:200px">
+  <select id="user-pick-select" class="form-input" aria-label="Chọn nhân viên được phân công" style="width:200px">
     <option value="">-- Chọn nhân viên --</option>
     ${allUsers.map(u => {
       const lvl = State.get.levelById(u.levelId);
       return `<option value="${u.id}">${escHtml(u.fullName)} (${lvl?lvl.name:'—'})</option>`;
     }).join('')}
   </select>
-  <select id="user-pick-type" class="form-input" style="width:140px">
+  <select id="user-pick-type" class="form-input" aria-label="Loại phân công nhân viên" style="width:140px">
     <option value="mandatory">Bắt buộc</option>
     <option value="preferred">Ưu tiên</option>
   </select>

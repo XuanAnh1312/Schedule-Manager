@@ -212,7 +212,7 @@ function render() {
       <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
         <div class="form-group">
           <label class="form-label">Kỳ phân lịch</label>
-          <select id="sched-period-select" class="form-input">
+          <select id="sched-period-select" class="form-input" aria-label="Chọn kỳ để phân lịch">
             ${periods.map(p => `<option value="${p.id}" ${activePeriod&&p.id===activePeriod.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}
           </select>
         </div>
@@ -379,7 +379,8 @@ function render() {
     <h1 class="page-title">Duyệt và công bố lịch</h1>
   </div>
   <div class="page-actions">
-    <select class="form-input" id="pub-period-select" onchange="AdminPublish.changePeriod(this.value)" style="width:220px">
+    <select class="form-input" id="pub-period-select" aria-label="Chọn kỳ cần công bố"
+            onchange="AdminPublish.changePeriod(this.value)" style="width:220px">
       ${periods.map(p => `<option value="${p.id}" ${period&&p.id===period.id?'selected':''}>${escHtml(p.name)}</option>`).join('')}
     </select>
   </div>
@@ -549,10 +550,10 @@ function render() {
     <div class="table-toolbar">
       <div class="search-input-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input type="text" placeholder="Tìm trong lịch sử..." value="${escHtml(_histSearch)}"
+        <input type="text" aria-label="Tìm kiếm lịch sử" placeholder="Tìm trong lịch sử..." value="${escHtml(_histSearch)}"
                oninput="AdminHistory.filterHist('search', this.value)">
       </div>
-      <select class="form-input filter-select" onchange="AdminHistory.filterHist('type', this.value)">
+      <select class="form-input filter-select" aria-label="Lọc lịch sử theo loại" onchange="AdminHistory.filterHist('type', this.value)">
         <option value="">Tất cả loại</option>
         <option value="user_save"        ${_histType==='user_save'       ?'selected':''}>Nhân sự</option>
         <option value="period_open"      ${_histType==='period_open'     ?'selected':''}>Kỳ đăng ký</option>

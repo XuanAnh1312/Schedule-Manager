@@ -329,14 +329,32 @@ const UniqueCheck = {
 /* ── UI helpers: inline errors ─────────────────────────────── */
 function showFieldErrors(formEl, errors) {
   if (!formEl) return;
-  formEl.querySelectorAll('.field-error').forEach(el => { el.textContent = ''; });
+  formEl.querySelectorAll('.field-error').forEach(el => {
+    el.textContent = '';
+    el.setAttribute('aria-live', 'polite');
+  });
   formEl.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+  formEl.querySelectorAll('[aria-invalid="true"]').forEach(input => {
+    input.setAttribute('aria-invalid', 'false');
+    _removeDescribedBy(input, input.dataset.errorDescriptionId);
+    delete input.dataset.errorDescriptionId;
+  });
 
   Object.entries(errors).forEach(([field, msg]) => {
     const errEl = formEl.querySelector(`[data-err="${field}"]`);
-    if (errEl) errEl.textContent = msg;
     const inputEl = formEl.querySelector(`[name="${field}"]`) || formEl.querySelector(`#field-${field}`);
-    if (inputEl) inputEl.classList.add('error');
+    if (errEl) {
+      if (!errEl.id) errEl.id = `${formEl.getAttribute('id') || 'form'}-error-${field}`;
+      errEl.textContent = msg;
+    }
+    if (inputEl) {
+      inputEl.classList.add('error');
+      inputEl.setAttribute('aria-invalid', 'true');
+      if (errEl) {
+        inputEl.dataset.errorDescriptionId = errEl.id;
+        _addDescribedBy(inputEl, errEl.id);
+      }
+    }
   });
 }
 
@@ -344,6 +362,24 @@ function clearFormErrors(formEl) {
   if (!formEl) return;
   formEl.querySelectorAll('.field-error').forEach(el => { el.textContent = ''; });
   formEl.querySelectorAll('.error').forEach(el => el.classList.remove('error'));
+  formEl.querySelectorAll('[aria-invalid="true"]').forEach(input => {
+    input.setAttribute('aria-invalid', 'false');
+    _removeDescribedBy(input, input.dataset.errorDescriptionId);
+    delete input.dataset.errorDescriptionId;
+  });
+}
+
+function _addDescribedBy(element, id) {
+  const ids = new Set((element.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+  ids.add(id);
+  element.setAttribute('aria-describedby', [...ids].join(' '));
+}
+
+function _removeDescribedBy(element, id) {
+  if (!id) return;
+  const ids = (element.getAttribute('aria-describedby') || '').split(/\s+/).filter(value => value && value !== id);
+  if (ids.length) element.setAttribute('aria-describedby', ids.join(' '));
+  else element.removeAttribute('aria-describedby');
 }
 
 /* ── Internal helpers ──────────────────────────────────────── */

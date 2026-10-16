@@ -27,7 +27,8 @@ function renderDashboard() {
     <p class="page-subtitle">Kỳ hiện tại: ${activePeriod ? escHtml(activePeriod.name) : 'Chưa có kỳ nào'}</p>
   </div>
   <div class="page-actions">
-    <select class="form-input" id="dash-period-select" onchange="Admin.switchDashPeriod(this.value)" style="width:220px">
+    <select class="form-input" id="dash-period-select" aria-label="Chọn kỳ hiển thị trên tổng quan"
+            onchange="Admin.switchDashPeriod(this.value)" style="width:220px">
       ${periods.map(p => `<option value="${p.id}" ${activePeriod && p.id === activePeriod.id ? 'selected' : ''}>${escHtml(p.name)}</option>`).join('')}
     </select>
     <button class="btn btn-primary" onclick="App.navigate('auto-schedule')">
@@ -170,14 +171,14 @@ function renderUsers() {
   <div class="table-toolbar">
     <div class="search-input-wrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" placeholder="Tìm tên hoặc mã..." value="${escHtml(_userSearch)}"
+      <input type="text" aria-label="Tìm nhân viên theo tên hoặc mã" placeholder="Tìm tên hoặc mã..." value="${escHtml(_userSearch)}"
              oninput="Admin.filterUsers('search', this.value)" />
     </div>
-    <select class="form-input filter-select" onchange="Admin.filterUsers('level', this.value)">
+    <select class="form-input filter-select" aria-label="Lọc nhân viên theo Level" onchange="Admin.filterUsers('level', this.value)">
       <option value="">Tất cả Level</option>
       ${levels.map(l => `<option value="${l.id}" ${_userLevelFilter === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}
     </select>
-    <select class="form-input filter-select" onchange="Admin.filterUsers('status', this.value)">
+    <select class="form-input filter-select" aria-label="Lọc nhân viên theo trạng thái" onchange="Admin.filterUsers('status', this.value)">
       <option value="">Tất cả trạng thái</option>
       <option value="active"   ${_userStatusFilter === 'active'   ? 'selected' : ''}>Đang hoạt động</option>
       <option value="inactive" ${_userStatusFilter === 'inactive' ? 'selected' : ''}>Tạm khóa</option>

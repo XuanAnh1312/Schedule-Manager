@@ -318,17 +318,6 @@ body {
 .breadcrumb-item.active { color: var(--text-primary); font-weight: 500; }
 .breadcrumb-sep { color: var(--gray-300); flex-shrink: 0; }
 
-.topbar-role-switcher { display: flex; align-items: center; gap: 8px; }
-.role-label { font-size: 0.786rem; color: var(--text-muted); white-space: nowrap; }
-.role-tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.role-tab {
-  padding: 5px 12px; font-size: 0.786rem; font-weight: 500; cursor: pointer;
-  border: none; background: none; color: var(--text-secondary);
-  transition: all var(--transition); white-space: nowrap;
-}
-.role-tab.active { background: var(--primary); color: white; }
-.role-tab:hover:not(.active) { background: var(--gray-100); }
-
 .topbar-user { display: flex; align-items: center; position: relative; }
 .topbar-user-toggle {
   display: flex; align-items: center; gap: 10px; padding: 4px;

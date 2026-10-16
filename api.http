@@ -1,0 +1,12 @@
+### 1. Đăng nhập để lấy Token
+POST http://localhost:8081/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Admin@123"
+}
+
+### 2. Lấy danh sách Level
+GET http://localhost:8081/api/levels
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c3JfYWRtaW5fMDAxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc5MjE2Mzk4NywiZXhwIjoxNzkyMjUwMzg3fQ.G_ig6Am9J5t_hgn6XCpl3kijcNwz9_HqvUtg5oFrsDsJ8hd8gRv6Rxps8-j_9rsM8CcrpS4WF0d8vuZN6HAe0w

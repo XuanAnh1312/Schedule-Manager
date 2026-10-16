@@ -4,13 +4,13 @@
 
 package org.dacnpm.schedulemanager;
 
-/**
- *
- * @author domAn
- */
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
 public class ManageSchedule {
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+        SpringApplication.run(ManageSchedule.class, args);
     }
 }

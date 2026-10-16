@@ -1,0 +1,57 @@
+<!-- Login screen -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect width="48" height="48" rx="12" fill="#1e40af"/>
+        <path d="M12 16h24M12 24h24M12 32h16" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="36" cy="32" r="6" fill="#3b82f6" stroke="white" stroke-width="2"/>
+        <path d="M33.5 32l1.5 1.5 3-3" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <h1 class="login-title">Hệ thống phân lịch</h1>
+    <p class="login-subtitle">Đăng nhập để tiếp tục</p>
+
+    <form id="login-form" class="login-form" novalidate>
+      <div class="form-group">
+        <label for="login-username">Tên đăng nhập</label>
+        <input type="text" id="login-username" name="username" placeholder="Nhập tên đăng nhập" autocomplete="username" />
+        <span class="field-error" id="login-username-err"></span>
+      </div>
+      <div class="form-group">
+        <label for="login-password">Mật khẩu</label>
+        <div class="input-password-wrap">
+          <input type="password" id="login-password" name="password" placeholder="Nhập mật khẩu" autocomplete="current-password" />
+          <button type="button" class="btn-toggle-pw" aria-label="Hiện/ẩn mật khẩu" onclick="togglePasswordVisibility('login-password', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <span class="field-error" id="login-password-err"></span>
+      </div>
+      <span class="field-error" id="login-general-err"></span>
+      <button type="submit" class="btn btn-primary btn-block" id="login-btn">Đăng nhập</button>
+    </form>
+
+    <div class="login-demo-accounts">
+      <p class="demo-label">Tài khoản demo:</p>
+      <div class="demo-accounts-grid">
+        <button class="demo-account-btn" onclick="quickLogin('admin','admin123')">
+          <span class="demo-role admin-role">Admin</span>
+          <span class="demo-creds">admin / admin123</span>
+        </button>
+        <button class="demo-account-btn" onclick="quickLogin('nv001','user123')">
+          <span class="demo-role user-role">Nhân viên</span>
+          <span class="demo-creds">nv001 / user123</span>
+        </button>
+        <button class="demo-account-btn" onclick="quickLogin('nv002','user123')">
+          <span class="demo-role user-role">Nhân viên</span>
+          <span class="demo-creds">nv002 / user123</span>
+        </button>
+        <button class="demo-account-btn" onclick="quickLogin('nv003','user123')">
+          <span class="demo-role user-role">Nhân viên</span>
+          <span class="demo-creds">nv003 / user123</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

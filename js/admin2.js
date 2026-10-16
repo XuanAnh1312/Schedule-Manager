@@ -93,25 +93,28 @@ function openForm(periodId = null) {
   <div class="form-section">
     <div class="form-section-title">Thông tin cơ bản</div>
     <div class="form-group mb-4">
-      <label class="form-label">Tên kỳ đăng ký <span class="required">*</span></label>
-      <input type="text" name="name" class="form-input" value="${escHtml(period?.name||'')}" placeholder="Kỳ tháng 11/2026">
-      <span class="field-error" data-err="name"></span>
+      <label class="form-label" for="pf-name">Tên kỳ đăng ký <span class="required" aria-hidden="true">*</span></label>
+      <input type="text" id="pf-name" name="name" class="form-input" value="${escHtml(period?.name||'')}" placeholder="Kỳ tháng 11/2026"
+             aria-required="true" aria-describedby="pf-name-err">
+      <span class="field-error" id="pf-name-err" data-err="name" aria-live="polite"></span>
     </div>
     <div class="form-row-2">
       <div class="form-group">
-        <label class="form-label">Ngày bắt đầu <span class="required">*</span></label>
-        <input type="date" name="startDate" class="form-input" value="${period?.startDate||''}">
-        <span class="field-error" data-err="startDate"></span>
+        <label class="form-label" for="pf-startDate">Ngày bắt đầu <span class="required" aria-hidden="true">*</span></label>
+        <input type="date" id="pf-startDate" name="startDate" class="form-input" value="${period?.startDate||''}"
+               aria-required="true" aria-describedby="pf-startDate-err">
+        <span class="field-error" id="pf-startDate-err" data-err="startDate" aria-live="polite"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Ngày kết thúc <span class="required">*</span></label>
-        <input type="date" name="endDate" class="form-input" value="${period?.endDate||''}">
-        <span class="field-error" data-err="endDate"></span>
+        <label class="form-label" for="pf-endDate">Ngày kết thúc <span class="required" aria-hidden="true">*</span></label>
+        <input type="date" id="pf-endDate" name="endDate" class="form-input" value="${period?.endDate||''}"
+               aria-required="true" aria-describedby="pf-endDate-err">
+        <span class="field-error" id="pf-endDate-err" data-err="endDate" aria-live="polite"></span>
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Chu kỳ</label>
-      <select name="cycle" class="form-input">
+      <label class="form-label" for="pf-cycle">Chu kỳ</label>
+      <select id="pf-cycle" name="cycle" class="form-input">
         <option value="weekly"  ${period?.cycle==='weekly'  ? 'selected':''}>Theo tuần</option>
         <option value="monthly" ${!period||period?.cycle==='monthly' ? 'selected':''}>Theo tháng</option>
         <option value="yearly"  ${period?.cycle==='yearly'  ? 'selected':''}>Theo năm</option>
@@ -122,46 +125,48 @@ function openForm(periodId = null) {
     <div class="form-section-title">Thời gian đăng ký</div>
     <div class="form-row-2">
       <div class="form-group">
-        <label class="form-label">Thời điểm mở đăng ký</label>
-        <input type="datetime-local" name="openAt" class="form-input"
-               value="${period?.openAt ? new Date(period.openAt).toISOString().slice(0,16) : ''}">
-        <span class="field-error" data-err="openAt"></span>
+        <label class="form-label" for="pf-openAt">Thời điểm mở đăng ký</label>
+        <input type="datetime-local" id="pf-openAt" name="openAt" class="form-input"
+               value="${period?.openAt ? new Date(period.openAt).toISOString().slice(0,16) : ''}"
+               aria-describedby="pf-openAt-err">
+        <span class="field-error" id="pf-openAt-err" data-err="openAt" aria-live="polite"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Hạn chót đăng ký</label>
-        <input type="datetime-local" name="deadline" class="form-input"
-               value="${period?.deadline ? new Date(period.deadline).toISOString().slice(0,16) : ''}">
-        <span class="field-error" data-err="deadline"></span>
+        <label class="form-label" for="pf-deadline">Hạn chót đăng ký</label>
+        <input type="datetime-local" id="pf-deadline" name="deadline" class="form-input"
+               value="${period?.deadline ? new Date(period.deadline).toISOString().slice(0,16) : ''}"
+               aria-describedby="pf-deadline-err">
+        <span class="field-error" id="pf-deadline-err" data-err="deadline" aria-live="polite"></span>
       </div>
     </div>
     <div style="display:flex;gap:24px;flex-wrap:wrap">
       <label class="toggle-switch">
         <input type="checkbox" name="autoLock" ${period?.autoLock !== false ? 'checked' : ''}>
-        <span class="toggle-track"></span>
+        <span class="toggle-track" aria-hidden="true"></span>
         <span class="toggle-label">Tự động khóa khi hết hạn</span>
       </label>
       <label class="toggle-switch">
         <input type="checkbox" name="allowEditAfterDeadline" ${period?.allowEditAfterDeadline ? 'checked' : ''}>
-        <span class="toggle-track"></span>
+        <span class="toggle-track" aria-hidden="true"></span>
         <span class="toggle-label">Cho phép sửa sau hạn</span>
       </label>
       <label class="toggle-switch">
         <input type="checkbox" name="allowReopenByAdmin" ${period?.allowReopenByAdmin !== false ? 'checked' : ''}>
-        <span class="toggle-track"></span>
+        <span class="toggle-track" aria-hidden="true"></span>
         <span class="toggle-label">Cho phép Admin mở lại</span>
       </label>
     </div>
   </div>
   <div class="form-section">
     <div class="form-section-title">Ngày cần đăng ký</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Ngày trong tuần cần đăng ký" aria-describedby="pf-dow-hint">
       ${dowLabels.map((label, i) => `
         <label class="form-check">
           <input type="checkbox" name="dow_${i}" ${(period?.requiredDaysOfWeek ?? [1,2,3,4,5,6]).includes(i) ? 'checked' : ''}>
           <span class="form-check-label">${label}</span>
         </label>`).join('')}
     </div>
-    <span class="form-hint mt-1">Các thứ nhân viên cần đăng ký thời gian rảnh.</span>
+    <span class="form-hint mt-1" id="pf-dow-hint">Các thứ nhân viên cần đăng ký thời gian rảnh.</span>
   </div>
   <div class="form-section">
     <div class="form-section-title">Ngày được miễn đăng ký</div>
@@ -169,10 +174,11 @@ function openForm(periodId = null) {
       ${_renderExemptDates(period?.exemptDates||[])}
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <input type="date" id="new-exempt-date" class="form-input" style="width:auto">
+      <label class="sr-only" for="new-exempt-date">Thêm ngày được miễn</label>
+      <input type="date" id="new-exempt-date" class="form-input" style="width:auto" aria-label="Ngày được miễn cần thêm">
       <button type="button" class="btn btn-secondary btn-sm" onclick="AdminPeriod.addExemptDate()">Thêm ngày miễn</button>
     </div>
-    <span class="form-hint">Ngày nghỉ lễ, ngày cửa hàng đóng cửa, v.v.</span>
+    <span class="form-hint" id="pf-exempt-hint">Ngày nghỉ lễ, ngày cửa hàng đóng cửa, v.v.</span>
   </div>
   <input type="hidden" name="id" value="${period?.id||''}">
   <input type="hidden" name="exempt-dates-hidden" id="exempt-dates-hidden" value="${escHtml(JSON.stringify(period?.exemptDates||[]))}">
@@ -406,6 +412,7 @@ function _renderView() {
     if (titleEl) titleEl.textContent = _fmtD(_currentDate);
     bodyEl.innerHTML = _renderDay(_fmtDate(_currentDate));
   }
+  App.refreshTableKeyboardAccess();
 }
 
 function _fmtDate(d) {
@@ -437,9 +444,11 @@ function _renderMonth() {
     const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayShifts = shifts.filter(s => s.date === dateStr).slice(0,3);
     const isToday   = dateStr === todayStr;
-    cells += `<div class="cal-day ${isToday?'today':''}" onclick="AdminCalendar.selectDay('${dateStr}')">
+    cells += `<button class="cal-day ${isToday?'today':''}" onclick="AdminCalendar.selectDay('${dateStr}')"
+      aria-label="${isToday ? 'Hôm nay, ' : ''}Ngày ${d} tháng ${m+1}, ${dayShifts.length} ca"
+      type="button">
       <div class="cal-day-num">${d}</div>
-      <div class="cal-events">
+      <div class="cal-events" aria-hidden="true">
         ${dayShifts.map(s => {
           const filled = asgns.filter(a => a.shiftId === s.id).length;
           const cls = s.status === 'published' ? (filled >= s.totalRequired ? 'full' : 'understaffed') : 'draft';
@@ -447,7 +456,7 @@ function _renderMonth() {
         }).join('')}
         ${shifts.filter(s => s.date === dateStr).length > 3 ? `<div class="cal-more">+${shifts.filter(s=>s.date===dateStr).length-3} ca</div>` : ''}
       </div>
-    </div>`;
+    </button>`;
   }
   // Trailing cells
   const total = startDOW + lastDay.getDate();
@@ -480,11 +489,12 @@ function _renderWeek(wStart) {
       ${dayShifts.map(s => {
         const filled = asgns.filter(a => a.shiftId === s.id).length;
         const cls = s.status === 'published' ? (filled >= s.totalRequired ? 'full' : 'understaffed') : 'draft';
-        return `<div class="week-shift-card cal-event ${cls}" onclick="AdminShift.viewDetail('${s.id}')" style="cursor:pointer">
-          <strong>${escHtml(s.name)}</strong><br>
-          <span style="font-size:0.714rem">${s.startTime}–${s.endTime}</span><br>
-          <span style="font-size:0.714rem">${filled}/${s.totalRequired} người</span>
-        </div>`;
+        return `<button type="button" class="week-shift-card cal-event ${cls}" onclick="AdminShift.viewDetail('${s.id}')"
+          aria-label="Xem chi tiết ca ${escHtml(s.name)}, ${s.startTime}–${s.endTime}, ${filled}/${s.totalRequired} người">
+          <strong aria-hidden="true">${escHtml(s.name)}</strong><br aria-hidden="true">
+          <span style="font-size:0.714rem" aria-hidden="true">${s.startTime}–${s.endTime}</span><br aria-hidden="true">
+          <span style="font-size:0.714rem" aria-hidden="true">${filled}/${s.totalRequired} người</span>
+        </button>`;
       }).join('')}
       <button class="btn btn-ghost btn-xs" onclick="AdminShift.openForm(null,'${d.str}')" style="width:100%;margin-top:4px">+ Ca</button>
     </td>`;
@@ -646,54 +656,60 @@ function openForm(shiftId = null, prefillDate = null) {
     <div class="form-section-title">Thông tin ca</div>
     <div class="form-row-2">
       <div class="form-group">
-        <label class="form-label">Tên ca <span class="required">*</span></label>
-        <input type="text" name="name" class="form-input" value="${escHtml(shift?.name||'')}" placeholder="Ca sáng">
-        <span class="field-error" data-err="name"></span>
+        <label class="form-label" for="sf-name">Tên ca <span class="required" aria-hidden="true">*</span></label>
+        <input type="text" id="sf-name" name="name" class="form-input" value="${escHtml(shift?.name||'')}" placeholder="Ca sáng"
+               aria-required="true" aria-describedby="sf-name-err">
+        <span class="field-error" id="sf-name-err" data-err="name" aria-live="polite"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Ngày làm <span class="required">*</span></label>
-        <input type="date" name="date" class="form-input" value="${shift?.date || prefillDate || ''}">
-        <span class="field-error" data-err="date"></span>
+        <label class="form-label" for="sf-date">Ngày làm <span class="required" aria-hidden="true">*</span></label>
+        <input type="date" id="sf-date" name="date" class="form-input" value="${shift?.date || prefillDate || ''}"
+               aria-required="true" aria-describedby="sf-date-err">
+        <span class="field-error" id="sf-date-err" data-err="date" aria-live="polite"></span>
       </div>
     </div>
     <div class="form-row-3">
       <div class="form-group">
-        <label class="form-label">Giờ bắt đầu <span class="required">*</span></label>
-        <input type="time" name="startTime" class="form-input" value="${shift?.startTime||'07:00'}">
-        <span class="field-error" data-err="startTime"></span>
+        <label class="form-label" for="sf-startTime">Giờ bắt đầu <span class="required" aria-hidden="true">*</span></label>
+        <input type="time" id="sf-startTime" name="startTime" class="form-input" value="${shift?.startTime||'07:00'}"
+               aria-required="true" aria-describedby="sf-startTime-err">
+        <span class="field-error" id="sf-startTime-err" data-err="startTime" aria-live="polite"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Giờ kết thúc <span class="required">*</span></label>
-        <input type="time" name="endTime" class="form-input" value="${shift?.endTime||'15:00'}">
-        <span class="field-error" data-err="endTime"></span>
+        <label class="form-label" for="sf-endTime">Giờ kết thúc <span class="required" aria-hidden="true">*</span></label>
+        <input type="time" id="sf-endTime" name="endTime" class="form-input" value="${shift?.endTime||'15:00'}"
+               aria-required="true" aria-describedby="sf-endTime-err">
+        <span class="field-error" id="sf-endTime-err" data-err="endTime" aria-live="polite"></span>
       </div>
       <div class="form-group">
-        <label class="form-label">Tổng nhu cầu nhân sự <span class="required">*</span></label>
-        <input type="number" name="totalRequired" class="form-input" value="${shift?.totalRequired||4}" min="1" oninput="AdminShift.updateStaffSummary()">
-        <span class="field-error" data-err="totalRequired"></span>
+        <label class="form-label" for="sf-totalRequired">Tổng nhu cầu nhân sự <span class="required" aria-hidden="true">*</span></label>
+        <input type="number" id="sf-totalRequired" name="totalRequired" class="form-input" value="${shift?.totalRequired||4}" min="1"
+               aria-required="true" aria-describedby="sf-totalRequired-err" oninput="AdminShift.updateStaffSummary()">
+        <span class="field-error" id="sf-totalRequired-err" data-err="totalRequired" aria-live="polite"></span>
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label">Ghi chú</label>
-      <textarea name="note" class="form-input" rows="2">${escHtml(shift?.note||'')}</textarea>
+      <label class="form-label" for="sf-note">Ghi chú</label>
+      <textarea id="sf-note" name="note" class="form-input" rows="2">${escHtml(shift?.note||'')}</textarea>
     </div>
   </div>
 
   <div class="form-section">
     <div class="form-section-title">Cấu hình nhân sự</div>
     <div class="form-group mb-4">
-      <label class="form-label">Chế độ cấu hình <span class="required">*</span></label>
-      <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <label class="form-label" id="sf-mode-label">Chế độ cấu hình <span class="required" aria-hidden="true">*</span></label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap" role="radiogroup" aria-labelledby="sf-mode-label" aria-describedby="sf-mode-err">
         ${['level','user','combined'].map(m => `
           <label class="form-check">
             <input type="radio" name="mode" value="${m}" ${mode===m?'checked':''} onchange="AdminShift.switchMode('${m}')">
             <span class="form-check-label">${{level:'A – Theo Level',user:'B – Theo User cụ thể',combined:'C – Kết hợp'}[m]}</span>
           </label>`).join('')}
       </div>
-      <span class="field-error" data-err="mode"></span>
+      <span class="field-error" id="sf-mode-err" data-err="mode" aria-live="polite"></span>
     </div>
 
-    <div id="staff-config-area">
+    <div id="staff-config-area" role="group" aria-label="Cấu hình số lượng và phân công nhân sự"
+         aria-describedby="sf-staffConfig-err">
       ${_renderStaffConfigArea(mode, shift, levels)}
     </div>
   </div>
@@ -701,7 +717,7 @@ function openForm(shiftId = null, prefillDate = null) {
   <div id="staff-summary" class="summary-box">
     ${_renderStaffSummary(shift)}
   </div>
-  <span class="field-error" data-err="staffConfig"></span>
+  <span class="field-error" id="sf-staffConfig-err" data-err="staffConfig" aria-live="polite"></span>
   <input type="hidden" name="id" value="${shift?.id||''}">
 </form>`;
 
@@ -740,13 +756,14 @@ function _renderLevelConfig(levelReqs, levels) {
 function _levelReqRow(r, i, levels) {
   levels = levels || State.get.levels();
   return `<div class="level-config-row" data-level-idx="${i}">
-    <select name="level_id_${i}" class="form-input" style="width:140px" onchange="AdminShift.updateStaffSummary()">
+    <label class="sr-only" for="sf-level-id-${i}">Level yêu cầu ${i+1}</label>
+    <select id="sf-level-id-${i}" name="level_id_${i}" class="form-input" style="width:140px" onchange="AdminShift.updateStaffSummary()">
       <option value="">-- Level --</option>
       ${levels.map(l => `<option value="${l.id}" ${r.levelId===l.id?'selected':''}>${escHtml(l.name)}</option>`).join('')}
     </select>
-    <span style="color:var(--text-muted);font-size:0.857rem">Số lượng:</span>
-    <input type="number" name="level_count_${i}" class="form-input" style="width:70px" value="${r.count||1}" min="1" oninput="AdminShift.updateStaffSummary()">
-    <button type="button" class="btn btn-danger btn-xs" onclick="AdminShift.removeLevelReq(${i})">Xóa</button>
+    <label class="sr-only" for="sf-level-count-${i}">Số lượng Level ${i+1}</label>
+    <input type="number" id="sf-level-count-${i}" name="level_count_${i}" class="form-input" style="width:70px" value="${r.count||1}" min="1" oninput="AdminShift.updateStaffSummary()">
+    <button type="button" class="btn btn-danger btn-xs" onclick="AdminShift.removeLevelReq(${i})" aria-label="Xóa yêu cầu Level ${i+1}">Xóa</button>
   </div>`;
 }
 
@@ -780,12 +797,13 @@ function _userAssignRow(u, i) {
   return `<div class="level-config-row" data-user-idx="${i}" data-user-id="${u.userId}" data-user-type="${u._type||u.type}">
     <span class="font-medium text-sm">${escHtml(user?.fullName||u.userId)}</span>
     ${level ? `<span class="badge" style="background:${level.color}22;color:${level.color};font-size:0.714rem">${escHtml(level.name)}</span>` : ''}
-    <select class="form-input" style="width:130px" onchange="AdminShift.changeUserType(${i}, this.value)">
+    <label class="sr-only" for="sf-user-type-${i}">Loại phân công của ${escHtml(user?.fullName||u.userId)}</label>
+    <select id="sf-user-type-${i}" class="form-input" style="width:130px" onchange="AdminShift.changeUserType(${i}, this.value)">
       ${['mandatory','preferred','substitutable'].map(t =>
         `<option value="${t}" ${(u._type||u.type)===t?'selected':''}>${typeLabel[t]}</option>`
       ).join('')}
     </select>
-    <button type="button" class="btn btn-danger btn-xs" onclick="AdminShift.removeUserAssign(${i})">Xóa</button>
+    <button type="button" class="btn btn-danger btn-xs" onclick="AdminShift.removeUserAssign(${i})" aria-label="Xóa phân công ${escHtml(user?.fullName||u.userId)}">Xóa</button>
   </div>`;
 }
 
@@ -1013,23 +1031,23 @@ function openManualAssign(shiftId) {
 </div>
 <form id="manual-assign-form" novalidate>
   <div class="form-group mb-3">
-    <label class="form-label">Nhân viên <span class="required">*</span></label>
-    <select name="userId" class="form-input">
+    <label class="form-label" for="ma-userId">Nhân viên <span class="required" aria-hidden="true">*</span></label>
+    <select id="ma-userId" name="userId" class="form-input" aria-required="true">
       <option value="">-- Chọn nhân viên --</option>
       ${users.map(u => { const lvl = State.get.levelById(u.levelId); return `<option value="${u.id}">${escHtml(u.fullName)} (${lvl?lvl.name:'—'})</option>`; }).join('')}
     </select>
   </div>
   <div class="form-group mb-3">
-    <label class="form-label">Kỳ đăng ký</label>
-    <select name="periodId" class="form-input">
+    <label class="form-label" for="ma-periodId">Kỳ đăng ký</label>
+    <select id="ma-periodId" name="periodId" class="form-input">
       ${periods.map(p => `<option value="${p.id}">${escHtml(p.name)}</option>`).join('')}
     </select>
   </div>
   <div class="form-group mb-3">
-    <label class="form-label">Lý do</label>
-    <textarea name="reason" class="form-input" rows="2" placeholder="Nhập lý do phân công thủ công..."></textarea>
+    <label class="form-label" for="ma-reason">Lý do</label>
+    <textarea id="ma-reason" name="reason" class="form-input" rows="2" placeholder="Nhập lý do phân công thủ công..."></textarea>
   </div>
-  <div id="manual-assign-errors" style="color:var(--danger);font-size:0.857rem"></div>
+  <div id="manual-assign-errors" role="alert" aria-live="assertive" style="color:var(--danger);font-size:0.857rem"></div>
 </form>`;
 
   App.openModal(`Phân công thủ công: ${shift.name}`, body, [

@@ -241,10 +241,12 @@ const App = (() => {
   }
 
   function _syncTableKeyboardAccess() {
-    document.querySelectorAll('#main-content .table-container').forEach(container => {
+    document.querySelectorAll('#main-content .table-container, #main-content .week-view').forEach(container => {
       if (container.scrollWidth > container.clientWidth) {
         container.tabIndex = 0;
-        container.setAttribute('aria-label', 'Bảng có thể cuộn ngang');
+        container.setAttribute('aria-label', container.classList.contains('week-view')
+          ? 'Lịch tuần có thể cuộn ngang'
+          : 'Bảng có thể cuộn ngang');
       } else {
         container.removeAttribute('tabindex');
         container.removeAttribute('aria-label');
@@ -525,8 +527,12 @@ const App = (() => {
       toggleBtn.addEventListener('click', () => {
         const sidebar = document.getElementById('sidebar');
         const wrapper = document.querySelector('.main-wrapper');
-        sidebar?.classList.toggle('collapsed');
-        wrapper?.classList.toggle('sidebar-collapsed');
+        const isCollapsed = sidebar?.classList.toggle('collapsed') ?? false;
+        wrapper?.classList.toggle('sidebar-collapsed', isCollapsed);
+        toggleBtn.setAttribute('aria-expanded', String(!isCollapsed));
+        toggleBtn.setAttribute('aria-label', isCollapsed
+          ? 'Mở rộng thanh điều hướng'
+          : 'Thu gọn thanh điều hướng');
       });
     }
 
@@ -564,6 +570,23 @@ const App = (() => {
         if (!topbarUser.contains(event.target)) closeUserMenu();
       });
     }
+
+    // Enter/Space activation cho các element có role="button" mà không phải native button/a
+    // (phòng ngừa trường hợp tương lai có div/span role="button")
+    document.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        const el = e.target;
+        if (
+          el.getAttribute('role') === 'button' &&
+          el.tagName !== 'BUTTON' &&
+          el.tagName !== 'A' &&
+          !el.disabled
+        ) {
+          e.preventDefault();
+          el.click();
+        }
+      }
+    }, true); // capture phase
 
     // ESC key
     document.addEventListener('keydown', e => {
@@ -625,7 +648,7 @@ const App = (() => {
     init, navigate, logout, switchDemoUser, closeUserMenu,
     openModal, closeModal,
     confirm, toast,
-    resetDemo,
+    resetDemo, refreshTableKeyboardAccess: _syncTableKeyboardAccess,
   };
 })();
 

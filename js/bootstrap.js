@@ -86,6 +86,15 @@ async function bootstrap() {
     document.getElementById('bootstrap-status')?.classList.add('hidden');
   } catch (error) {
     console.error(error);
+    // Ẩn các partial đã tải để tránh chồng nội dung lên thông báo lỗi
+    const loginScreen = document.getElementById('login-screen');
+    const appShell = document.getElementById('app-shell');
+    const dialogs = document.getElementById('modal-container');
+    const confirmDialog = document.getElementById('confirm-dialog');
+    if (loginScreen) loginScreen.classList.add('hidden');
+    if (appShell) appShell.classList.add('hidden');
+    if (dialogs) dialogs.classList.add('hidden');
+    if (confirmDialog) confirmDialog.classList.add('hidden');
     const isFileUrl = window.location.protocol === 'file:';
     const message = isFileUrl
       ? 'Không thể tải ứng dụng khi mở trực tiếp tệp. Hãy chạy ứng dụng qua máy chủ HTTP rồi thử lại.'

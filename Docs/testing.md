@@ -8,7 +8,7 @@
 2. Dùng một browser profile dành riêng cho kiểm thử, mở `http://localhost:8000/tests/browser-smoke.html`.
 3. Chọn **Chạy kiểm thử** và xem từng kết quả trên trang.
 
-Suite kiểm tra đăng nhập và lỗi form, chuyển route Admin, bộ lọc, liên kết lỗi trợ năng, focus trap/khôi phục focus, modal và hộp xác nhận, menu mobile/tài khoản, responsive ở 320/375/768/1024/1440 px, cuộn bảng bằng bàn phím và luồng khai báo/gửi thời gian rảnh.
+Suite kiểm tra đăng nhập và lỗi form; tên truy cập và liên kết mô tả lỗi ở form Admin/Nhân viên (nhân viên, Level, kỳ, ca, quy tắc, mật khẩu và khung giờ); trạng thái nút sidebar desktop; focus trap/khôi phục focus, modal và hộp xác nhận; menu mobile/tài khoản; responsive ở 320/375/768/1024/1440 px; truy cập bảng/lịch bằng bàn phím; và luồng khai báo/gửi thời gian rảnh.
 
 Runner tạm thay dữ liệu `localStorage` có tiền tố `pls_` trong lúc chạy, sau đó khôi phục lại dữ liệu đã lưu và tải lại ứng dụng trong iframe. Dùng browser profile riêng để tránh ảnh hưởng phiên ứng dụng đang sử dụng; không đóng/reload tab runner giữa chừng.
 

@@ -32,25 +32,29 @@ function render() {
       <div class="card-header"><span class="card-title">Giờ làm & Mục tiêu</span></div>
       <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
         <div class="form-group">
-          <label class="form-label">Giờ chuẩn mỗi kỳ</label>
-          <input type="number" name="standardHours" class="form-input" value="${rules.standardHours||80}" min="1">
-          <span class="form-hint">Giờ mục tiêu = Giờ chuẩn × Tỷ lệ / 100</span>
-          <span class="field-error" data-err="standardHours"></span>
+          <label class="form-label" for="rf-standardHours">Giờ chuẩn mỗi kỳ</label>
+          <input type="number" id="rf-standardHours" name="standardHours" class="form-input" value="${rules.standardHours||80}" min="1"
+                 aria-describedby="rf-standardHours-hint rf-standardHours-err">
+          <span class="form-hint" id="rf-standardHours-hint">Giờ mục tiêu = Giờ chuẩn × Tỷ lệ / 100</span>
+          <span class="field-error" id="rf-standardHours-err" data-err="standardHours" aria-live="polite"></span>
         </div>
         <div class="form-group">
-          <label class="form-label">Giờ tối đa mỗi ngày</label>
-          <input type="number" name="maxHoursPerDay" class="form-input" value="${rules.maxHoursPerDay||12}" min="1" max="24">
-          <span class="field-error" data-err="maxHoursPerDay"></span>
+          <label class="form-label" for="rf-maxHoursPerDay">Giờ tối đa mỗi ngày</label>
+          <input type="number" id="rf-maxHoursPerDay" name="maxHoursPerDay" class="form-input" value="${rules.maxHoursPerDay||12}" min="1" max="24"
+                 aria-describedby="rf-maxHoursPerDay-err">
+          <span class="field-error" id="rf-maxHoursPerDay-err" data-err="maxHoursPerDay" aria-live="polite"></span>
         </div>
         <div class="form-group">
-          <label class="form-label">Giờ tối đa mỗi tuần</label>
-          <input type="number" name="maxHoursPerWeek" class="form-input" value="${rules.maxHoursPerWeek||48}" min="1" max="168">
-          <span class="field-error" data-err="maxHoursPerWeek"></span>
+          <label class="form-label" for="rf-maxHoursPerWeek">Giờ tối đa mỗi tuần</label>
+          <input type="number" id="rf-maxHoursPerWeek" name="maxHoursPerWeek" class="form-input" value="${rules.maxHoursPerWeek||48}" min="1" max="168"
+                 aria-describedby="rf-maxHoursPerWeek-err">
+          <span class="field-error" id="rf-maxHoursPerWeek-err" data-err="maxHoursPerWeek" aria-live="polite"></span>
         </div>
         <div class="form-group">
-          <label class="form-label">Nghỉ tối thiểu giữa 2 ca (giờ)</label>
-          <input type="number" name="minRestBetweenShifts" class="form-input" value="${rules.minRestBetweenShifts||8}" min="0" max="24">
-          <span class="field-error" data-err="minRestBetweenShifts"></span>
+          <label class="form-label" for="rf-minRest">Nghỉ tối thiểu giữa 2 ca (giờ)</label>
+          <input type="number" id="rf-minRest" name="minRestBetweenShifts" class="form-input" value="${rules.minRestBetweenShifts||8}" min="0" max="24"
+                 aria-describedby="rf-minRest-err">
+          <span class="field-error" id="rf-minRest-err" data-err="minRestBetweenShifts" aria-live="polite"></span>
         </div>
       </div>
     </div>
@@ -60,10 +64,11 @@ function render() {
       <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
         ${levels.map(l => `
           <div style="display:flex;align-items:center;gap:12px">
-            <span class="badge" style="width:90px;background:${l.color}22;color:${l.color}">${escHtml(l.name)}</span>
-            <input type="number" name="lvl_rate_${l.id}" class="form-input" style="width:80px"
-                   value="${rules.levelTargetRates?.[l.id] ?? 100}" min="0" max="200">
-            <span class="form-hint">%</span>
+            <label for="rf-lvl-${l.id}" class="badge" style="width:90px;background:${l.color}22;color:${l.color}">${escHtml(l.name)}</label>
+            <input type="number" id="rf-lvl-${l.id}" name="lvl_rate_${l.id}" class="form-input" style="width:80px"
+                   value="${rules.levelTargetRates?.[l.id] ?? 100}" min="0" max="200"
+                   aria-label="Tỷ lệ giờ mục tiêu cho ${escHtml(l.name)} (%)">
+            <span class="form-hint" aria-hidden="true">%</span>
           </div>`).join('')}
         <span class="form-hint">Cấu hình riêng của từng nhân viên sẽ được ưu tiên hơn.</span>
       </div>
@@ -89,15 +94,15 @@ function render() {
       <div class="card-header"><span class="card-title">Thứ tự ưu tiên & Xử lý</span></div>
       <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
         <div class="form-group">
-          <label class="form-label">Thứ tự ưu tiên phân lịch</label>
-          <select name="schedulingPriority" class="form-input">
+          <label class="form-label" for="rf-schedPriority">Thứ tự ưu tiên phân lịch</label>
+          <select id="rf-schedPriority" name="schedulingPriority" class="form-input">
             <option value="most_needed" ${rules.schedulingPriority==='most_needed'?'selected':''}>Ưu tiên người thiếu nhiều giờ nhất</option>
             <option value="least_hours" ${rules.schedulingPriority==='least_hours'?'selected':''}>Ưu tiên người có ít giờ nhất</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Xử lý ca thiếu nhân sự</label>
-          <select name="understaffedPolicy" class="form-input">
+          <label class="form-label" for="rf-understaffedPolicy">Xử lý ca thiếu nhân sự</label>
+          <select id="rf-understaffedPolicy" name="understaffedPolicy" class="form-input">
             <option value="warn"  ${rules.understaffedPolicy==='warn' ?'selected':''}>Cảnh báo, cho phép tiếp tục</option>
             <option value="block" ${rules.understaffedPolicy==='block'?'selected':''}>Chặn công bố nếu thiếu người</option>
           </select>
@@ -121,14 +126,16 @@ function _renderSubRules(rules) {
   if (!_subRules.length) return '<p class="text-muted text-sm">Chưa có quy tắc thay thế nào.</p>';
   return _subRules.map((r, i) => `
     <div class="level-config-row" style="margin-bottom:8px">
-      <select class="form-input" style="width:130px" onchange="AdminRules.updateSubRule(${i},'higher',this.value)">
+      <label class="sr-only" for="rf-sub-higher-${i}">Level có thể thay thế</label>
+      <select id="rf-sub-higher-${i}" class="form-input" style="width:130px" onchange="AdminRules.updateSubRule(${i},'higher',this.value)">
         ${levels.map(l => `<option value="${l.id}" ${r.higherLevelId===l.id?'selected':''}>${escHtml(l.name)}</option>`).join('')}
       </select>
       <span class="text-sm text-secondary">có thể thay</span>
-      <select class="form-input" style="width:130px" onchange="AdminRules.updateSubRule(${i},'lower',this.value)">
+      <label class="sr-only" for="rf-sub-lower-${i}">Level được thay thế</label>
+      <select id="rf-sub-lower-${i}" class="form-input" style="width:130px" onchange="AdminRules.updateSubRule(${i},'lower',this.value)">
         ${levels.map(l => `<option value="${l.id}" ${r.lowerLevelId===l.id?'selected':''}>${escHtml(l.name)}</option>`).join('')}
       </select>
-      <button type="button" class="btn btn-danger btn-xs" onclick="AdminRules.removeSubRule(${i})">Xóa</button>
+      <button type="button" class="btn btn-danger btn-xs" onclick="AdminRules.removeSubRule(${i})" aria-label="Xóa quy tắc thay thế ${i+1}">Xóa</button>
     </div>`).join('');
 }
 

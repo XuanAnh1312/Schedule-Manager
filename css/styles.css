@@ -195,6 +195,17 @@ body {
 .sidebar.collapsed .sidebar-user-info { opacity: 0; pointer-events: none; width: 0; overflow: hidden; }
 .sidebar.collapsed .sidebar-nav-item { justify-content: center; padding: 0 16px; }
 .sidebar.collapsed .nav-item-icon { margin-right: 0; }
+.level-inline-form {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr 80px auto;
+  gap: 10px;
+  align-items: end;
+}
+.level-color-input { padding: 2px; height: 38px; }
+
+@media (max-width: 640px) {
+  .level-inline-form { grid-template-columns: 1fr 1fr; }
+}
 
 .sidebar-header {
   display: flex;
@@ -712,7 +723,7 @@ select { cursor: pointer; appearance: none;
 /* ── Calendar ─────────────────────────────────────────────────── */
 .calendar-nav {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 12px 0; margin-bottom: 16px;
+  gap: 12px; padding: 12px 0; margin-bottom: 16px; flex-wrap: wrap;
 }
 .calendar-title { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
 .calendar-view-tabs { display: flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
@@ -726,16 +737,20 @@ select { cursor: pointer; appearance: none;
 
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
 .cal-day-header { background: var(--gray-50); padding: 8px; text-align: center; font-size: 0.786rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+/* cal-day is now a <button> for full keyboard accessibility */
 .cal-day {
   background: white; min-height: 90px; padding: 6px;
   cursor: pointer; transition: background var(--transition); position: relative;
+  border: none; text-align: left; width: 100%; font-family: inherit; font-size: inherit;
+  display: flex; flex-direction: column;
 }
 .cal-day:hover { background: var(--gray-50); }
+.cal-day:focus-visible { outline: 3px solid var(--primary-light); outline-offset: -3px; z-index: 1; }
 .cal-day.today { background: var(--primary-bg); }
 .cal-day.today .cal-day-num { color: var(--primary); font-weight: 700; }
-.cal-day.other-month { background: var(--gray-50); }
+.cal-day.other-month { background: var(--gray-50); pointer-events: none; }
 .cal-day.other-month .cal-day-num { color: var(--gray-300); }
-.cal-day.selected { background: var(--primary-bg); border: 2px solid var(--primary-light); }
+.cal-day.selected { background: var(--primary-bg); outline: 2px solid var(--primary-light); outline-offset: -2px; }
 .cal-day-num { font-size: 0.786rem; font-weight: 500; margin-bottom: 4px; color: var(--text-primary); }
 .cal-events { display: flex; flex-direction: column; gap: 2px; }
 .cal-event {
@@ -749,15 +764,18 @@ select { cursor: pointer; appearance: none;
 .cal-more { font-size: 0.643rem; color: var(--text-muted); text-align: center; margin-top: 2px; }
 
 /* Week view */
-.week-view { overflow-x: auto; }
-.week-table { min-width: 700px; width: 100%; border-collapse: collapse; }
+.week-view { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.week-table { min-width: 560px; width: 100%; border-collapse: collapse; }
 .week-table th { padding: 10px 12px; text-align: center; font-size: 0.786rem; font-weight: 600; color: var(--text-secondary); background: var(--gray-50); border: 1px solid var(--border); }
-.week-table td { padding: 8px; border: 1px solid var(--border); vertical-align: top; min-width: 100px; }
+.week-table td { padding: 8px; border: 1px solid var(--border); vertical-align: top; min-width: 80px; }
+/* week-shift-card is now a <button> for keyboard accessibility */
 .week-shift-card {
   padding: 6px 8px; border-radius: var(--radius-sm); margin-bottom: 4px;
   font-size: 0.786rem; cursor: pointer; transition: opacity var(--transition);
+  border: none; text-align: left; width: 100%; font-family: inherit; display: block;
 }
 .week-shift-card:hover { opacity: 0.8; }
+.week-shift-card:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 2px; }
 
 /* ── Empty States ─────────────────────────────────────────────── */
 .empty-state { text-align: center; padding: 48px 24px; }
@@ -836,6 +854,11 @@ select { cursor: pointer; appearance: none;
 
 @media (max-width: 1024px) {
   .stat-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  /* tablet: form-row-3 xuống 2 cột */
+  .form-row-3 { grid-template-columns: 1fr 1fr; }
+  /* role-switcher gọn hơn trên tablet */
+  .role-label { display: none; }
+  .role-tab { padding: 5px 8px; font-size: 0.714rem; }
 }
 
 @media (max-width: 768px) {
@@ -873,6 +896,8 @@ select { cursor: pointer; appearance: none;
   .filter-select { flex: 1; min-width: 0; }
   .modal-container { padding: 8px; }
   .modal-header, .modal-body, .modal-footer { padding-left: 16px; padding-right: 16px; }
+  .calendar-nav { flex-direction: column; align-items: flex-start; }
+  .level-config-row { flex-wrap: wrap; }
 }
 
 /* ── Loading States ───────────────────────────────────────────── */

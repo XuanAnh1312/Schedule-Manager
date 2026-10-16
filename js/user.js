@@ -303,11 +303,11 @@ function openTimeSlot(dateStr) {
   <div id="slot-list">
     ${slots.map((s, i) => `
     <div class="form-row-2 mb-2" data-slot="${i}">
-      <div class="form-group"><label class="form-label">Từ</label>
-        <input type="time" name="slot_start_${i}" class="form-input" value="${s.start}"></div>
-      <div class="form-group"><label class="form-label">Đến</label>
-        <input type="time" name="slot_end_${i}" class="form-input" value="${s.end}"></div>
-      ${i > 0 ? `<button type="button" class="btn btn-danger btn-xs" style="margin-top:4px" onclick="this.closest('[data-slot]').remove()">Xóa</button>` : ''}
+      <div class="form-group"><label class="form-label" for="slot-start-${i}">Giờ bắt đầu khung ${i+1}</label>
+        <input type="time" id="slot-start-${i}" name="slot_start_${i}" class="form-input" value="${s.start}"></div>
+      <div class="form-group"><label class="form-label" for="slot-end-${i}">Giờ kết thúc khung ${i+1}</label>
+        <input type="time" id="slot-end-${i}" name="slot_end_${i}" class="form-input" value="${s.end}"></div>
+      ${i > 0 ? `<button type="button" class="btn btn-danger btn-xs" style="margin-top:4px" onclick="this.closest('[data-slot]').remove()" aria-label="Xóa khung giờ ${i+1}">Xóa</button>` : ''}
     </div>`).join('')}
   </div>
   <button type="button" class="btn btn-ghost btn-sm" onclick="UserView.addTimeSlotRow()">+ Thêm khung giờ</button>
@@ -327,9 +327,9 @@ function addTimeSlotRow() {
   row.className = 'form-row-2 mb-2';
   row.dataset.slot = i;
   row.innerHTML = `
-    <div class="form-group"><label class="form-label">Từ</label><input type="time" name="slot_start_${i}" class="form-input" value="07:00"></div>
-    <div class="form-group"><label class="form-label">Đến</label><input type="time" name="slot_end_${i}" class="form-input" value="22:00"></div>
-    <button type="button" class="btn btn-danger btn-xs" style="margin-top:4px" onclick="this.closest('[data-slot]').remove()">Xóa</button>`;
+    <div class="form-group"><label class="form-label" for="slot-start-${i}">Giờ bắt đầu khung ${i+1}</label><input type="time" id="slot-start-${i}" name="slot_start_${i}" class="form-input" value="07:00"></div>
+    <div class="form-group"><label class="form-label" for="slot-end-${i}">Giờ kết thúc khung ${i+1}</label><input type="time" id="slot-end-${i}" name="slot_end_${i}" class="form-input" value="22:00"></div>
+    <button type="button" class="btn btn-danger btn-xs" style="margin-top:4px" onclick="this.closest('[data-slot]').remove()" aria-label="Xóa khung giờ ${i+1}">Xóa</button>`;
   list.appendChild(row);
 }
 
@@ -466,6 +466,7 @@ function _renderMyView() {
     if (titleEl) titleEl.textContent = `${_fmtShort(ws)} – ${_fmtShort(we)}/${we.getFullYear()}`;
     bodyEl.innerHTML = _renderMyWeek(ws, myShifts);
   }
+  App.refreshTableKeyboardAccess();
 }
 
 function _getWeekStart(d) {
@@ -593,19 +594,22 @@ function openChangePassword() {
   App.openModal('Đổi mật khẩu', `
 <form id="chpw-form" novalidate>
   <div class="form-group mb-3">
-    <label class="form-label">Mật khẩu hiện tại <span class="required">*</span></label>
-    <input type="password" name="current" class="form-input" placeholder="Nhập mật khẩu hiện tại">
-    <span class="field-error" data-err="current"></span>
+    <label class="form-label" for="chpw-current">Mật khẩu hiện tại <span class="required" aria-hidden="true">*</span></label>
+    <input type="password" id="chpw-current" name="current" class="form-input" placeholder="Nhập mật khẩu hiện tại"
+           aria-required="true" aria-describedby="chpw-current-err">
+    <span class="field-error" id="chpw-current-err" data-err="current" aria-live="polite"></span>
   </div>
   <div class="form-group mb-3">
-    <label class="form-label">Mật khẩu mới <span class="required">*</span></label>
-    <input type="password" name="newpw" class="form-input" placeholder="Ít nhất 6 ký tự">
-    <span class="field-error" data-err="newpw"></span>
+    <label class="form-label" for="chpw-newpw">Mật khẩu mới <span class="required" aria-hidden="true">*</span></label>
+    <input type="password" id="chpw-newpw" name="newpw" class="form-input" placeholder="Ít nhất 6 ký tự"
+           aria-required="true" aria-describedby="chpw-newpw-err">
+    <span class="field-error" id="chpw-newpw-err" data-err="newpw" aria-live="polite"></span>
   </div>
   <div class="form-group">
-    <label class="form-label">Xác nhận mật khẩu mới <span class="required">*</span></label>
-    <input type="password" name="confirm" class="form-input" placeholder="Nhập lại mật khẩu mới">
-    <span class="field-error" data-err="confirm"></span>
+    <label class="form-label" for="chpw-confirm">Xác nhận mật khẩu mới <span class="required" aria-hidden="true">*</span></label>
+    <input type="password" id="chpw-confirm" name="confirm" class="form-input" placeholder="Nhập lại mật khẩu mới"
+           aria-required="true" aria-describedby="chpw-confirm-err">
+    <span class="field-error" id="chpw-confirm-err" data-err="confirm" aria-live="polite"></span>
   </div>
 </form>`, [
     { label: 'Hủy', cls: 'btn-secondary', action: () => App.closeModal() },

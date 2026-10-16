@@ -261,57 +261,62 @@ function openUserForm(userId = null) {
 <form id="user-form" novalidate>
   <div class="form-row-2">
     <div class="form-group">
-      <label class="form-label">Mã nhân viên <span class="required">*</span></label>
-      <input type="text" name="code" class="form-input" value="${escHtml(user?.code||'')}" placeholder="NV001">
-      <span class="field-error" data-err="code"></span>
+      <label class="form-label" for="uf-code">Mã nhân viên <span class="required" aria-hidden="true">*</span></label>
+      <input type="text" id="uf-code" name="code" class="form-input" value="${escHtml(user?.code||'')}" placeholder="NV001"
+             aria-required="true" aria-describedby="uf-code-err">
+      <span class="field-error" id="uf-code-err" data-err="code" aria-live="polite"></span>
     </div>
     <div class="form-group">
-      <label class="form-label">Họ và tên <span class="required">*</span></label>
-      <input type="text" name="fullName" class="form-input" value="${escHtml(user?.fullName||'')}" placeholder="Nguyễn Văn A">
-      <span class="field-error" data-err="fullName"></span>
-    </div>
-  </div>
-  <div class="form-row-2">
-    <div class="form-group">
-      <label class="form-label">Tên đăng nhập <span class="required">*</span></label>
-      <input type="text" name="username" class="form-input" value="${escHtml(user?.username||'')}" placeholder="nvana" ${!isNew ? 'disabled' : ''}>
-      <span class="field-error" data-err="username"></span>
-    </div>
-    <div class="form-group">
-      <label class="form-label">${isNew ? 'Mật khẩu' : 'Mật khẩu mới'} ${isNew ? '<span class="required">*</span>' : ''}</label>
-      <input type="password" name="password" class="form-input" placeholder="${isNew ? 'Nhập mật khẩu' : 'Để trống nếu không đổi'}">
-      <span class="field-error" data-err="password"></span>
+      <label class="form-label" for="uf-fullName">Họ và tên <span class="required" aria-hidden="true">*</span></label>
+      <input type="text" id="uf-fullName" name="fullName" class="form-input" value="${escHtml(user?.fullName||'')}" placeholder="Nguyễn Văn A"
+             aria-required="true" aria-describedby="uf-fullName-err">
+      <span class="field-error" id="uf-fullName-err" data-err="fullName" aria-live="polite"></span>
     </div>
   </div>
   <div class="form-row-2">
     <div class="form-group">
-      <label class="form-label">Level <span class="required">*</span></label>
-      <select name="levelId" class="form-input">
+      <label class="form-label" for="uf-username">Tên đăng nhập <span class="required" aria-hidden="true">*</span></label>
+      <input type="text" id="uf-username" name="username" class="form-input" value="${escHtml(user?.username||'')}" placeholder="nvana"
+             ${!isNew ? 'disabled' : ''} aria-required="true" aria-describedby="uf-username-err">
+      <span class="field-error" id="uf-username-err" data-err="username" aria-live="polite"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="uf-password">${isNew ? 'Mật khẩu' : 'Mật khẩu mới'} ${isNew ? '<span class="required" aria-hidden="true">*</span>' : ''}</label>
+      <input type="password" id="uf-password" name="password" class="form-input" placeholder="${isNew ? 'Nhập mật khẩu' : 'Để trống nếu không đổi'}"
+             ${isNew ? 'aria-required="true"' : ''} aria-describedby="uf-password-err">
+      <span class="field-error" id="uf-password-err" data-err="password" aria-live="polite"></span>
+    </div>
+  </div>
+  <div class="form-row-2">
+    <div class="form-group">
+      <label class="form-label" for="uf-levelId">Level <span class="required" aria-hidden="true">*</span></label>
+      <select id="uf-levelId" name="levelId" class="form-input" aria-required="true" aria-describedby="uf-levelId-err">
         <option value="">-- Chọn Level --</option>
         ${levels.map(l => `<option value="${l.id}" ${user?.levelId === l.id ? 'selected' : ''}>${escHtml(l.name)}</option>`).join('')}
       </select>
-      <span class="field-error" data-err="levelId"></span>
+      <span class="field-error" id="uf-levelId-err" data-err="levelId" aria-live="polite"></span>
     </div>
     <div class="form-group">
-      <label class="form-label">Tỷ lệ giờ mục tiêu (%)</label>
-      <input type="number" name="targetRate" class="form-input" value="${user?.targetRate ?? 100}" min="0" max="200">
-      <span class="field-error" data-err="targetRate"></span>
-      <span class="form-hint">Giờ mục tiêu = Giờ chuẩn × Tỷ lệ / 100</span>
+      <label class="form-label" for="uf-targetRate">Tỷ lệ giờ mục tiêu (%)</label>
+      <input type="number" id="uf-targetRate" name="targetRate" class="form-input" value="${user?.targetRate ?? 100}" min="0" max="200"
+             aria-describedby="uf-targetRate-hint uf-targetRate-err">
+      <span class="field-error" id="uf-targetRate-err" data-err="targetRate" aria-live="polite"></span>
+      <span class="form-hint" id="uf-targetRate-hint">Giờ mục tiêu = Giờ chuẩn × Tỷ lệ / 100</span>
     </div>
   </div>
   <div class="form-row-2">
     <div class="form-group">
-      <label class="form-label">Số điện thoại</label>
-      <input type="text" name="phone" class="form-input" value="${escHtml(user?.phone||'')}" placeholder="0901234567">
+      <label class="form-label" for="uf-phone">Số điện thoại</label>
+      <input type="text" id="uf-phone" name="phone" class="form-input" value="${escHtml(user?.phone||'')}" placeholder="0901234567">
     </div>
     <div class="form-group">
-      <label class="form-label">Email</label>
-      <input type="text" name="email" class="form-input" value="${escHtml(user?.email||'')}" placeholder="email@company.vn">
+      <label class="form-label" for="uf-email">Email</label>
+      <input type="email" id="uf-email" name="email" class="form-input" value="${escHtml(user?.email||'')}" placeholder="email@company.vn">
     </div>
   </div>
   <div class="form-group">
-    <label class="form-label">Ghi chú</label>
-    <textarea name="note" class="form-input" rows="2">${escHtml(user?.note||'')}</textarea>
+    <label class="form-label" for="uf-note">Ghi chú</label>
+    <textarea id="uf-note" name="note" class="form-input" rows="2">${escHtml(user?.note||'')}</textarea>
   </div>
   <input type="hidden" name="role" value="user">
   <input type="hidden" name="id" value="${user?.id||''}">
@@ -449,20 +454,20 @@ function _renderLevelList(levels) {
 
 function _renderLevelFormInline(level = null) {
   const isEdit = !!level;
-  return `<form id="level-inline-form" novalidate style="display:grid;grid-template-columns:80px 1fr 1fr 80px auto;gap:10px;align-items:end">
-    <div class="form-group"><label class="form-label">Thứ tự</label>
-      <input type="number" name="order" class="form-input" value="${level?.order ?? (State.get.levels().length + 1)}" min="1">
-      <span class="field-error" data-err="order"></span>
+  return `<form id="level-inline-form" novalidate class="level-inline-form">
+    <div class="form-group"><label class="form-label" for="level-order">Thứ tự</label>
+      <input type="number" id="level-order" name="order" class="form-input" value="${level?.order ?? (State.get.levels().length + 1)}" min="1">
+      <span class="field-error" id="level-order-err" data-err="order" aria-live="polite"></span>
     </div>
-    <div class="form-group"><label class="form-label">Tên Level <span class="required">*</span></label>
-      <input type="text" name="name" class="form-input" value="${escHtml(level?.name||'')}" placeholder="Level 5">
-      <span class="field-error" data-err="name"></span>
+    <div class="form-group"><label class="form-label" for="level-name">Tên Level <span class="required" aria-hidden="true">*</span></label>
+      <input type="text" id="level-name" name="name" class="form-input" value="${escHtml(level?.name||'')}" placeholder="Level 5" aria-required="true" aria-describedby="level-name-err">
+      <span class="field-error" id="level-name-err" data-err="name" aria-live="polite"></span>
     </div>
-    <div class="form-group"><label class="form-label">Mô tả</label>
-      <input type="text" name="description" class="form-input" value="${escHtml(level?.description||'')}" placeholder="Mô tả ngắn">
+    <div class="form-group"><label class="form-label" for="level-description">Mô tả</label>
+      <input type="text" id="level-description" name="description" class="form-input" value="${escHtml(level?.description||'')}" placeholder="Mô tả ngắn">
     </div>
-    <div class="form-group"><label class="form-label">Màu</label>
-      <input type="color" name="color" class="form-input" value="${level?.color||'#3b82f6'}" style="padding:2px;height:38px">
+    <div class="form-group"><label class="form-label" for="level-color">Màu</label>
+      <input type="color" id="level-color" name="color" class="form-input level-color-input" value="${level?.color||'#3b82f6'}">
     </div>
     <input type="hidden" name="id" value="${level?.id||''}">
     <div style="padding-bottom:2px">

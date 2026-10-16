@@ -1,0 +1,27 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Spring Boot: Debug",
+      "request": "launch",
+      "mainClass": "org.dacnpm.schedulemanager.ManageSchedule",
+      "projectName": "ManageSchedule",
+      "args": [],
+      "vmArgs": "-Dspring.profiles.active=sqlserver",
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "java",
+      "name": "Spring Boot: Run (Maven)",
+      "request": "launch",
+      "mainClass": "org.dacnpm.schedulemanager.ManageSchedule",
+      "projectName": "ManageSchedule",
+      "args": [],
+      "vmArgs": "-Dspring.profiles.active=sqlserver",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "Java: Maven Compile"
+    }
+  ]
+}

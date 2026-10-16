@@ -1,0 +1,42 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Java: Maven Compile",
+      "type": "process",
+      "command": "mvn",
+      "args": ["-B", "-ntp", "compile"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Spring Boot: Run",
+      "type": "process",
+      "command": "mvn",
+      "args": ["spring-boot:run"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\s*\\.\\s*\\(\\(\\(",
+          "endsPattern": "Started ManageSchedule"
+        }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      }
+    }
+  ]
+}

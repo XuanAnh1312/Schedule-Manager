@@ -41,7 +41,7 @@ class PeriodServiceTest {
         repository = mock(PeriodRepository.class);
         audit = mock(AuditTrail.class);
         clock = MutableClock.atVn(LocalDateTime.of(2026, 10, 29, 10, 0));
-        service = new PeriodService(repository, audit, clock);
+        service = new PeriodService(repository, audit, clock, Optional.empty());
     }
 
     /* ── Quyền ───────────────────────────────────────────────────────────── */
@@ -132,6 +132,36 @@ class PeriodServiceTest {
         when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(period(PeriodStatus.LOCKED, true, true)));
         assertStatus(HttpStatus.CONFLICT, () -> service.delete(ADMIN, "p1"));
         verify(repository, never()).delete(any());
+    }
+
+    /* ── Lưu trữ và phương án lịch ───────────────────────────────────────── */
+
+    @Test
+    void archive_blockedWhileSchedulePlansAreUnfinished() {
+        PeriodRecord locked = period(PeriodStatus.LOCKED, true, true);
+        when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(locked));
+        PeriodService withPlans = new PeriodService(repository, audit, clock,
+                Optional.of(periodId -> List.of("plan_1 — pending_approval")));
+
+        ApiException ex = assertThrows(ApiException.class, () -> withPlans.archive(ADMIN, "p1", null));
+
+        assertEquals("PLAN_NOT_FINALIZED", ex.getCode());
+        assertEquals(List.of("plan_1 — pending_approval"), ex.getDetails());
+        verify(repository, never()).updateStatus(any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void archive_allowedWhenNoUnfinishedPlans_orNoScheduleModuleYet() {
+        PeriodRecord locked = period(PeriodStatus.LOCKED, true, true);
+        when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(locked));
+        when(repository.updateStatus("p1", PeriodStatus.ARCHIVED, locked.deadlineUtc(), locked.version())).thenReturn(true);
+        when(repository.findById("p1")).thenReturn(Optional.of(locked.withStatus(PeriodStatus.ARCHIVED, locked.deadlineUtc())));
+
+        new PeriodService(repository, audit, clock, Optional.of(periodId -> List.of())).archive(ADMIN, "p1", null);
+        service.archive(ADMIN, "p1", null); // không có module lịch
+
+        verify(repository, org.mockito.Mockito.times(2))
+                .updateStatus("p1", PeriodStatus.ARCHIVED, locked.deadlineUtc(), locked.version());
     }
 
     /* ── Mở lại (AC-06) ──────────────────────────────────────────────────── */

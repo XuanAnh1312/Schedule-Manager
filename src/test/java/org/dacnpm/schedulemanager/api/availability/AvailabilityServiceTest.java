@@ -190,6 +190,23 @@ class AvailabilityServiceTest {
     }
 
     @Test
+    void submittedForScheduling_returnsOnlySubmittedFromApplicableActiveEmployees() {
+        givenPeriod(PeriodStatus.LOCKED, true);
+        when(periods.findApplicableEmployees("p1")).thenReturn(List.of(
+                new PeriodRepository.Employee("nv001", "NV001", "An")));
+        when(repository.findByPeriod("p1")).thenReturn(List.of(
+                new AvailabilityRepository.RegistrationRow("r1", "nv001", "p1", "submitted", null, null),
+                new AvailabilityRepository.RegistrationRow("r2", "nv002", "p1", "submitted", null, null),
+                new AvailabilityRepository.RegistrationRow("r3", "nv001", "p1", "draft", null, null)));
+        when(repository.loadEntries("r1")).thenReturn(List.of());
+
+        var result = service.submittedForScheduling("p1");
+
+        assertEquals(1, result.size());
+        assertEquals("r1", result.get(0).id());
+    }
+
+    @Test
     void wholeDay_counts24Hours() {
         assertEquals(24 * 60, AvailabilityService.minutes(LocalTime.MIDNIGHT, LocalTime.of(23, 59)));
     }

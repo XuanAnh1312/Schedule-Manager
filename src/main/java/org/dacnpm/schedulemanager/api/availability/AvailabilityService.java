@@ -192,6 +192,20 @@ public class AvailabilityService {
                 .toList();
     }
 
+    /**
+     * Gọi nội bộ từ module lịch (không qua HTTP, không cần token): đăng ký đã gửi của nhân viên
+     * còn hoạt động và còn thuộc đối tượng áp dụng của kỳ. Kỳ không tồn tại → 404.
+     */
+    public List<Registration> submittedForScheduling(String periodId) {
+        PeriodRecord period = periods.findById(periodId).orElseThrow(() -> ApiException.notFound("kỳ đăng ký"));
+        Set<String> applicable = periods.findApplicableEmployees(period.id()).stream()
+                .map(PeriodRepository.Employee::id).collect(Collectors.toSet());
+        return repository.findByPeriod(period.id()).stream()
+                .filter(r -> "submitted".equals(r.status()) && applicable.contains(r.userId()))
+                .map(r -> toRegistration(r, repository.loadEntries(r.id())))
+                .toList();
+    }
+
     /* ── Kiểm tra ────────────────────────────────────────────────────────── */
 
     private void requireWindowOpen(PeriodRecord period) {

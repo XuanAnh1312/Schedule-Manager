@@ -208,6 +208,7 @@ class IssueFiveFlowIT {
 
         availability.submitMine(NV2, periodId, request(LocalDate.of(2026, 10, 8), "08:00", "12:00", null));
         assertEquals("submitted", status("it_nv2"));
+        assertEquals(2, availability.submittedForScheduling(periodId).size(), "nguồn dữ liệu nội bộ cho phân lịch");
     }
 
     @Test

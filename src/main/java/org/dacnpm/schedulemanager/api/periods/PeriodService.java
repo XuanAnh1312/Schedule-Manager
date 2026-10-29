@@ -22,6 +22,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -49,11 +50,15 @@ public class PeriodService {
     private final PeriodRepository repository;
     private final AuditTrail audit;
     private final Clock clock;
+    private final Optional<SchedulePlanGate> planGate;
 
-    public PeriodService(PeriodRepository repository, AuditTrail audit, Clock clock) {
+    /** {@code planGate} rỗng khi module lịch chưa cài đặt {@link SchedulePlanGate}. */
+    public PeriodService(PeriodRepository repository, AuditTrail audit, Clock clock,
+                         Optional<SchedulePlanGate> planGate) {
         this.repository = repository;
         this.audit = audit;
         this.clock = clock;
+        this.planGate = planGate;
     }
 
     /* ── Đọc ─────────────────────────────────────────────────────────────── */
@@ -181,6 +186,12 @@ public class PeriodService {
         me.requireAdmin();
         PeriodRecord current = lockForChange(id, versionOf(action));
         requireStatus(current, PeriodStatus.LOCKED, "Chỉ kỳ đã đóng mới lưu trữ được.");
+        List<String> unfinished = planGate.map(g -> g.unfinishedPlans(id)).orElse(List.of());
+        if (!unfinished.isEmpty()) {
+            throw new ApiException(HttpStatus.CONFLICT, "PLAN_NOT_FINALIZED",
+                    "Kỳ còn phương án lịch chưa hoàn tất. Hãy công bố hoặc hủy phương án trước khi lưu trữ.",
+                    unfinished);
+        }
         return transition(me, current, PeriodStatus.ARCHIVED, current.deadlineUtc(),
                 "period.archived", "Lưu trữ kỳ đăng ký", trimToNull(action == null ? null : action.reason()));
     }

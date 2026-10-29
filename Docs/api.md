@@ -80,7 +80,7 @@ Các API của kỳ đăng ký, thời gian rảnh và quy tắc trả lỗi ngh
 | `applicableUserIds` | Chỉ trả cho admin; rỗng = mọi nhân viên đang hoạt động |
 | `version` | Gửi lại khi sửa/chuyển trạng thái để chống ghi đè |
 
-"Đang xếp lịch" và "Đã công bố" thuộc API phương án lịch, không có trong kỳ.
+"Đang xếp lịch" và "Đã công bố" thuộc API phương án lịch, không có trong kỳ (xem mục 5).
 
 ### 2.2. Tạo kỳ — `POST /api/periods` → `201`
 
@@ -118,7 +118,7 @@ Body tùy chọn: `{"version": 3}`. Nếu có, `version` phải khớp.
 | `POST /{id}/open` | `draft → open` | Có thứ cần đăng ký; kỳ tự khóa phải có hạn chót ở tương lai |
 | `POST /{id}/lock` | `open → locked` | Đóng thủ công, `autoLock` bật hay tắt đều được. Có thể gửi `reason` |
 | `POST /{id}/reopen` | `locked → open` | Xem dưới |
-| `POST /{id}/archive` | `locked → archived` | — |
+| `POST /{id}/archive` | `locked → archived` | Không còn phương án lịch `draft`/`pending_approval`/`approved`; nếu còn → `409 PLAN_NOT_FINALIZED`, `details` liệt kê phương án |
 | `DELETE /{id}` → `204` | Xóa | Chỉ kỳ `draft` chưa có đăng ký |
 
 Mở lại kỳ (TU-03, AC-06):
@@ -248,7 +248,22 @@ Không có giá trị mặc định nghiệp vụ. Hạn đăng ký cấu hình 
 
 `GET /changes?status=applied|previewed|cancelled|all&limit=50`, mặc định là `applied`, mới nhất trước. Mỗi mục gồm thay đổi, lý do, bản xem trước, người tạo/áp dụng và thời điểm.
 
-## 5. Mã lỗi
+## 5. Hợp đồng với phần lịch
+
+Chốt ngày 29/10/2026 (người phụ trách lịch giao cho người phụ trách kỳ quyết định).
+
+| # | Nội dung | Quyết định | Bên thực hiện |
+|---|---|---|---|
+| 1 | Lưu trữ kỳ khi còn phương án chưa công bố | **Chặn** nếu còn phương án `draft`/`pending_approval`/`approved` (`409 PLAN_NOT_FINALIZED`). Không tự hủy phương án | Kỳ: kiểm tra qua interface `SchedulePlanGate`. Lịch: cài đặt bean trả danh sách phương án chưa hoàn tất |
+| 2 | Trạng thái phương án lịch | `draft` (Nháp) → `pending_approval` (Chờ duyệt) → `approved` (Đã duyệt) → `published` (Đã công bố); bản cũ khi công bố phiên bản mới là `superseded`; hủy là `cancelled`. Mức đủ người (`full`/`understaffed`) là chỉ số riêng, **không** phải trạng thái | Lịch |
+| 3 | Mở lại kỳ đã có lịch công bố | Cho phép. Không tự chạy lại, không sửa lịch đã công bố. Giao diện cảnh báo khi mở lại; màn hình lịch hiện "Đăng ký đã thay đổi sau khi công bố — cân nhắc chạy lại" khi có đăng ký `updatedAt` sau thời điểm công bố | Kỳ: không sửa lịch. Lịch: nhãn cảnh báo |
+| 4 | Phần lịch lấy dữ liệu đăng ký | Gọi service nội bộ `AvailabilityService.submittedForScheduling(periodId)` (chỉ bản đã gửi của nhân viên còn hoạt động, còn thuộc đối tượng áp dụng) và `RuleService.effectiveForScheduling(userId, date)`. API `GET /api/availability/submitted` giữ cho giao diện | Kỳ: cung cấp. Lịch: gọi |
+
+Chỉ chạy phân lịch chính thức khi kỳ `locked`; chạy thử được khi kỳ `open` hoặc `locked`. Kỳ `archived` thì phương án chỉ đọc.
+
+Nhãn ghép trên màn hình: "Đã đóng đăng ký · Lịch: Chờ duyệt", "Đã đóng đăng ký · Lịch: Đã công bố".
+
+## 6. Mã lỗi
 
 | Mã | HTTP | Ý nghĩa |
 |---|---|---|
@@ -265,13 +280,14 @@ Không có giá trị mặc định nghiệp vụ. Hạn đăng ký cấu hình 
 | `REOPEN_NOT_ALLOWED` | 409 | Kỳ cấu hình không cho mở lại |
 | `NEW_DEADLINE_REQUIRED`, `NEW_DEADLINE_IN_PAST`, `NEW_DEADLINE_BEFORE_OPEN` | 400 | Hạn mới khi mở lại không hợp lệ |
 | `PERIOD_HAS_REGISTRATIONS` | 409 | Không xóa kỳ đã có đăng ký |
+| `PLAN_NOT_FINALIZED` | 409 | Lưu trữ kỳ khi còn phương án lịch chưa hoàn tất |
 | `PERIOD_REQUIRED`, `EMPTY_REGISTRATION` | 400 | Thiếu `periodId`; gửi đăng ký không có ngày nào |
 | `REGISTRATION_NOT_OPEN`, `REGISTRATION_CLOSED` | 409 | Chưa mở / đã đóng đăng ký |
 | `INVALID_SCOPE`, `INVALID_STATUS` | 400 | Tham số lọc không hợp lệ |
 | `CHANGE_NOT_PENDING`, `STALE_PREVIEW`, `PREVIEW_EXPIRED` | 409 | Bản xem trước không còn áp dụng được |
 | `MAIN_RULES_MISSING` | 409 | Thiếu dòng `schedule_rules` `rules_main` khi ghi Level thay thế |
 
-## 6. Kiểm thử
+## 7. Kiểm thử
 
 - `mvn test`: unit test cho cửa sổ đăng ký, bộ giải quy tắc, service kỳ/đăng ký/quy tắc và bảo mật `PeriodController`. Không cần SQL Server.
 - `IssueFiveFlowIT`: chạy trên SQL Server thật với database **rỗng** dành riêng, Flyway tới V7. Không chạy trong `mvn test` mặc định:
@@ -284,7 +300,7 @@ Không có giá trị mặc định nghiệp vụ. Hạn đăng ký cấu hình 
 
   Bao phủ AC-04, AC-05 (gửi sau hạn khi tác vụ khóa chưa chạy), AC-06 (mở lại cần quyền/xác nhận/lý do, giữ đăng ký), AC-13 và AC-14 (xem trước không ghi, `60 × 125% = 75`, bản xem trước cũ bị từ chối, không đổi kỳ/ca/phân công).
 
-## 7. Giới hạn hiện tại
+## 8. Giới hạn hiện tại
 
 - SPA chưa gọi các API trên; màn hình vẫn dùng `localStorage`.
 - Phạm vi chi nhánh/loại nhân viên/nhóm chờ danh mục tổ chức. Ràng buộc hợp đồng/chứng chỉ chưa có dữ liệu.

@@ -91,6 +91,10 @@ public class FakePlanRepository extends PlanServiceTest.InMemoryPlans {
         return Optional.ofNullable(workflows.get(planId));
     }
 
+    public void setPeriodStatus(String periodId, String status) {
+        periodStatus.put(periodId, status);
+    }
+
     public String status(String planId) {
         return rows.get(planId).status();
     }

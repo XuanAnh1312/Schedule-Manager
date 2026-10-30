@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 class PlanServiceTest {
 
     /** Bảng schedule_plans/plan_assignments trong bộ nhớ. Không có phương thức nào ghi lịch chính thức. */
-    static final class InMemoryPlans extends PlanRepository {
+    static class InMemoryPlans extends PlanRepository {
         final Map<String, String> periodStatus = new HashMap<>();
         final Map<String, PlanRow> rows = new LinkedHashMap<>();
         final Map<String, List<PlanPair>> pairs = new HashMap<>();

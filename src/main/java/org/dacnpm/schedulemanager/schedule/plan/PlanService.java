@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import org.dacnpm.schedulemanager.schedule.engine.EngineResult;
 import org.dacnpm.schedulemanager.schedule.engine.ScheduleEngine;
 import org.dacnpm.schedulemanager.schedule.model.Assignment;
+import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 import org.dacnpm.schedulemanager.schedule.plan.PlanRepository.PlanPair;
 import org.dacnpm.schedulemanager.schedule.plan.PlanRepository.PlanRow;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository.ScheduleData;
@@ -62,7 +63,7 @@ public class PlanService {
 
     public record PlanView(String id, String periodId, String name, String status, int version, int runCount,
                            String createdBy, LocalDateTime createdAt, LocalDateTime updatedAt, PlanOptions options,
-                           List<String> shiftIds, EngineResult result) {
+                           List<String> shiftIds, EngineResult result, List<PlanPair> roster) {
     }
 
     public record PlanSummaryView(String id, String periodId, String name, String status, int version, int runCount,
@@ -78,7 +79,9 @@ public class PlanService {
     public record RerunView(PlanView plan, PlanDiff changes) {
     }
 
-    private record Execution(String periodStatus, PlanOptions options, List<String> shiftIds, EngineResult result) {
+    /** roster: toàn bộ phân công mong muốn của các ca trong phương án (phân công được giữ lại + phân công mới). */
+    private record Execution(String periodStatus, PlanOptions options, List<String> shiftIds, EngineResult result,
+                             List<PlanPair> roster) {
     }
 
     private final PlanRepository plans;
@@ -110,7 +113,7 @@ public class PlanService {
         String id = "plan_" + UUID.randomUUID().toString().replace("-", "");
         plans.insert(id, periodId, planName, json(run.shiftIds()), json(new StoredResult(run.options(), run.result())),
                 actorId);
-        plans.replaceAssignments(id, pairs(run.result()));
+        plans.replaceAssignments(id, run.roster());
         history.writeHistory("plan_create", "Tạo phương án " + planName, describe(id, run.result()), actorId,
                 null, null, null);
         return get(id);
@@ -132,7 +135,7 @@ public class PlanService {
                 json(new StoredResult(run.options(), run.result())))) {
             throw PlanException.conflict("Phương án đã được thay đổi hoặc không còn là nháp. Hãy tải lại.");
         }
-        List<PlanPair> current = pairs(run.result());
+        List<PlanPair> current = run.roster();
         plans.replaceAssignments(planId, current);
         PlanDiff diff = diff(planId, planId, previous, current, summaryOf(before), run.result().summary());
         history.writeHistory("plan_rerun", "Chạy lại phương án " + row.name(),
@@ -163,7 +166,8 @@ public class PlanService {
         PlanRow row = row(planId);
         StoredResult stored = stored(row);
         return new PlanView(row.id(), row.periodId(), row.name(), row.status(), row.version(), row.runCount(),
-                row.createdBy(), row.createdAt(), row.updatedAt(), stored.options(), shiftIds(row), stored.result());
+                row.createdBy(), row.createdAt(), row.updatedAt(), stored.options(), shiftIds(row), stored.result(),
+                plans.assignments(planId));
     }
 
     @Transactional(readOnly = true)
@@ -204,16 +208,17 @@ public class PlanService {
         ScheduleData d = data.load(periodId)
                 .orElseThrow(() -> PlanException.notFound("Không tìm thấy kỳ " + periodId + "."));
 
-        List<String> plannable = d.plannableShiftIds();
+        // Mặc định chỉ phân các ca chưa công bố. Chỉ định rõ ca đã công bố là lập phiên bản mới cho chúng: khi công bố,
+        // phương án mới thay lịch chính thức của các ca đó và bản cũ chuyển superseded.
         List<String> shiftIds;
         if (opts.shiftIds().isEmpty()) {
-            shiftIds = plannable;
+            shiftIds = d.plannableShiftIds();
         } else {
-            Set<String> allowed = Set.copyOf(plannable);
+            Set<String> allowed = d.shifts().stream().filter(s -> d.period().contains(s.date()))
+                    .map(ShiftInfo::id).collect(Collectors.toSet());
             List<String> invalid = opts.shiftIds().stream().filter(id -> !allowed.contains(id)).toList();
             if (!invalid.isEmpty()) {
-                throw new IllegalArgumentException("Ca không thuộc kỳ, đã hủy hoặc đã công bố: "
-                        + String.join(", ", invalid) + ".");
+                throw new IllegalArgumentException("Ca không thuộc kỳ hoặc đã hủy: " + String.join(", ", invalid) + ".");
             }
             shiftIds = opts.shiftIds();
         }
@@ -227,7 +232,12 @@ public class PlanService {
                         .map(Assignment::id).collect(Collectors.toSet())
                 : Set.of();
         EngineResult result = engine.run(d.context(replaced), shiftIds);
-        return new Execution(status, opts, shiftIds, result);
+        List<PlanPair> roster = new ArrayList<>();
+        d.savedAssignments().stream()
+                .filter(a -> a.active() && planned.contains(a.shiftId()) && !replaced.contains(a.id()))
+                .forEach(a -> roster.add(new PlanPair(a.shiftId(), a.userId())));
+        roster.addAll(pairs(result));
+        return new Execution(status, opts, shiftIds, result, roster.stream().distinct().toList());
     }
 
     static PlanDiff diff(String baseId, String otherId, List<PlanPair> base, List<PlanPair> other,

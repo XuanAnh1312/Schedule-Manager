@@ -1,8 +1,6 @@
 package org.dacnpm.schedulemanager.schedule.plan;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.dacnpm.schedulemanager.schedule.plan.PlanService.DryRunView;
 import org.dacnpm.schedulemanager.schedule.plan.PlanService.PlanDiff;
 import org.dacnpm.schedulemanager.schedule.plan.PlanService.PlanOptions;
@@ -13,7 +11,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** API phương án phân lịch. Chỉ role admin truy cập (/api/schedule/** trong SecurityConfig). */
+/** API phương án phân lịch. Chỉ role admin truy cập (/api/schedule/** trong SecurityConfig). Lỗi: ScheduleErrorAdvice. */
 @Profile("sqlserver")
 @RestController
 @RequestMapping("/api/schedule/plans")
@@ -96,18 +93,5 @@ public class PlanController {
             throw new IllegalArgumentException("Thiếu thông số expectedVersion.");
         }
         return expectedVersion;
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, String>> badRequest(IllegalArgumentException e) {
-        return ResponseEntity.badRequest().body(Map.of("code", "VALIDATION_FAILED", "error", e.getMessage()));
-    }
-
-    @ExceptionHandler(PlanException.class)
-    public ResponseEntity<Map<String, String>> planError(PlanException e) {
-        Map<String, String> body = new LinkedHashMap<>();
-        body.put("code", e.code());
-        body.put("error", e.getMessage());
-        return ResponseEntity.status(e.status()).body(body);
     }
 }

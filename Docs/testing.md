@@ -16,6 +16,10 @@ Runner tạm thay dữ liệu `localStorage` có tiền tố `pls_` trong lúc c
 
 Chưa có test runner/lệnh test được tích hợp vào Maven hoặc package manager. `pom.xml` là cấu hình Maven cho lớp Java mẫu; nó không kiểm thử luồng SPA.
 
+## Kiểm thử Issue #8: chấm công thực tế và báo cáo
+
+Xem [hướng dẫn BI-01..BI-07](./issue8-attendance.md) và [ma trận bằng chứng AC](./issue8-ac-evidence.md). Suite API là `tests/attendance-api.ps1`, fixture local-only là `tests/attendance-fixture.sql`, responsive ở `tests/attendance-responsive.html`. Chạy `mvn test` và kiểm thử cả API 401/403/409, hai user cạnh tranh, login/logout/refresh, 320/360/390/768/1024/1280 px và Windows Scale 125%/150%.
+
 ## Kiểm tra cú pháp JavaScript
 
 Với Node.js đã cài đặt, mở PowerShell tại thư mục gốc:

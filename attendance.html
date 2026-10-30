@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chấm công & báo cáo · Schedule Manager</title>
+  <link rel="stylesheet" href="css/attendance.css">
+  <script src="js/attendance-portal.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Chuyển đến nội dung chính</a>
+  <header class="top">
+    <div><strong>Schedule Manager</strong><span>Chấm công & báo cáo · SQL Server</span></div>
+    <a href="index.html">← Quay về phân lịch demo</a>
+  </header>
+  <main id="main" tabindex="-1">
+    <section class="box" id="login-view">
+      <h1>Đăng nhập hệ thống công</h1>
+      <p>Đây là tài khoản <strong>Backend SQL Server</strong>, không phải tài khoản demo <code>admin/admin123</code>.</p>
+      <form id="login-form">
+        <label>Tên đăng nhập <input name="username" required autocomplete="username" placeholder="admin"></label>
+        <label>Mật khẩu <input name="password" required type="password" autocomplete="current-password"></label>
+        <button type="submit">Đăng nhập API</button>
+      </form>
+      <p id="login-message" role="alert"></p>
+    </section>
+    <section id="app-view" hidden>
+      <div class="toolbar">
+        <div><h1>Bảng điều khiển công</h1><p id="user-info"></p></div>
+        <button id="logout-btn" class="secondary">Đăng xuất</button>
+      </div>
+      <div class="toolbar">
+        <label>Kỳ báo cáo <select id="period-select" aria-label="Chọn kỳ báo cáo"></select></label>
+        <button id="refresh-btn" class="secondary">Làm mới dữ liệu</button>
+        <span id="last-updated" aria-live="polite"></span>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+      <section class="cards" id="summary" aria-label="Thống kê kỳ"></section>
+      <section class="grid-two">
+        <section class="box">
+          <h2>Chấm công</h2>
+          <p class="help">Chỉ check-in cho ca đã công bố và được phân trong SQL Server. Thời gian ghi theo đồng hồ máy chủ.</p>
+          <label>Ca được phân <select id="shift-select" aria-label="Ca được phân"></select></label>
+          <div class="buttons"><button id="checkin-btn">Check-in</button>
+          <button id="checkout-btn" class="secondary">Check-out lượt đang mở</button></div>
+          <label>Phút nghỉ không hưởng công <input id="break-minutes" type="number" min="0" max="1440" value="0"></label>
+          <h3>Công cá nhân</h3>
+          <div class="scroll"><table><thead><tr><th>Ca</th><th>Vào</th><th>Ra</th><th>Giờ thực tế</th><th>Trạng thái</th></tr></thead><tbody id="records-body"></tbody></table></div>
+        </section>
+        <section class="box">
+          <h2>Yêu cầu bổ sung / điều chỉnh</h2>
+          <form id="request-form">
+            <label>Ca cần điều chỉnh <select name="shiftId" id="request-shift" required></select></label>
+            <label>Mã lượt công (để trống nếu bổ sung mới) <input name="recordId" placeholder="UUID lượt công đã check-out"></label>
+            <label>Giờ vào đề xuất (giờ Việt Nam) <input type="datetime-local" name="clockIn" required></label>
+            <label>Giờ ra đề xuất (giờ Việt Nam) <input type="datetime-local" name="clockOut" required></label>
+            <label>Phút nghỉ <input type="number" min="0" max="1440" value="0" name="breakMinutes" required></label>
+            <label>Lý do <textarea name="reason" minlength="5" required rows="3" placeholder="Nêu lý do cụ thể"></textarea></label>
+            <button type="submit">Gửi yêu cầu duyệt</button>
+          </form>
+          <p class="help">Không sửa dữ liệu gốc cho đến khi được duyệt. Kỳ đã khóa vẫn chỉ thay đổi qua phê duyệt.</p>
+        </section>
+      </section>
+      <section class="box" id="manager" hidden>
+        <div class="toolbar"><h2>Dashboard quản trị & báo cáo</h2><button id="csv-btn" class="secondary">Xuất CSV</button><button id="xlsx-btn" class="secondary">Xuất Excel</button></div>
+        <div class="scroll"><table><thead><tr><th>Mã NV</th><th>Nhân viên</th><th>Mục tiêu</th><th>Đã xếp (công bố)</th><th>Thực tế</th><th>Đã duyệt</th><th>Chênh lệch</th><th>Tỷ lệ</th><th>Ghi chú</th></tr></thead><tbody id="report-body"></tbody></table></div>
+        <h3>Biểu đồ giờ đã xếp / mục tiêu</h3>
+        <div id="hours-chart" aria-label="Biểu đồ giờ theo nhân viên"></div>
+        <h3>Ca thiếu người (chỉ lịch đã công bố)</h3>
+        <div class="scroll"><table><thead><tr><th>Ca</th><th>Ngày</th><th>Cần</th><th>Đã phân</th><th>Lý do</th></tr></thead><tbody id="shortages-body"></tbody></table></div>
+        <h3>Giờ công check-out chờ duyệt</h3>
+        <div id="pending-punches"></div>
+        <h3>Điểm danh bất thường: đi muộn, vắng, thiếu check-out</h3>
+        <div class="scroll"><table><thead><tr><th>Nhân viên</th><th>Ca</th><th>Vấn đề</th><th>Phút muộn</th></tr></thead><tbody id="anomalies-body"></tbody></table></div>
+        <h3>Yêu cầu điều chỉnh chờ duyệt</h3>
+        <div id="pending-requests"></div>
+        <form id="lock-form" class="toolbar"><label>Khóa kỳ công <input type="text" name="reason" required minlength="5" placeholder="Lý do khóa kỳ"></label><button class="danger" type="submit">Khóa kỳ đang chọn</button></form>
+      </section>
+      <section class="box"><h2>Lịch sử & yêu cầu</h2><div id="own-requests"></div><div id="audit-log"></div></section>
+    </section>
+  </main>
+</body>
+</html>

@@ -16,6 +16,7 @@ const ADMIN_ROUTES = [
   { id: 'auto-schedule',label: 'Phân lịch tự động',   icon: iconAuto(),     section: 'Admin', render: () => AdminAutoSchedule.render() },
   { id: 'publish',      label: 'Duyệt & công bố',     icon: iconPublishNav(), section: 'Admin', render: () => AdminPublish.render() },
   { id: 'history',      label: 'Lịch sử & báo cáo',  icon: iconHistory(),  section: 'Admin', render: () => AdminHistory.render() },
+  { id: 'attendance-sql', label: 'Chấm công SQL & Báo cáo', icon: iconClock(), section: 'Admin', render: () => AttendanceEntry.render() },
 ];
 
 const USER_ROUTES = [
@@ -23,6 +24,7 @@ const USER_ROUTES = [
   { id: 'register',    label: 'Đăng ký thời gian rảnh',icon: iconClock(),    section: 'User', render: () => UserView.renderRegister() },
   { id: 'my-schedule', label: 'Lịch làm việc của tôi', icon: iconCalendar(), section: 'User', render: () => UserView.renderMySchedule(), afterRender: () => UserView.initMySchedule() },
   { id: 'profile',     label: 'Thông tin cá nhân',     icon: iconUser2(),    section: 'User', render: () => UserView.renderProfile() },
+  { id: 'attendance-sql', label: 'Chấm công thực tế', icon: iconClock(), section: 'User', render: () => AttendanceEntry.render() },
 ];
 
 /* ═══════════════════════════════════════════════════════════

@@ -219,10 +219,10 @@ async function runTests() {
       assert(win.document.activeElement.id === 'main-content', 'Focus chưa quay lại phần tử mở hộp xác nhận.');
     });
 
-    await runCase('Responsive 320, 375, 768, 1024 và 1440 px; bảng cuộn được bằng bàn phím', async () => {
+    await runCase('Responsive 320, 360, 390, 768, 1024 và 1280 px; bảng cuộn được bằng bàn phím', async () => {
       const win = appWindow();
       let tableCanReceiveKeyboardFocus = false;
-      for (const width of [320, 375, 768, 1024, 1440]) {
+      for (const width of [320, 360, 390, 768, 1024, 1280]) {
         frame.style.width = `${width + 1}px`;
         await new Promise(resolve => setTimeout(resolve, 80));
         assert(win.innerWidth === width, `Viewport ${width}px không được áp dụng.`);

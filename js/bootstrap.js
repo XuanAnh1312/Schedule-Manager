@@ -7,6 +7,7 @@ const appScripts = [
   'js/admin2.js',
   'js/admin3.js',
   'js/user.js',
+  'js/attendance-entry.js',
   'js/app.js',
 ];
 const loadedScripts = new Set();

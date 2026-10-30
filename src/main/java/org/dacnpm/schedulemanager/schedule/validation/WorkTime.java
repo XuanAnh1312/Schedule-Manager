@@ -10,7 +10,7 @@ import java.util.TreeMap;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 
 /** Tính thời gian làm việc của ca: tách theo ngày (ca qua đêm) và trừ giờ nghỉ. */
-final class WorkTime {
+public final class WorkTime {
 
     private WorkTime() {
     }
@@ -19,7 +19,7 @@ final class WorkTime {
      * Phút làm việc của ca theo từng ngày lịch. Giờ nghỉ được trừ theo tỷ lệ thời lượng của mỗi phần ca,
      * nên ca qua đêm 22:00-06:00 nghỉ 60 phút tính 105 phút cho ngày đầu và 315 phút cho ngày sau.
      */
-    static Map<LocalDate, Double> workMinutesByDay(ShiftInfo shift) {
+    public static Map<LocalDate, Double> workMinutesByDay(ShiftInfo shift) {
         LocalDateTime start = shift.startAt();
         LocalDateTime end = shift.endAt();
         double total = Duration.between(start, end).toMinutes();
@@ -39,7 +39,7 @@ final class WorkTime {
     }
 
     /** Số phút nghỉ giữa hai ca; âm nếu hai ca trùng giờ. Hai ca nối tiếp nhau có thời gian nghỉ 0. */
-    static long restMinutesBetween(ShiftInfo a, ShiftInfo b) {
+    public static long restMinutesBetween(ShiftInfo a, ShiftInfo b) {
         if (a.startAt().isBefore(b.endAt()) && b.startAt().isBefore(a.endAt())) {
             return -1;
         }
@@ -49,7 +49,7 @@ final class WorkTime {
     }
 
     /** Thứ hai của tuần chứa ngày này. */
-    static LocalDate weekStart(LocalDate day) {
+    public static LocalDate weekStart(LocalDate day) {
         return day.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
     }
 }

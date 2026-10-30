@@ -291,7 +291,7 @@ public class ShiftService {
         ShiftInfo candidateShift = ShiftConfigRules.toShiftInfo(shiftId == null ? "shift_new" : shiftId, r);
         context.add(candidateShift);
         ScheduleContext ctx = new ScheduleContext(d.period(), d.rules(), d.employees(), context, d.availability(),
-                d.blockedDates(), d.savedAssignments(), replaced);
+                d.blockedDates(), d.savedAssignments(), replaced, d.effectiveRules());
 
         List<Violation> hard = new ArrayList<>();
         List<Violation> soft = new ArrayList<>();

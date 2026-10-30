@@ -7,6 +7,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.dacnpm.schedulemanager.schedule.rules.EffectiveRules;
+import org.dacnpm.schedulemanager.schedule.rules.EmployeeRules;
 
 /**
  * Ảnh chụp dữ liệu một kỳ dùng cho kiểm tra phân công. Chỉ đọc, trừ danh sách phân công đề xuất
@@ -24,10 +26,23 @@ public class ScheduleContext {
     private final Map<String, UserAvailability> availability;
     private final Map<String, Set<LocalDate>> blockedDates;
     private final List<Assignment> assignments = new ArrayList<>();
+    private final EffectiveRules effectiveRules;
+    private final Map<String, EmployeeRules> derivedRules = new HashMap<>();
 
     public ScheduleContext(Period period, ScheduleRules rules, List<Employee> employees, List<ShiftInfo> shifts,
                            Map<String, UserAvailability> availability, Map<String, Set<LocalDate>> blockedDates,
                            List<Assignment> savedAssignments, Set<String> replacedAssignmentIds) {
+        this(period, rules, employees, shifts, availability, blockedDates, savedAssignments, replacedAssignmentIds, null);
+    }
+
+    /**
+     * @param effectiveRules quy tắc hiệu lực theo nhân viên/ngày; null nghĩa là suy ra từ {@code rules} cho mọi nhân viên
+     */
+    public ScheduleContext(Period period, ScheduleRules rules, List<Employee> employees, List<ShiftInfo> shifts,
+                           Map<String, UserAvailability> availability, Map<String, Set<LocalDate>> blockedDates,
+                           List<Assignment> savedAssignments, Set<String> replacedAssignmentIds,
+                           EffectiveRules effectiveRules) {
+        this.effectiveRules = effectiveRules;
         if (rules == null) {
             throw new IllegalArgumentException("Thiếu quy tắc phân lịch.");
         }
@@ -53,6 +68,26 @@ public class ScheduleContext {
 
     public ScheduleRules rules() {
         return rules;
+    }
+
+    /** Quy tắc có hiệu lực của nhân viên tại ngày này. */
+    public EmployeeRules rulesFor(Employee employee, LocalDate date) {
+        if (effectiveRules != null) {
+            EmployeeRules found = effectiveRules.at(employee.id(), date);
+            if (found != null) {
+                return found;
+            }
+        }
+        return derivedRules.computeIfAbsent(employee.id(), id -> EmployeeRules.derive(rules, employee, period));
+    }
+
+    public EffectiveRules effectiveRules() {
+        return effectiveRules;
+    }
+
+    /** Mọi phân công đang hiệu lực trong ngữ cảnh (đã lưu, trừ phần được thay thế, cộng đề xuất). */
+    public List<Assignment> activeAssignments() {
+        return assignments.stream().filter(Assignment::active).toList();
     }
 
     public List<Employee> employees() {

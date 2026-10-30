@@ -16,6 +16,7 @@ import org.dacnpm.schedulemanager.schedule.model.ScheduleRules;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 import org.dacnpm.schedulemanager.schedule.model.TimeRange;
 import org.dacnpm.schedulemanager.schedule.model.UserAvailability;
+import org.dacnpm.schedulemanager.schedule.rules.EmployeeRules;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,9 +48,14 @@ public class AssignmentValidator {
             return new ValidationResult(out);
         }
 
-        if (ctx.rules().targetHoursPerWeek() != null && employee.targetRate() == null) {
-            out.add(violation(ViolationCode.MISSING_PARAMETER, employee, shift, "target_rate", null, null,
-                    employee.label() + " thiếu thông số target_rate nên không tính được trần giờ/tuần."));
+        // Quy tắc hiệu lực theo ngày bắt đầu ca. Thiếu tham số bắt buộc thì báo đúng nhân viên và từng tham số,
+        // không tự điền giá trị.
+        EmployeeRules rules = ctx.rulesFor(employee, shift.date());
+        if (!rules.ready()) {
+            for (EmployeeRules.MissingParameter m : rules.missing()) {
+                out.add(violation(ViolationCode.MISSING_PARAMETER, employee, shift, m.key(), null, null,
+                        employee.label() + " thiếu thông số " + m.label() + " (" + m.key() + "): " + m.reason()));
+            }
             return new ValidationResult(out);
         }
 
@@ -60,9 +66,9 @@ public class AssignmentValidator {
         checkLocation(employee, shift, out);
         checkSkillsAndCertificates(employee, shift, out);
         checkAvailability(ctx, employee, shift, out);
-        checkOverlapAndRest(ctx, employee, shift, userAssignments, out);
-        checkHours(ctx, employee, shift, userAssignments, out);
-        checkConsecutiveDays(ctx, employee, shift, userAssignments, out);
+        checkOverlapAndRest(ctx, employee, shift, userAssignments, rules, out);
+        checkHours(ctx, employee, shift, userAssignments, rules, out);
+        checkConsecutiveDays(ctx, employee, shift, userAssignments, rules, out);
         return new ValidationResult(out);
     }
 
@@ -203,8 +209,8 @@ public class AssignmentValidator {
     }
 
     private void checkOverlapAndRest(ScheduleContext ctx, Employee employee, ShiftInfo shift,
-                                     List<Assignment> userAssignments, List<Violation> out) {
-        double minRestMinutes = ctx.rules().minRestBetweenShiftsHours() * 60;
+                                     List<Assignment> userAssignments, EmployeeRules rules, List<Violation> out) {
+        double minRestMinutes = rules.minRestHours() * 60;
         boolean overlapReported = false;
         boolean restReported = false;
         for (Assignment other : userAssignments) {
@@ -223,9 +229,9 @@ public class AssignmentValidator {
                 }
             } else if (rest < minRestMinutes - EPSILON && !restReported) {
                 out.add(violation(ViolationCode.MIN_REST, employee, shift, "min_rest_between_shifts",
-                        rest / 60.0, ctx.rules().minRestBetweenShiftsHours(),
+                        rest / 60.0, rules.minRestHours(),
                         "Nghỉ giữa ca chỉ " + hours(rest / 60.0) + "h, cần tối thiểu "
-                                + hours(ctx.rules().minRestBetweenShiftsHours()) + "h (so với ca \""
+                                + hours(rules.minRestHours()) + "h (so với ca \""
                                 + otherShift.name() + "\" ngày " + otherShift.date() + ")."));
                 restReported = true;
             }
@@ -233,8 +239,7 @@ public class AssignmentValidator {
     }
 
     private void checkHours(ScheduleContext ctx, Employee employee, ShiftInfo shift,
-                            List<Assignment> userAssignments, List<Violation> out) {
-        ScheduleRules rules = ctx.rules();
+                            List<Assignment> userAssignments, EmployeeRules rules, List<Violation> out) {
         Map<LocalDate, Double> load = new HashMap<>();
         for (Assignment other : userAssignments) {
             if (!other.shiftId().equals(shift.id())) {
@@ -254,7 +259,7 @@ public class AssignmentValidator {
             }
         }
 
-        double weekLimit = weeklyLimit(rules, employee);
+        double weekLimit = rules.maxHoursPerWeek();
         Set<LocalDate> weeks = new TreeSet<>();
         added.keySet().forEach(d -> weeks.add(WorkTime.weekStart(d)));
         for (LocalDate week : weeks) {
@@ -263,12 +268,14 @@ public class AssignmentValidator {
                 out.add(violation(ViolationCode.HOURS_PER_WEEK, employee, shift, "weekly_limit",
                         total / 60, weekLimit,
                         "Vượt trần " + hours(weekLimit) + "h/tuần (tuần từ " + week + "): sẽ là "
-                                + hours(total / 60) + "h."));
+                                + hours(total / 60) + "h"
+                                + (rules.maxHoursFormula() == null ? "." : "; trần = " + rules.maxHoursFormula() + ".")));
                 break;
             }
         }
 
-        if (ctx.period() != null && added.keySet().stream().anyMatch(ctx.period()::contains)) {
+        if (rules.maxHoursPerPeriod() != null && ctx.period() != null
+                && added.keySet().stream().anyMatch(ctx.period()::contains)) {
             double total = sumDays(load, ctx.period().startDate(), ctx.period().endDate())
                     + sumDays(added, ctx.period().startDate(), ctx.period().endDate());
             if (total > rules.maxHoursPerPeriod() * 60 + EPSILON) {
@@ -284,19 +291,12 @@ public class AssignmentValidator {
      * giờ mục tiêu tuần × target_rate / 100 (ví dụ 60 × 125% = 75).
      */
     public static double weeklyLimit(ScheduleRules rules, Employee employee) {
-        double limit = rules.maxHoursPerWeek();
-        if (employee.contractMaxHoursPerWeek() != null) {
-            limit = Math.min(limit, employee.contractMaxHoursPerWeek());
-        }
-        if (rules.targetHoursPerWeek() != null && employee.targetRate() != null) {
-            limit = Math.min(limit, rules.targetHoursPerWeek() * employee.targetRate() / 100.0);
-        }
-        return limit;
+        return EmployeeRules.derive(rules, employee, null).maxHoursPerWeek();
     }
 
     private void checkConsecutiveDays(ScheduleContext ctx, Employee employee, ShiftInfo shift,
-                                      List<Assignment> userAssignments, List<Violation> out) {
-        Integer max = ctx.rules().maxConsecutiveDays();
+                                      List<Assignment> userAssignments, EmployeeRules rules, List<Violation> out) {
+        Integer max = rules.maxConsecutiveDays();
         if (max == null) {
             return;
         }

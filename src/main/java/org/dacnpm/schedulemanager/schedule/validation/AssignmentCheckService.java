@@ -278,7 +278,6 @@ public class AssignmentCheckService {
     }
 
     private static ScheduleContext context(ScheduleData d, Set<String> replacedAssignmentIds) {
-        return new ScheduleContext(d.period(), d.rules(), d.employees(), d.shifts(), d.availability(),
-                d.blockedDates(), d.savedAssignments(), replacedAssignmentIds);
+        return d.context(replacedAssignmentIds);
     }
 }

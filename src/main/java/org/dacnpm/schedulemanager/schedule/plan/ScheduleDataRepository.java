@@ -15,6 +15,9 @@ import java.util.Set;
 import org.dacnpm.schedulemanager.schedule.model.Assignment;
 import org.dacnpm.schedulemanager.schedule.model.Employee;
 import org.dacnpm.schedulemanager.schedule.model.Period;
+import org.dacnpm.schedulemanager.schedule.model.ScheduleContext;
+import org.dacnpm.schedulemanager.schedule.rules.EffectiveRules;
+import org.dacnpm.schedulemanager.schedule.rules.EffectiveRulesSource;
 import org.dacnpm.schedulemanager.schedule.model.ScheduleRules;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 import org.dacnpm.schedulemanager.schedule.model.TimeRange;
@@ -44,6 +47,7 @@ public class ScheduleDataRepository {
      * @param publishedShiftIds ca đã công bố trong kỳ
      * @param availability      userId -> đăng ký thời gian rảnh
      * @param blockedDates      userId -> các ngày không thể làm
+     * @param effectiveRules    quy tắc hiệu lực theo nhân viên/ngày; null là suy ra từ {@code rules}
      */
     public record ScheduleData(
             Period period,
@@ -53,7 +57,21 @@ public class ScheduleDataRepository {
             List<String> publishedShiftIds,
             Map<String, UserAvailability> availability,
             List<Assignment> savedAssignments,
-            Map<String, Set<LocalDate>> blockedDates) {
+            Map<String, Set<LocalDate>> blockedDates,
+            EffectiveRules effectiveRules) {
+
+        /** Chưa có quy tắc hiệu lực riêng: suy ra từ schedule_rules. */
+        public ScheduleData(Period period, ScheduleRules rules, List<Employee> employees, List<ShiftInfo> shifts,
+                            List<String> publishedShiftIds, Map<String, UserAvailability> availability,
+                            List<Assignment> savedAssignments, Map<String, Set<LocalDate>> blockedDates) {
+            this(period, rules, employees, shifts, publishedShiftIds, availability, savedAssignments, blockedDates, null);
+        }
+
+        /** Ngữ cảnh kiểm tra/phân lịch; replacedAssignmentIds là phân công đã lưu đang được thay thế. */
+        public ScheduleContext context(Set<String> replacedAssignmentIds) {
+            return new ScheduleContext(period, rules, employees, shifts, availability, blockedDates, savedAssignments,
+                    replacedAssignmentIds, effectiveRules);
+        }
 
         public ScheduleData {
             employees = employees == null ? List.of() : List.copyOf(employees);
@@ -83,10 +101,12 @@ public class ScheduleDataRepository {
 
     private final JdbcTemplate jdbc;
     private final ShiftRepository shiftRepository;
+    private final EffectiveRulesSource rulesSource;
 
-    public ScheduleDataRepository(JdbcTemplate jdbc, ShiftRepository shiftRepository) {
+    public ScheduleDataRepository(JdbcTemplate jdbc, ShiftRepository shiftRepository, EffectiveRulesSource rulesSource) {
         this.jdbc = jdbc;
         this.shiftRepository = shiftRepository;
+        this.rulesSource = rulesSource;
     }
 
     public Optional<ScheduleData> load(String periodId) {
@@ -110,8 +130,10 @@ public class ScheduleDataRepository {
                 published.add(detail.id());
             }
         }
-        return Optional.of(new ScheduleData(period, rules, employees(), shifts, published,
-                availability(periodId), assignments(from, to), blockedDates(from, to.plusDays(1))));
+        List<Employee> employees = employees();
+        return Optional.of(new ScheduleData(period, rules, employees, shifts, published,
+                availability(periodId), assignments(from, to), blockedDates(from, to.plusDays(1)),
+                rulesSource.load(period, rules, employees)));
     }
 
     /**
@@ -136,18 +158,21 @@ public class ScheduleDataRepository {
     }
 
     private ScheduleRules rules() {
-        record Row(String id, double day, double week, double periodHours, double rest, Double target, Integer consecutive) {
+        record Row(String id, double day, double week, double periodHours, double rest, Double target, Integer consecutive,
+                   Double standard, String priority) {
         }
         Row row = jdbc.query("""
                         SELECT TOP 1 id, max_hours_per_day, max_hours_per_week, max_hours_per_period,
-                               min_rest_between_shifts, target_hours_per_week, max_consecutive_days
+                               min_rest_between_shifts, target_hours_per_week, max_consecutive_days,
+                               standard_hours, scheduling_priority
                         FROM schedule_rules
                         ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, id
                         """,
                 (rs, n) -> new Row(rs.getString("id"), rs.getDouble("max_hours_per_day"),
                         rs.getDouble("max_hours_per_week"), rs.getDouble("max_hours_per_period"),
                         rs.getDouble("min_rest_between_shifts"), toDouble(rs.getBigDecimal("target_hours_per_week")),
-                        rs.getObject("max_consecutive_days") == null ? null : rs.getInt("max_consecutive_days")),
+                        rs.getObject("max_consecutive_days") == null ? null : rs.getInt("max_consecutive_days"),
+                        toDouble(rs.getBigDecimal("standard_hours")), rs.getString("scheduling_priority")),
                 MAIN_RULES).stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("Chưa cấu hình quy tắc phân lịch (schedule_rules)."));
 
@@ -162,7 +187,7 @@ public class ScheduleDataRepository {
             levelOrder.put(rs.getString("id"), rs.getInt("sort_order"));
         });
         return new ScheduleRules(row.day(), row.week(), row.periodHours(), row.rest(), row.target(), row.consecutive(),
-                substitutions, levelOrder);
+                substitutions, levelOrder, row.standard(), row.priority());
     }
 
     private List<Employee> employees() {
@@ -178,6 +203,7 @@ public class ScheduleDataRepository {
         return jdbc.query("""
                         SELECT id, full_name, status, level_id, target_rate, contract_max_hours_per_week
                         FROM users
+                        WHERE role = 'user'
                         ORDER BY id
                         """,
                 (rs, n) -> {

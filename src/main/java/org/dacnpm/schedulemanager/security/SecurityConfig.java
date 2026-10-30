@@ -84,6 +84,8 @@ public class SecurityConfig {
                 // Public: health checks
                 .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/health/database").permitAll()
+                // Schedule management: admin only
+                .requestMatchers("/api/schedule/**").hasRole("ADMIN")
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

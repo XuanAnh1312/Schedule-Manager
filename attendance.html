@@ -10,23 +10,23 @@
 <body>
   <a class="skip" href="#main">Chuyển đến nội dung chính</a>
   <header class="top">
-    <div><strong>Schedule Manager</strong><span>Chấm công & báo cáo · SQL Server</span></div>
-    <a href="index.html">← Quay về phân lịch demo</a>
+    <div><strong>Schedule Manager</strong><span>Chấm công và báo cáo</span></div>
+    <a href="index.html" target="_top">← Quay về trang chủ</a>
   </header>
   <main id="main" tabindex="-1">
     <section class="box" id="login-view">
-      <h1>Đăng nhập hệ thống công</h1>
-      <p>Đây là tài khoản <strong>Backend SQL Server</strong>, không phải tài khoản demo <code>admin/admin123</code>.</p>
+      <h1>Đăng nhập chấm công</h1>
+      <p>Đăng nhập bằng tài khoản chấm công được cấp để xem và cập nhật thông tin làm việc.</p>
       <form id="login-form">
-        <label>Tên đăng nhập <input name="username" required autocomplete="username" placeholder="admin"></label>
+        <label>Tên đăng nhập <input name="username" required autocomplete="username" placeholder="Nhập tên đăng nhập"></label>
         <label>Mật khẩu <input name="password" required type="password" autocomplete="current-password"></label>
-        <button type="submit">Đăng nhập API</button>
+        <button type="submit">Đăng nhập</button>
       </form>
       <p id="login-message" role="alert"></p>
     </section>
     <section id="app-view" hidden>
       <div class="toolbar">
-        <div><h1>Bảng điều khiển công</h1><p id="user-info"></p></div>
+        <div><h1>Tổng quan chấm công</h1><p id="user-info"></p></div>
         <button id="logout-btn" class="secondary">Đăng xuất</button>
       </div>
       <div class="toolbar">
@@ -39,44 +39,44 @@
       <section class="grid-two">
         <section class="box">
           <h2>Chấm công</h2>
-          <p class="help">Chỉ check-in cho ca đã công bố và được phân trong SQL Server. Thời gian ghi theo đồng hồ máy chủ.</p>
+          <p class="help">Chỉ có thể chấm công đối với ca làm việc đã được phân và công bố. Giờ vào, giờ ra được hệ thống ghi nhận tự động.</p>
           <label>Ca được phân <select id="shift-select" aria-label="Ca được phân"></select></label>
-          <div class="buttons"><button id="checkin-btn">Check-in</button>
-          <button id="checkout-btn" class="secondary">Check-out lượt đang mở</button></div>
-          <label>Phút nghỉ không hưởng công <input id="break-minutes" type="number" min="0" max="1440" value="0"></label>
-          <h3>Công cá nhân</h3>
+          <div class="buttons"><button id="checkin-btn">Ghi nhận giờ vào</button>
+          <button id="checkout-btn" class="secondary">Ghi nhận giờ ra</button></div>
+          <label>Thời gian nghỉ không tính công (phút) <input id="break-minutes" type="number" min="0" max="1440" value="0"></label>
+          <h3>Lịch sử chấm công của tôi</h3>
           <div class="scroll"><table><thead><tr><th>Ca</th><th>Vào</th><th>Ra</th><th>Giờ thực tế</th><th>Trạng thái</th></tr></thead><tbody id="records-body"></tbody></table></div>
         </section>
         <section class="box">
-          <h2>Yêu cầu bổ sung / điều chỉnh</h2>
+          <h2>Đề nghị bổ sung hoặc điều chỉnh công</h2>
           <form id="request-form">
             <label>Ca cần điều chỉnh <select name="shiftId" id="request-shift" required></select></label>
-            <label>Mã lượt công (để trống nếu bổ sung mới) <input name="recordId" placeholder="UUID lượt công đã check-out"></label>
-            <label>Giờ vào đề xuất (giờ Việt Nam) <input type="datetime-local" name="clockIn" required></label>
-            <label>Giờ ra đề xuất (giờ Việt Nam) <input type="datetime-local" name="clockOut" required></label>
-            <label>Phút nghỉ <input type="number" min="0" max="1440" value="0" name="breakMinutes" required></label>
-            <label>Lý do <textarea name="reason" minlength="5" required rows="3" placeholder="Nêu lý do cụ thể"></textarea></label>
-            <button type="submit">Gửi yêu cầu duyệt</button>
+            <label>Mã lượt chấm công (nếu điều chỉnh lượt đã có) <input name="recordId" placeholder="Nhập mã lượt công cần điều chỉnh, nếu có"></label>
+            <label>Giờ vào đề nghị <input type="datetime-local" name="clockIn" required></label>
+            <label>Giờ ra đề nghị <input type="datetime-local" name="clockOut" required></label>
+            <label>Thời gian nghỉ (phút) <input type="number" min="0" max="1440" value="0" name="breakMinutes" required></label>
+            <label>Lý do đề nghị <textarea name="reason" minlength="5" required rows="3" placeholder="Nêu lý do cụ thể"></textarea></label>
+            <button type="submit">Gửi đề nghị điều chỉnh</button>
           </form>
-          <p class="help">Không sửa dữ liệu gốc cho đến khi được duyệt. Kỳ đã khóa vẫn chỉ thay đổi qua phê duyệt.</p>
+          <p class="help">Thông tin chấm công hiện tại được giữ nguyên cho đến khi người quản lý phê duyệt đề nghị.</p>
         </section>
       </section>
       <section class="box" id="manager" hidden>
-        <div class="toolbar"><h2>Dashboard quản trị & báo cáo</h2><button id="csv-btn" class="secondary">Xuất CSV</button><button id="xlsx-btn" class="secondary">Xuất Excel</button></div>
-        <div class="scroll"><table><thead><tr><th>Mã NV</th><th>Nhân viên</th><th>Mục tiêu</th><th>Đã xếp (công bố)</th><th>Thực tế</th><th>Đã duyệt</th><th>Chênh lệch</th><th>Tỷ lệ</th><th>Ghi chú</th></tr></thead><tbody id="report-body"></tbody></table></div>
-        <h3>Biểu đồ giờ đã xếp / mục tiêu</h3>
+        <div class="toolbar"><h2>Báo cáo chấm công nhân viên</h2><button id="csv-btn" class="secondary">Xuất CSV</button><button id="xlsx-btn" class="secondary">Xuất Excel</button></div>
+        <div class="scroll"><table><thead><tr><th>Mã nhân viên</th><th>Nhân viên</th><th>Mục tiêu</th><th>Giờ đã phân công</th><th>Giờ đã làm</th><th>Giờ đã duyệt</th><th>Chênh lệch</th><th>Tỷ lệ</th><th>Ghi chú</th></tr></thead><tbody id="report-body"></tbody></table></div>
+        <h3>So sánh giờ được phân công và mục tiêu</h3>
         <div id="hours-chart" aria-label="Biểu đồ giờ theo nhân viên"></div>
-        <h3>Ca thiếu người (chỉ lịch đã công bố)</h3>
+        <h3>Ca làm việc chưa đủ nhân sự</h3>
         <div class="scroll"><table><thead><tr><th>Ca</th><th>Ngày</th><th>Cần</th><th>Đã phân</th><th>Lý do</th></tr></thead><tbody id="shortages-body"></tbody></table></div>
-        <h3>Giờ công check-out chờ duyệt</h3>
+        <h3>Lượt chấm công chờ xác nhận</h3>
         <div id="pending-punches"></div>
-        <h3>Điểm danh bất thường: đi muộn, vắng, thiếu check-out</h3>
-        <div class="scroll"><table><thead><tr><th>Nhân viên</th><th>Ca</th><th>Vấn đề</th><th>Phút muộn</th></tr></thead><tbody id="anomalies-body"></tbody></table></div>
-        <h3>Yêu cầu điều chỉnh chờ duyệt</h3>
+        <h3>Trường hợp cần lưu ý khi chấm công</h3>
+        <div class="scroll"><table><thead><tr><th>Nhân viên</th><th>Ca</th><th>Vấn đề</th><th>Số phút đi muộn</th></tr></thead><tbody id="anomalies-body"></tbody></table></div>
+        <h3>Đề nghị điều chỉnh đang chờ duyệt</h3>
         <div id="pending-requests"></div>
-        <form id="lock-form" class="toolbar"><label>Khóa kỳ công <input type="text" name="reason" required minlength="5" placeholder="Lý do khóa kỳ"></label><button class="danger" type="submit">Khóa kỳ đang chọn</button></form>
+        <form id="lock-form" class="toolbar"><label>Khóa kỳ chấm công <input type="text" name="reason" required minlength="5" placeholder="Lý do khóa kỳ"></label><button class="danger" type="submit">Khóa kỳ được chọn</button></form>
       </section>
-      <section class="box"><h2>Lịch sử & yêu cầu</h2><div id="own-requests"></div><div id="audit-log"></div></section>
+      <section class="box"><h2>Lịch sử chấm công và đề nghị</h2><div id="own-requests"></div><div id="audit-log"></div></section>
     </section>
   </main>
 </body>

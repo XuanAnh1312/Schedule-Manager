@@ -24,7 +24,7 @@ const USER_ROUTES = [
   { id: 'register',    label: 'Đăng ký thời gian rảnh',icon: iconClock(),    section: 'User', render: () => UserView.renderRegister() },
   { id: 'my-schedule', label: 'Lịch làm việc của tôi', icon: iconCalendar(), section: 'User', render: () => UserView.renderMySchedule(), afterRender: () => UserView.initMySchedule() },
   { id: 'profile',     label: 'Thông tin cá nhân',     icon: iconUser2(),    section: 'User', render: () => UserView.renderProfile() },
-  { id: 'attendance-sql', label: 'Chấm công thực tế', icon: iconClock(), section: 'User', render: () => AttendanceEntry.render() },
+  { id: 'attendance-sql', label: 'Chấm công và báo cáo', icon: iconClock(), section: 'User', render: () => AttendanceEntry.render() },
 ];
 
 /* ═══════════════════════════════════════════════════════════

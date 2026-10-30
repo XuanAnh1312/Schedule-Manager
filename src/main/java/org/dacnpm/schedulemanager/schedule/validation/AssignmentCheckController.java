@@ -3,7 +3,9 @@ package org.dacnpm.schedulemanager.schedule.validation;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftNotFoundException;
+import org.dacnpm.schedulemanager.schedule.validation.AssignmentCheckService.BatchCheck;
 import org.dacnpm.schedulemanager.schedule.validation.AssignmentCheckService.LeaveCheck;
 import org.dacnpm.schedulemanager.schedule.validation.AssignmentCheckService.PublishCheck;
 import org.dacnpm.schedulemanager.schedule.validation.AssignmentCheckService.SwapCheck;
@@ -28,6 +30,9 @@ public class AssignmentCheckController {
     public record AssignRequest(String shiftId, String userId, String requiredLevelId) {
     }
 
+    public record BatchRequest(List<AssignRequest> proposals, Set<String> replacedAssignmentIds) {
+    }
+
     public record SwapRequest(String shiftIdA, String userIdA, String shiftIdB, String userIdB) {
     }
 
@@ -49,6 +54,18 @@ public class AssignmentCheckController {
                 required(request.userId(), "userId"), required(request.shiftId(), "shiftId"), request.requiredLevelId()));
     }
 
+    @PostMapping("/batch")
+    public BatchResponse batch(@RequestBody BatchRequest request) {
+        if (request.proposals() == null) {
+            throw new IllegalArgumentException("Thiếu thông số proposals.");
+        }
+        List<AssignmentCandidate> proposals = request.proposals().stream()
+                .map(p -> p == null ? null : new AssignmentCandidate(p.userId(), p.shiftId(), p.requiredLevelId()))
+                .toList();
+        BatchCheck check = service.checkBatch(proposals, request.replacedAssignmentIds());
+        return new BatchResponse(check.allAccepted(), check.acceptedCount(), check.items());
+    }
+
     @PostMapping("/swap")
     public SwapResponse swap(@RequestBody SwapRequest request) {
         SwapCheck check = service.checkSwap(required(request.shiftIdA(), "shiftIdA"), required(request.userIdA(), "userIdA"),
@@ -66,6 +83,9 @@ public class AssignmentCheckController {
     public LeaveResponse leave(@RequestBody LeaveRequest request) {
         LeaveCheck check = service.checkLeave(required(request.userId(), "userId"), request.from(), request.to());
         return new LeaveResponse(check.causesUnderstaffing(), check.impacts());
+    }
+
+    public record BatchResponse(boolean allAccepted, long acceptedCount, List<AssignmentCheckService.BatchItem> items) {
     }
 
     public record SwapResponse(boolean allowed, ValidationResult userAToShiftB, ValidationResult userBToShiftA) {

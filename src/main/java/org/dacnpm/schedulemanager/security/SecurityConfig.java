@@ -86,6 +86,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/health/database").permitAll()
                 // Schedule management: admin only
                 .requestMatchers("/api/schedule/**").hasRole("ADMIN")
+                // Self-service checks: any signed-in user, always for their own account
+                .requestMatchers("/api/my/**").authenticated()
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

@@ -161,20 +161,45 @@ public class AssignmentValidator {
                     employee.label() + " chưa gửi đăng ký thời gian rảnh cho kỳ này."));
             return;
         }
-        List<TimeRange> slots = availability.slotsByDate().getOrDefault(shift.date(), List.of());
-        int start = shift.startTime().getHour() * 60 + shift.startTime().getMinute();
-        int end = shift.endTime().getHour() * 60 + shift.endTime().getMinute();
-        if (end <= start) {
-            end += 1440;
-        }
-        final int shiftStart = start;
-        final int shiftEnd = end;
-        boolean covered = slots.stream().anyMatch(s -> s.startMinute() <= shiftStart && s.endMinute() >= shiftEnd);
-        if (!covered) {
+        if (!coversShift(availability, shift)) {
             out.add(violation(ViolationCode.NOT_AVAILABLE_TIME, employee, shift, "availability", null, null,
                     "Thời gian rảnh của " + employee.label() + " không bao phủ ca " + shift.startTime()
                             + "-" + shift.endTime() + " ngày " + shift.date() + "."));
         }
+    }
+
+    /**
+     * Thời gian rảnh có phủ trọn ca không. Khung rảnh của ngày trước, ngày của ca và ngày sau được đặt chung một trục
+     * phút (0 là 00:00 ngày của ca) rồi nối các khung chạm nhau, nên ca qua đêm được phủ bởi khung tối hôm trước và
+     * khung sáng hôm sau, và hai khung liền nhau trong ngày được tính là một. Kết thúc lúc 23:59 được hiểu là hết ngày
+     * (nút "Cả ngày" của giao diện lưu 00:00-23:59).
+     */
+    static boolean coversShift(UserAvailability availability, ShiftInfo shift) {
+        int start = shift.startTime().getHour() * 60 + shift.startTime().getMinute();
+        int end = start + (int) java.time.Duration.between(shift.startAt(), shift.endAt()).toMinutes();
+
+        List<int[]> ranges = new ArrayList<>();
+        for (int offset = -1; offset <= 1; offset++) {
+            int shiftMinutes = offset * 1440;
+            for (TimeRange slot : availability.slotsByDate().getOrDefault(shift.date().plusDays(offset), List.of())) {
+                int slotEnd = slot.endMinute() % 1440 == 1439 ? slot.endMinute() + 1 : slot.endMinute();
+                ranges.add(new int[] {slot.startMinute() + shiftMinutes, slotEnd + shiftMinutes});
+            }
+        }
+        ranges.sort(java.util.Comparator.comparingInt(r -> r[0]));
+
+        int coveredFrom = Integer.MIN_VALUE;
+        int coveredTo = Integer.MIN_VALUE;
+        for (int[] range : ranges) {
+            if (range[0] > coveredTo) {
+                coveredFrom = range[0];
+            }
+            coveredTo = Math.max(coveredTo, range[1]);
+            if (coveredFrom <= start && coveredTo >= end) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void checkOverlapAndRest(ScheduleContext ctx, Employee employee, ShiftInfo shift,

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,8 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Cổng kiểm tra phân công dùng chung cho các luồng ngoài phân lịch tự động: gán thủ công/kéo thả/nhận ca,
- * đổi ca, công bố và nghỉ phép tác động lịch. Mọi luồng đều đi qua {@link AssignmentValidator}, nên cùng một bộ
+ * Cổng kiểm tra phân công dùng chung: gán thủ công/kéo thả/nhận ca, kiểm tra một loạt đề xuất (phân lịch tự động,
+ * chạy lại phương án), đổi ca, công bố và nghỉ phép tác động lịch. Mọi luồng đều đi qua {@link AssignmentValidator}, nên cùng một bộ
  * ràng buộc (trùng giờ, không thể làm, active, địa điểm, Level, kỹ năng/chứng chỉ, giờ ngày/tuần/kỳ, nghỉ tối
  * thiểu, ngày liên tiếp, giới hạn hợp đồng). Chỉ đọc, không ghi dữ liệu.
  */
@@ -31,6 +32,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class AssignmentCheckService {
 
     static final int MAX_LEAVE_SPAN_DAYS = 366;
+    static final int MAX_BATCH = 500;
+
+    /**
+     * Một phân công đề xuất trong loạt kiểm tra. accepted là true khi không có vi phạm nào; chỉ phân công được nhận
+     * mới được cộng vào ngữ cảnh cho các đề xuất phía sau.
+     */
+    public record BatchItem(AssignmentCandidate candidate, ValidationResult result, boolean accepted) {
+    }
+
+    public record BatchCheck(List<BatchItem> items) {
+        public long acceptedCount() {
+            return items.stream().filter(BatchItem::accepted).count();
+        }
+
+        public boolean allAccepted() {
+            return items.stream().allMatch(BatchItem::accepted);
+        }
+    }
 
     /** Kết quả đổi ca: người A sang ca B và người B sang ca A. */
     public record SwapCheck(ValidationResult userAToShiftB, ValidationResult userBToShiftA) {
@@ -89,6 +108,42 @@ public class AssignmentCheckService {
         ShiftDetail shift = activeShift(candidate.shiftId());
         ScheduleData d = loadFor(shift);
         return validator.validate(context(d, Set.of()), candidate);
+    }
+
+    /**
+     * Kiểm tra lần lượt một loạt phân công đề xuất trong cùng một kỳ (phân lịch tự động, kéo thả nhiều ca, chạy lại
+     * phương án). Mỗi đề xuất được kiểm tra với phân công đã lưu cộng các đề xuất được nhận trước nó, nên trùng giờ,
+     * nghỉ tối thiểu, giờ ngày/tuần/kỳ và ngày liên tiếp tính cả phân công vừa sinh.
+     *
+     * @param replacedAssignmentIds phân công đã lưu sẽ bị thay thế (ví dụ khi chạy lại phương án); không được tính
+     *                              để giờ không bị đếm hai lần
+     */
+    @Transactional(readOnly = true)
+    public BatchCheck checkBatch(List<AssignmentCandidate> proposals, Set<String> replacedAssignmentIds) {
+        if (proposals == null || proposals.isEmpty() || proposals.size() > MAX_BATCH) {
+            throw new IllegalArgumentException("Số phân công cần kiểm tra phải từ 1 đến " + MAX_BATCH + ".");
+        }
+        for (AssignmentCandidate p : proposals) {
+            if (p == null || p.userId() == null || p.userId().isBlank() || p.shiftId() == null || p.shiftId().isBlank()) {
+                throw new IllegalArgumentException("Mỗi phân công cần kiểm tra phải có userId và shiftId.");
+            }
+        }
+        List<ShiftDetail> details = proposals.stream().map(AssignmentCandidate::shiftId).distinct()
+                .map(this::activeShift).toList();
+        ScheduleData d = loadFor(details.get(0));
+        details.forEach(s -> requireSamePeriod(d, s));
+
+        ScheduleContext ctx = context(d, replacedAssignmentIds == null ? Set.of() : replacedAssignmentIds);
+        List<BatchItem> items = new ArrayList<>();
+        for (int i = 0; i < proposals.size(); i++) {
+            AssignmentCandidate candidate = proposals.get(i);
+            ValidationResult result = validator.validate(ctx, candidate);
+            if (result.valid()) {
+                ctx.addProposed(new Assignment("proposed_" + i, candidate.shiftId(), candidate.userId(), Assignment.CONFIRMED));
+            }
+            items.add(new BatchItem(candidate, result, result.valid()));
+        }
+        return new BatchCheck(items);
     }
 
     /**
@@ -153,7 +208,8 @@ public class AssignmentCheckService {
 
     /**
      * Nghỉ phép tác động lịch: liệt kê các phân công của nhân viên rơi vào khoảng nghỉ và cho biết ca nào
-     * sẽ thiếu người nếu đơn được duyệt. Khoảng nghỉ phải nằm trong cùng một kỳ.
+     * sẽ thiếu người nếu đơn được duyệt. Khoảng nghỉ có thể trải qua nhiều kỳ; ngày không thuộc kỳ nào không có ca
+     * được phân nên không có tác động.
      */
     @Transactional(readOnly = true)
     public LeaveCheck checkLeave(String userId, LocalDate from, LocalDate to) {
@@ -163,32 +219,30 @@ public class AssignmentCheckService {
         if (ChronoUnit.DAYS.between(from, to) > MAX_LEAVE_SPAN_DAYS) {
             throw new IllegalArgumentException("Khoảng nghỉ tối đa " + MAX_LEAVE_SPAN_DAYS + " ngày.");
         }
-        String periodId = shifts.periodIdFor(from)
-                .orElseThrow(() -> new IllegalArgumentException("Ngày " + from + " không thuộc kỳ nào."));
-        ScheduleData d = data.load(periodId)
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));
-        if (!d.period().contains(to)) {
-            throw new IllegalArgumentException("Khoảng nghỉ phải nằm trong cùng một kỳ (" + d.period().name() + ").");
-        }
-        Map<String, ShiftInfo> byId = new HashMap<>();
-        d.shifts().forEach(s -> byId.put(s.id(), s));
-
-        List<LeaveImpact> impacts = new ArrayList<>();
-        for (Assignment assignment : d.savedAssignments()) {
-            if (!assignment.userId().equals(userId)) {
-                continue;
+        // Dữ liệu mỗi kỳ được nạp kèm vài ngày đệm của kỳ liền kề, nên cùng một phân công có thể xuất hiện ở hai kỳ.
+        Map<String, LeaveImpact> impacts = new LinkedHashMap<>();
+        for (String periodId : shifts.periodIdsOverlapping(from, to)) {
+            ScheduleData d = data.load(periodId)
+                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));
+            Map<String, ShiftInfo> byId = new HashMap<>();
+            d.shifts().forEach(s -> byId.put(s.id(), s));
+            for (Assignment assignment : d.savedAssignments()) {
+                if (!assignment.userId().equals(userId) || impacts.containsKey(assignment.id())) {
+                    continue;
+                }
+                ShiftInfo shift = byId.get(assignment.shiftId());
+                if (shift == null || !touches(shift, from, to)) {
+                    continue;
+                }
+                long filled = d.savedAssignments().stream().filter(a -> a.shiftId().equals(shift.id())).count();
+                int filledAfter = (int) filled - 1;
+                impacts.put(assignment.id(), new LeaveImpact(assignment.id(), shift.id(), shift.name(), shift.date(),
+                        shift.totalRequired(), shift.minimum(), filledAfter, shift.understaffedWith(filledAfter)));
             }
-            ShiftInfo shift = byId.get(assignment.shiftId());
-            if (shift == null || !touches(shift, from, to)) {
-                continue;
-            }
-            long filled = d.savedAssignments().stream().filter(a -> a.shiftId().equals(shift.id())).count();
-            int filledAfter = (int) filled - 1;
-            impacts.add(new LeaveImpact(assignment.id(), shift.id(), shift.name(), shift.date(),
-                    shift.totalRequired(), shift.minimum(), filledAfter, shift.understaffedWith(filledAfter)));
         }
-        impacts.sort(java.util.Comparator.comparing(LeaveImpact::date).thenComparing(LeaveImpact::shiftId));
-        return new LeaveCheck(impacts);
+        List<LeaveImpact> sorted = new ArrayList<>(impacts.values());
+        sorted.sort(java.util.Comparator.comparing(LeaveImpact::date).thenComparing(LeaveImpact::shiftId));
+        return new LeaveCheck(sorted);
     }
 
     private static boolean touches(ShiftInfo shift, LocalDate from, LocalDate to) {

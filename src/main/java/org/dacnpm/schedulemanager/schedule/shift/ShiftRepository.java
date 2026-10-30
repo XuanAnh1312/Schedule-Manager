@@ -146,6 +146,12 @@ public class ShiftRepository {
                 String.class, date).stream().findFirst();
     }
 
+    /** Các kỳ giao với khoảng ngày [from, to], theo ngày bắt đầu. */
+    public List<String> periodIdsOverlapping(LocalDate from, LocalDate to) {
+        return jdbc.queryForList("SELECT id FROM periods WHERE start_date <= ? AND end_date >= ? ORDER BY start_date, id",
+                String.class, to, from);
+    }
+
     /** Các id không tồn tại trong bảng tra cứu (bảng phải thuộc danh sách cho phép). */
     public List<String> missingIds(String table, Collection<String> ids) {
         if (!LOOKUP_TABLES.contains(table)) {

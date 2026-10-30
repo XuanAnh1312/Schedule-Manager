@@ -15,6 +15,8 @@ import java.util.Optional;
 import java.util.Set;
 import org.dacnpm.schedulemanager.schedule.model.Assignment;
 import org.dacnpm.schedulemanager.schedule.model.Employee;
+import org.dacnpm.schedulemanager.schedule.model.Period;
+import org.dacnpm.schedulemanager.schedule.model.ScheduleRules;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository.ScheduleData;
@@ -43,6 +45,7 @@ class AssignmentCheckServiceTest {
     void setUp() {
         service = new AssignmentCheckService(shifts, data, new AssignmentValidator());
         when(shifts.periodIdFor(any())).thenReturn(Optional.of("p1"));
+        when(shifts.periodIdsOverlapping(any(), any())).thenReturn(List.of("p1"));
     }
 
     private static ShiftDetail detail(ShiftInfo s, Instant cancelledAt) {
@@ -54,10 +57,15 @@ class AssignmentCheckServiceTest {
 
     private void given(List<Employee> staff, List<ShiftInfo> allShifts, List<Assignment> saved,
                        Map<String, Set<LocalDate>> blocked) {
+        given(staff, allShifts, saved, blocked, rules(8, 60.0));
+    }
+
+    private void given(List<Employee> staff, List<ShiftInfo> allShifts, List<Assignment> saved,
+                       Map<String, Set<LocalDate>> blocked, ScheduleRules rules) {
         for (ShiftInfo s : allShifts) {
             when(shifts.findById(s.id())).thenReturn(Optional.of(detail(s, null)));
         }
-        when(data.load("p1")).thenReturn(Optional.of(new ScheduleData(PERIOD, rules(8, 60.0), staff, allShifts,
+        when(data.load("p1")).thenReturn(Optional.of(new ScheduleData(PERIOD, rules, staff, allShifts,
                 List.of(), freeAllPeriod(staff), saved, blocked)));
     }
 
@@ -268,11 +276,112 @@ class AssignmentCheckServiceTest {
     }
 
     @Test
-    void checkLeave_rejectsInvalidRange_andRangeOutsideThePeriod() {
+    void checkLeave_rejectsInvalidOrTooLongRange() {
         List<Employee> staff = List.of(employee("u1", "lvl1", 100.0));
         given(staff, List.of(), List.of(), Map.of());
 
         assertThatThrownBy(() -> service.checkLeave("u1", day(3), day(1))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> service.checkLeave("u1", day(0), day(40))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.checkLeave("u1", day(0), day(400))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void checkLeave_spanningTwoPeriods_collectsEachAssignmentOnce() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 100.0));
+        ShiftInfo lastDay = shift("last", day(27), t(8, 0), t(12, 0), 0, 1, "user");
+        ShiftInfo nextFirst = shift("next", day(28), t(8, 0), t(12, 0), 0, 1, "user");
+        Period next = new Period("p2", "Kỳ sau", day(28), day(55));
+        List<Assignment> saved = List.of(saved("a1", "last", "u1"), saved("a2", "next", "u1"));
+        // Mỗi kỳ được nạp kèm ngày đệm của kỳ kia, nên cả hai phân công xuất hiện trong cả hai lần nạp.
+        when(data.load("p1")).thenReturn(Optional.of(new ScheduleData(PERIOD, rules(8, 60.0), staff,
+                List.of(lastDay, nextFirst), List.of(), freeAllPeriod(staff), saved, Map.of())));
+        when(data.load("p2")).thenReturn(Optional.of(new ScheduleData(next, rules(8, 60.0), staff,
+                List.of(lastDay, nextFirst), List.of(), freeAllPeriod(staff), saved, Map.of())));
+        when(shifts.periodIdsOverlapping(day(27), day(28))).thenReturn(List.of("p1", "p2"));
+
+        LeaveCheck check = service.checkLeave("u1", day(27), day(28));
+
+        assertThat(check.impacts()).extracting(AssignmentCheckService.LeaveImpact::assignmentId)
+                .containsExactly("a1", "a2");
+    }
+
+    @Test
+    void checkLeave_outsideEveryPeriod_hasNoImpact() {
+        when(shifts.periodIdsOverlapping(any(), any())).thenReturn(List.of());
+
+        assertThat(service.checkLeave("u1", day(100), day(101)).impacts()).isEmpty();
+    }
+
+    @Test
+    void checkBatch_countsEarlierAcceptedProposals_forOverlapAndWeeklyCeiling() {
+        // target 60h × 125% = 75h/tuần; sáu ca 12h = 72h, ca thứ bảy 4h sẽ vượt trần.
+        List<Employee> staff = List.of(employee("u1", "lvl1", 125.0));
+        List<ShiftInfo> all = new java.util.ArrayList<>(baseWeekShifts());
+        all.add(shift("sun", day(6), t(8, 0), t(12, 0), 0, 1, "user"));
+        all.add(shift("clash", day(0), t(10, 0), t(14, 0), 0, 1, "user"));
+        given(staff, all, List.of(), Map.of(), rules(12, 60.0));
+
+        List<AssignmentCandidate> proposals = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            proposals.add(new AssignmentCandidate("u1", "base" + i, null));
+        }
+        proposals.add(new AssignmentCandidate("u1", "clash", null));
+        proposals.add(new AssignmentCandidate("u1", "sun", null));
+
+        AssignmentCheckService.BatchCheck check = service.checkBatch(proposals, Set.of());
+
+        assertThat(check.items().subList(0, 6)).allMatch(AssignmentCheckService.BatchItem::accepted);
+        assertThat(check.items().get(6).result().has(ViolationCode.OVERLAP)).isTrue();
+        assertThat(check.items().get(7).result().has(ViolationCode.HOURS_PER_WEEK)).isTrue();
+        assertThat(check.items().get(7).result().violations())
+                .filteredOn(v -> v.code() == ViolationCode.HOURS_PER_WEEK)
+                .singleElement().satisfies(v -> assertThat(v.limit()).isEqualTo(75.0));
+        assertThat(check.acceptedCount()).isEqualTo(6);
+        assertThat(check.allAccepted()).isFalse();
+    }
+
+    @Test
+    void checkBatch_rejectedProposalsDoNotCountAgainstLaterOnes() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 100.0), employee("u2", "lvl1", 100.0));
+        ShiftInfo s0 = shift("s0", day(0), t(8, 0), t(12, 0), 0, 1, "user");
+        given(staff, List.of(s0), List.of(), Map.of("u1", Set.of(day(0))));
+
+        AssignmentCheckService.BatchCheck check = service.checkBatch(List.of(
+                new AssignmentCandidate("u1", "s0", null), new AssignmentCandidate("u2", "s0", null)), Set.of());
+
+        assertThat(check.items().get(0).accepted()).isFalse();
+        assertThat(check.items().get(1).accepted()).isTrue();
+    }
+
+    @Test
+    void checkBatch_replacedAssignmentsAreNotCountedTwice() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 125.0));
+        List<ShiftInfo> all = baseWeekShifts();
+        List<Assignment> saved = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            saved.add(saved("a" + i, "base" + i, "u1"));
+        }
+        given(staff, all, saved, Map.of(), rules(12, 60.0));
+        List<AssignmentCandidate> rerun = new java.util.ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            rerun.add(new AssignmentCandidate("u1", "base" + i, null));
+        }
+
+        Set<String> replaced = Set.of("a0", "a1", "a2", "a3", "a4", "a5");
+        assertThat(service.checkBatch(rerun, replaced).allAccepted()).isTrue();
+        assertThat(service.checkBatch(rerun, Set.of()).acceptedCount()).isZero();
+    }
+
+    @Test
+    void checkBatch_rejectsEmptyOrIncompleteInput_andShiftsFromAnotherPeriod() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 100.0));
+        ShiftInfo s0 = shift("s0", day(0), t(8, 0), t(12, 0), 0, 1, "user");
+        ShiftInfo outside = shift("out", day(40), t(8, 0), t(12, 0), 0, 1, "user");
+        given(staff, List.of(s0, outside), List.of(), Map.of());
+
+        assertThatThrownBy(() -> service.checkBatch(List.of(), Set.of())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.checkBatch(List.of(new AssignmentCandidate(null, "s0", null)), Set.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.checkBatch(List.of(new AssignmentCandidate("u1", "s0", null),
+                new AssignmentCandidate("u1", "out", null)), Set.of())).isInstanceOf(IllegalArgumentException.class);
     }
 }

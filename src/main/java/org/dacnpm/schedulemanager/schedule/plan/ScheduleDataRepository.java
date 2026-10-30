@@ -98,8 +98,9 @@ public class ScheduleDataRepository {
             return Optional.empty();
         }
         Period period = found.get();
-        LocalDate from = period.startDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusDays(1);
-        LocalDate to = period.endDate().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).plusDays(1);
+        ScheduleRules rules = rules();
+        LocalDate from = windowStart(period, rules);
+        LocalDate to = windowEnd(period, rules);
 
         List<ShiftInfo> shifts = new ArrayList<>();
         List<String> published = new ArrayList<>();
@@ -109,8 +110,29 @@ public class ScheduleDataRepository {
                 published.add(detail.id());
             }
         }
-        return Optional.of(new ScheduleData(period, rules(), employees(), shifts, published,
+        return Optional.of(new ScheduleData(period, rules, employees(), shifts, published,
                 availability(periodId), assignments(from, to), blockedDates(from, to.plusDays(1))));
+    }
+
+    /**
+     * Ngày đầu của khoảng nạp ca/phân công: lùi đến thứ hai của tuần đầu (giờ/tuần), thêm một ngày đệm (ca qua đêm,
+     * nghỉ tối thiểu) và đủ số ngày liên tiếp tối đa để đếm chuỗi ngày làm bắt đầu trước kỳ.
+     */
+    static LocalDate windowStart(Period period, ScheduleRules rules) {
+        LocalDate weekBased = period.startDate().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusDays(1);
+        LocalDate streakBased = period.startDate().minusDays(streakPadding(rules));
+        return streakBased.isBefore(weekBased) ? streakBased : weekBased;
+    }
+
+    /** Ngày cuối của khoảng nạp, đối xứng với {@link #windowStart}. */
+    static LocalDate windowEnd(Period period, ScheduleRules rules) {
+        LocalDate weekBased = period.endDate().with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY)).plusDays(1);
+        LocalDate streakBased = period.endDate().plusDays(streakPadding(rules));
+        return streakBased.isAfter(weekBased) ? streakBased : weekBased;
+    }
+
+    private static int streakPadding(ScheduleRules rules) {
+        return rules.maxConsecutiveDays() == null ? 0 : rules.maxConsecutiveDays() + 1;
     }
 
     private ScheduleRules rules() {
@@ -135,8 +157,12 @@ public class ScheduleDataRepository {
                     substitutions.computeIfAbsent(rs.getString("higher_level_id"), k -> new HashSet<>())
                             .add(rs.getString("lower_level_id"));
                 }, row.id());
+        Map<String, Integer> levelOrder = new HashMap<>();
+        jdbc.query("SELECT id, sort_order FROM levels", rs -> {
+            levelOrder.put(rs.getString("id"), rs.getInt("sort_order"));
+        });
         return new ScheduleRules(row.day(), row.week(), row.periodHours(), row.rest(), row.target(), row.consecutive(),
-                substitutions);
+                substitutions, levelOrder);
     }
 
     private List<Employee> employees() {

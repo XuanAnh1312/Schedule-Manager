@@ -30,12 +30,13 @@ public class ShiftRepository {
     /** Chỉ cho phép các bảng này trong truy vấn kiểm tra id tồn tại (tên bảng không đến từ người dùng). */
     private static final Set<String> LOOKUP_TABLES = Set.of("locations", "positions", "skills", "certificates", "users", "levels");
 
-    private static final String SELECT_SHIFT = """
-            SELECT id, name, shift_date, start_time, end_time, break_minutes, location_id, assignment_mode,
-                   total_required, min_required, max_allowed, note, status, version, is_emergency, series_id,
-                   cancelled_at, cancelled_by, cancel_reason
-            FROM shifts
-            """;
+    /** Các cột của bảng shifts mà repository đọc; test đối chiếu danh sách này với migration. */
+    static final List<String> SHIFT_COLUMNS = List.of(
+            "id", "name", "shift_date", "start_time", "end_time", "break_minutes", "location_id", "assignment_mode",
+            "total_required", "min_required", "max_allowed", "note", "status", "version", "is_emergency", "series_id",
+            "cancelled_at", "cancelled_by", "cancel_reason");
+
+    private static final String SELECT_SHIFT = "SELECT " + String.join(", ", SHIFT_COLUMNS) + " FROM shifts ";
 
     private final JdbcTemplate jdbc;
 

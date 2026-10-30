@@ -18,6 +18,7 @@ import java.util.Set;
  * @param levelRequirements  levelId -> số người
  * @param locationId         null nếu ca không gắn địa điểm
  * @param requiredPositionIds nhân viên phải giữ ít nhất một trong các chức vụ này; rỗng là không yêu cầu
+ * @param minRequired        số người tối thiểu để ca không bị coi là thiếu người; null nghĩa là bằng totalRequired
  */
 public record ShiftInfo(
         String id,
@@ -35,7 +36,19 @@ public record ShiftInfo(
         Set<String> requiredSkills,
         Set<String> requiredCertificates,
         String locationId,
-        Set<String> requiredPositionIds) {
+        Set<String> requiredPositionIds,
+        Integer minRequired) {
+
+    /** Giữ tương thích với nơi gọi cũ chưa có số người tối thiểu. */
+    public ShiftInfo(String id, String name, LocalDate date, LocalTime startTime, LocalTime endTime,
+                     int breakMinutes, String mode, int totalRequired, Integer maxAllowed,
+                     Map<String, Integer> levelRequirements, Set<String> mandatoryUserIds,
+                     Set<String> preferredUserIds, Set<String> requiredSkills,
+                     Set<String> requiredCertificates, String locationId, Set<String> requiredPositionIds) {
+        this(id, name, date, startTime, endTime, breakMinutes, mode, totalRequired, maxAllowed,
+                levelRequirements, mandatoryUserIds, preferredUserIds, requiredSkills, requiredCertificates,
+                locationId, requiredPositionIds, null);
+    }
 
     /** Giữ tương thích với nơi gọi cũ chưa có chức vụ yêu cầu. */
     public ShiftInfo(String id, String name, LocalDate date, LocalTime startTime, LocalTime endTime,
@@ -54,6 +67,9 @@ public record ShiftInfo(
         }
         if (breakMinutes < 0) {
             throw new IllegalArgumentException("Ca " + id + " có giờ nghỉ âm.");
+        }
+        if (minRequired != null && (minRequired <= 0 || minRequired > totalRequired)) {
+            throw new IllegalArgumentException("Ca " + id + " có số người tối thiểu ngoài khoảng 1.." + totalRequired + ".");
         }
         levelRequirements = levelRequirements == null ? Map.of() : Map.copyOf(levelRequirements);
         mandatoryUserIds = mandatoryUserIds == null ? Set.of() : Set.copyOf(mandatoryUserIds);
@@ -82,6 +98,16 @@ public record ShiftInfo(
 
     public int capacity() {
         return maxAllowed == null ? totalRequired : maxAllowed;
+    }
+
+    /** Số người tối thiểu; ít hơn số này là ca thiếu người. */
+    public int minimum() {
+        return minRequired == null ? totalRequired : minRequired;
+    }
+
+    /** Ca thiếu người khi số phân công còn hiệu lực nhỏ hơn số người tối thiểu. */
+    public boolean understaffedWith(int filled) {
+        return filled < minimum();
     }
 
     public List<String> levelIds() {

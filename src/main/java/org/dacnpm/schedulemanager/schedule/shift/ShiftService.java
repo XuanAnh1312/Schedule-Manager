@@ -127,7 +127,7 @@ public class ShiftService {
             throw versionConflict();
         }
         ShiftDetail updated = get(id);
-        audit("shift_update", "Sửa ca " + updated.shift().name(), id, actorId, current, updated, null);
+        audit("shift_update", "Sửa ca " + updated.shift().name(), describe(updated), actorId, current, updated, null);
         return updated;
     }
 
@@ -137,7 +137,7 @@ public class ShiftService {
         if (shifts.countReferences(id) > 0) {
             throw new IllegalArgumentException("Ca đã có phân công hoặc phương án nháp, không thể xóa; hãy hủy ca kèm lý do.");
         }
-        audit("shift_delete", "Xóa ca " + current.shift().name(), id, actorId, current, null, null);
+        audit("shift_delete", "Xóa ca " + current.shift().name(), describe(current), actorId, current, null, null);
         shifts.delete(id);
     }
 
@@ -233,7 +233,8 @@ public class ShiftService {
         shifts.insert(id, request, emergency, seriesId);
         ShiftDetail created = get(id);
         audit(emergency ? "shift_emergency_create" : "shift_create",
-                (emergency ? "Bổ sung ca khẩn cấp " : "Tạo ca ") + created.shift().name(), id, actorId, null, created, reason);
+                (emergency ? "Bổ sung ca khẩn cấp " : "Tạo ca ") + created.shift().name(), describe(created), actorId,
+                null, created, reason);
         return created;
     }
 
@@ -313,6 +314,28 @@ public class ShiftService {
 
     private static ShiftVersionConflictException versionConflict() {
         return new ShiftVersionConflictException("Ca đã được sửa bởi người khác hoặc đã bị hủy. Hãy tải lại rồi thử lại.");
+    }
+
+    /** Mô tả ngắn cho cột history.detail; giữ id ca để tra cứu vì bảng history không có cột đối tượng. */
+    static String describe(ShiftDetail d) {
+        ShiftRequest s = d.shift();
+        StringBuilder text = new StringBuilder(d.id()).append(": ").append(s.date()).append(' ')
+                .append(s.startTime()).append('-').append(s.endTime());
+        if (s.startTime() != null && s.endTime() != null && s.endTime().isBefore(s.startTime())) {
+            text.append(" (qua đêm)");
+        }
+        if (s.breakMinutes() > 0) {
+            text.append(", nghỉ ").append(s.breakMinutes()).append(" phút");
+        }
+        if (s.locationId() != null) {
+            text.append(", địa điểm ").append(s.locationId());
+        }
+        text.append(", cần ").append(s.totalRequired()).append(" người");
+        if (s.minRequired() != null || s.maxAllowed() != null) {
+            text.append(" (tối thiểu ").append(s.minRequired() != null ? s.minRequired() : s.totalRequired())
+                    .append(", tối đa ").append(s.maxAllowed() != null ? s.maxAllowed() : s.totalRequired()).append(')');
+        }
+        return text.append('.').toString();
     }
 
     private void audit(String eventType, String title, String detail, String actorId, Object before, Object after, String reason) {

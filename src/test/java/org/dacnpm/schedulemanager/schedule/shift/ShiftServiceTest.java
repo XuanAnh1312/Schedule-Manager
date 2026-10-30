@@ -180,6 +180,30 @@ class ShiftServiceTest {
     }
 
     @Test
+    void describe_keepsTheShiftIdAndSummarisesTimeBreakLocationAndStaffing() {
+        ShiftRequest night = new ShiftRequest("Ca đêm", day(0), t(22, 0), t(6, 0), 30, "loc1", "level", 3, 2, 4, null,
+                Map.of("lvl1", 3), null, null, null, null, null);
+
+        assertThat(ShiftService.describe(detail("s9", night, 1)))
+                .isEqualTo("s9: " + day(0) + " 22:00-06:00 (qua đêm), nghỉ 30 phút, địa điểm loc1, cần 3 người"
+                        + " (tối thiểu 2, tối đa 4).");
+        assertThat(ShiftService.describe(detail("s1", userShift(day(0), Set.of()), 1)))
+                .isEqualTo("s1: " + day(0) + " 08:00-12:00, cần 1 người.");
+    }
+
+    @Test
+    void create_writesADescriptiveHistoryDetail() {
+        ShiftRequest request = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
+                null, Map.of("lvl1", 1), null, null, null, null, null);
+        when(shifts.findById(anyString())).thenReturn(Optional.of(detail("shift_x", request, 1)));
+
+        service.create(request, "admin");
+
+        verify(shifts).writeHistory(eq("shift_create"), anyString(), eq("shift_x: " + day(0) + " 08:00-12:00, cần 1 người."),
+                eq("admin"), any(), any(), any());
+    }
+
+    @Test
     void delete_isRefusedWhenTheShiftHasAssignmentsOrDrafts() {
         ShiftRequest request = userShift(day(0), Set.of());
         when(shifts.findById("s1")).thenReturn(Optional.of(detail("s1", request, 1)));

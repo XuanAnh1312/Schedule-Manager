@@ -216,6 +216,48 @@ class AssignmentCheckServiceTest {
         assertThat(service.checkLeave("u1", day(3), day(4)).impacts()).isEmpty();
     }
 
+    private static ShiftInfo withMin(ShiftInfo s, int minRequired) {
+        return new ShiftInfo(s.id(), s.name(), s.date(), s.startTime(), s.endTime(), s.breakMinutes(), s.mode(),
+                s.totalRequired(), s.maxAllowed(), s.levelRequirements(), s.mandatoryUserIds(), s.preferredUserIds(),
+                s.requiredSkills(), s.requiredCertificates(), s.locationId(), s.requiredPositionIds(), minRequired);
+    }
+
+    @Test
+    void checkPublish_belowTotalButAtMinimum_isNotUnderstaffed() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 100.0), employee("u2", "lvl1", 100.0));
+        ShiftInfo atMin = withMin(shift("s1", day(0), t(8, 0), t(12, 0), 0, 3, "user"), 2);
+        ShiftInfo belowMin = withMin(shift("s2", day(2), t(8, 0), t(12, 0), 0, 3, "user"), 2);
+        given(staff, List.of(atMin, belowMin),
+                List.of(saved("a1", "s1", "u1"), saved("a2", "s1", "u2"), saved("a3", "s2", "u1")), Map.of());
+
+        PublishCheck check = service.checkPublish(List.of("s1", "s2"));
+
+        assertThat(check.shifts().get(0)).satisfies(s -> {
+            assertThat(s.required()).isEqualTo(3);
+            assertThat(s.minimum()).isEqualTo(2);
+            assertThat(s.understaffed()).isFalse();
+        });
+        assertThat(check.shifts().get(1).understaffed()).isTrue();
+    }
+
+    @Test
+    void checkLeave_flagsUnderstaffingOnlyWhenFallingBelowTheMinimum() {
+        List<Employee> staff = List.of(employee("u1", "lvl1", 100.0), employee("u2", "lvl1", 100.0),
+                employee("u3", "lvl1", 100.0));
+        ShiftInfo s0 = withMin(shift("s0", day(0), t(8, 0), t(12, 0), 0, 3, "user"), 2);
+        ShiftInfo s1 = withMin(shift("s1", day(1), t(8, 0), t(12, 0), 0, 3, "user"), 2);
+        given(staff, List.of(s0, s1), List.of(
+                saved("a1", "s0", "u1"), saved("a2", "s0", "u2"), saved("a3", "s0", "u3"),
+                saved("a4", "s1", "u1"), saved("a5", "s1", "u2")), Map.of());
+
+        LeaveCheck check = service.checkLeave("u1", day(0), day(1));
+
+        assertThat(check.impacts()).hasSize(2);
+        assertThat(check.impacts().get(0).understaffed()).isFalse();
+        assertThat(check.impacts().get(1).understaffed()).isTrue();
+        assertThat(check.impacts().get(1).minimum()).isEqualTo(2);
+    }
+
     @Test
     void checkLeave_overnightShiftSpillingIntoTheLeaveDay_isAffected() {
         List<Employee> staff = List.of(employee("u1", "lvl1", 100.0));

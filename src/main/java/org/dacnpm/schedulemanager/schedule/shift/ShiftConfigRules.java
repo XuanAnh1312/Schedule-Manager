@@ -157,6 +157,6 @@ public final class ShiftConfigRules {
     public static ShiftInfo toShiftInfo(String id, ShiftRequest r) {
         return new ShiftInfo(id, r.name().trim(), r.date(), r.startTime(), r.endTime(), r.breakMinutes(), r.mode(),
                 r.totalRequired(), r.maxAllowed(), r.levelRequirements(), r.mandatoryUserIds(), r.preferredUserIds(),
-                r.skillIds(), r.certificateIds(), r.locationId(), r.positionIds());
+                r.skillIds(), r.certificateIds(), r.locationId(), r.positionIds(), r.minRequired());
     }
 }

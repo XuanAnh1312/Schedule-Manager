@@ -12,6 +12,7 @@ import org.dacnpm.schedulemanager.schedule.model.ScheduleContext;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository.ScheduleData;
+import org.dacnpm.schedulemanager.schedule.shift.ShiftConfigRules;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftDetail;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftNotFoundException;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftRepository;
@@ -42,7 +43,7 @@ public class AssignmentCheckService {
      * Kiểm tra một ca trước khi công bố. hardViolations là vi phạm bắt buộc (không thể công bố);
      * exceptionViolations là vi phạm chỉ có thể công bố khi có ngoại lệ được duyệt (TW-06).
      */
-    public record ShiftPublishCheck(String shiftId, int required, int filled, boolean understaffed,
+    public record ShiftPublishCheck(String shiftId, int required, int minimum, int filled, boolean understaffed,
                                     List<Violation> hardViolations, List<Violation> exceptionViolations) {
     }
 
@@ -63,7 +64,7 @@ public class AssignmentCheckService {
     }
 
     public record LeaveImpact(String assignmentId, String shiftId, String shiftName, LocalDate date,
-                              int required, int filledAfterLeave, boolean understaffed) {
+                              int required, int minimum, int filledAfterLeave, boolean understaffed) {
     }
 
     public record LeaveCheck(List<LeaveImpact> impacts) {
@@ -141,9 +142,11 @@ public class AssignmentCheckService {
                     (v.code().overridable() ? exception : hard).add(v);
                 }
             }
-            int required = info == null ? detail.shift().totalRequired() : info.totalRequired();
-            result.add(new ShiftPublishCheck(detail.id(), required, assignments.size(),
-                    assignments.size() < required, hard, exception));
+            if (info == null) {
+                info = ShiftConfigRules.toShiftInfo(detail.id(), detail.shift());
+            }
+            result.add(new ShiftPublishCheck(detail.id(), info.totalRequired(), info.minimum(), assignments.size(),
+                    info.understaffedWith(assignments.size()), hard, exception));
         }
         return new PublishCheck(result);
     }
@@ -182,7 +185,7 @@ public class AssignmentCheckService {
             long filled = d.savedAssignments().stream().filter(a -> a.shiftId().equals(shift.id())).count();
             int filledAfter = (int) filled - 1;
             impacts.add(new LeaveImpact(assignment.id(), shift.id(), shift.name(), shift.date(),
-                    shift.totalRequired(), filledAfter, filledAfter < shift.totalRequired()));
+                    shift.totalRequired(), shift.minimum(), filledAfter, shift.understaffedWith(filledAfter)));
         }
         impacts.sort(java.util.Comparator.comparing(LeaveImpact::date).thenComparing(LeaveImpact::shiftId));
         return new LeaveCheck(impacts);

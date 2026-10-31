@@ -74,6 +74,13 @@ public class SecurityConfig {
                     response.setContentType("application/json");
                     response.getWriter().write("{\"error\":\"Unauthorized\"}");
                 })
+                // Đã đăng nhập nhưng không đủ quyền: trả 403 trực tiếp. Nếu để mặc định, Spring chuyển sang /error,
+                // lượt chuyển đó không chạy lại JWT filter nên bị coi là chưa đăng nhập và trả nhầm 401.
+                .accessDeniedHandler((request, response, deniedException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"error\":\"Forbidden\"}");
+                })
             )
 
             // Endpoint authorization rules.
@@ -84,6 +91,12 @@ public class SecurityConfig {
                 // Public: health checks
                 .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/health/database").permitAll()
+                // Trang lỗi nội bộ của Spring: không được che mã lỗi thật (403/404/400) bằng 401.
+                .requestMatchers("/error").permitAll()
+                // Schedule management: admin only
+                .requestMatchers("/api/schedule/**").hasRole("ADMIN")
+                // Self-service checks: any signed-in user, always for their own account
+                .requestMatchers("/api/my/**").authenticated()
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

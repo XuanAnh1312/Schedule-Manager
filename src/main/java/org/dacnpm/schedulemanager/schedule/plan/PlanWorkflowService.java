@@ -149,11 +149,12 @@ public class PlanWorkflowService {
         PlanView plan = planService.get(planId);
         requireStatus(plan, PlanRepository.APPROVED, "công bố");
         requireVersion(plan, expectedVersion);
+        // Khóa trước rồi mới đọc trạng thái kỳ, để kết quả kiểm tra còn đúng tới lúc commit.
+        plans.lockPeriod(plan.periodId());
         String periodStatus = plans.periodStatus(plan.periodId()).orElse(null);
         if (!"locked".equals(periodStatus)) {
             throw PlanException.periodNotReady("Chỉ công bố khi kỳ đã khóa đăng ký (locked); kỳ đang " + periodStatus + ".");
         }
-        plans.lockPeriod(plan.periodId());
 
         Readiness r = readiness(plan);
         rejectHardViolations(r);

@@ -37,7 +37,7 @@ class ShiftServiceTest {
 
     private static ShiftRequest userShift(LocalDate date, Set<String> mandatory) {
         return new ShiftRequest("Ca test", date, t(8, 0), t(12, 0), 0, null, "user", 1, null, null, null,
-                null, mandatory, null, null, null, null);
+                null, mandatory, null, null, null, null, "p1");
     }
 
     private static ShiftDetail detail(String id, ShiftRequest r, int version) {
@@ -48,7 +48,7 @@ class ShiftServiceTest {
     void setUp() {
         service = new ShiftService(shifts, data, new AssignmentValidator(), new ObjectMapper().findAndRegisterModules());
         when(shifts.missingIds(anyString(), any())).thenReturn(List.of());
-        when(shifts.periodIdFor(any())).thenReturn(Optional.of("p1"));
+        when(shifts.validPeriod(anyString(), any())).thenReturn(true);
         when(shifts.confirmedAssignees(anyString())).thenReturn(Set.of());
     }
 
@@ -85,29 +85,47 @@ class ShiftServiceTest {
     }
 
     @Test
-    void create_withoutNamedUsers_doesNotNeedAPeriod() {
-        when(shifts.periodIdFor(any())).thenReturn(Optional.empty());
+    void create_withoutAPeriod_isRejected_andThePeriodIsNeverGuessedFromTheDate() {
         ShiftRequest request = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
-        when(shifts.findById(anyString())).thenReturn(Optional.of(detail("shift_y", request, 1)));
+                null, Map.of("lvl1", 1), null, null, null, null, null, null);
 
-        assertThat(service.create(request, "admin").id()).isEqualTo("shift_y");
+        assertThatThrownBy(() -> service.create(request, "admin"))
+                .isInstanceOfSatisfying(ShiftRejectedException.class, e ->
+                        assertThat(e.errors()).anyMatch(m -> m.contains("Phải chọn kỳ")));
+        verify(shifts, never()).insert(anyString(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any());
+        verify(shifts, never()).periodIdFor(any());
     }
 
     @Test
-    void create_withNamedUsersOutsideAnyPeriod_isRejected() {
-        when(shifts.periodIdFor(any())).thenReturn(Optional.empty());
+    void create_whenTheDateIsOutsideTheChosenPeriod_isRejected() {
+        when(shifts.validPeriod("p1", day(0))).thenReturn(false);
 
         assertThatThrownBy(() -> service.create(userShift(day(0), Set.of("u1")), "admin"))
                 .isInstanceOfSatisfying(ShiftRejectedException.class, e ->
-                        assertThat(e.errors()).anyMatch(m -> m.contains("không thuộc kỳ nào")));
+                        assertThat(e.errors()).anyMatch(m -> m.contains("không thuộc kỳ đã chọn")));
+        verify(shifts, never()).insert(anyString(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any());
+    }
+
+    @Test
+    void update_cannotMoveAShiftWithAssignmentsOrPlansToAnotherPeriod() {
+        ShiftRequest current = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
+        ShiftRequest moved = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p2");
+        when(shifts.findById("s1")).thenReturn(Optional.of(detail("s1", current, 1)));
+        when(shifts.countReferences("s1")).thenReturn(1);
+
+        assertThatThrownBy(() -> service.update("s1", 1, moved, "admin"))
+                .isInstanceOfSatisfying(ShiftRejectedException.class, e ->
+                        assertThat(e.errors()).anyMatch(m -> m.contains("không chuyển sang kỳ khác")));
+        verify(shifts, never()).update(anyString(), anyInt(), any());
     }
 
     @Test
     void create_rejectsUnknownCatalogIds() {
         when(shifts.missingIds(eq("skills"), any())).thenReturn(List.of("skl_ghost"));
         ShiftRequest request = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, Set.of("skl_ghost"), null, null);
+                null, Map.of("lvl1", 1), null, null, Set.of("skl_ghost"), null, null, "p1");
 
         assertThatThrownBy(() -> service.create(request, "admin"))
                 .isInstanceOfSatisfying(ShiftRejectedException.class, e ->
@@ -128,7 +146,7 @@ class ShiftServiceTest {
     @Test
     void update_losingTheRaceOnTheConditionalUpdate_throwsConflict() {
         ShiftRequest request = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
         when(shifts.findById("s1")).thenReturn(Optional.of(detail("s1", request, 1)));
         when(shifts.update("s1", 1, request)).thenReturn(false);
 
@@ -168,7 +186,7 @@ class ShiftServiceTest {
     @Test
     void emergency_requiresAReason_andIsFlaggedAndAudited() {
         ShiftRequest request = new ShiftRequest("Ca gấp", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
         assertThatThrownBy(() -> service.addEmergency(request, "", "admin")).isInstanceOf(IllegalArgumentException.class);
 
         when(shifts.findById(anyString())).thenReturn(Optional.of(detail("shift_e", request, 1)));
@@ -182,7 +200,7 @@ class ShiftServiceTest {
     @Test
     void describe_keepsTheShiftIdAndSummarisesTimeBreakLocationAndStaffing() {
         ShiftRequest night = new ShiftRequest("Ca đêm", day(0), t(22, 0), t(6, 0), 30, "loc1", "level", 3, 2, 4, null,
-                Map.of("lvl1", 3), null, null, null, null, null);
+                Map.of("lvl1", 3), null, null, null, null, null, "p1");
 
         assertThat(ShiftService.describe(detail("s9", night, 1)))
                 .isEqualTo("s9: " + day(0) + " 22:00-06:00 (qua đêm), nghỉ 30 phút, địa điểm loc1, cần 3 người"
@@ -194,7 +212,7 @@ class ShiftServiceTest {
     @Test
     void create_writesADescriptiveHistoryDetail() {
         ShiftRequest request = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
         when(shifts.findById(anyString())).thenReturn(Optional.of(detail("shift_x", request, 1)));
 
         service.create(request, "admin");
@@ -216,7 +234,7 @@ class ShiftServiceTest {
     @Test
     void cloneTo_createsOneShiftPerDistinctDate_withoutCopyingAssignments() {
         ShiftRequest source = new ShiftRequest("Ca level", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
         when(shifts.findById("s1")).thenReturn(Optional.of(detail("s1", source, 1)));
         when(shifts.findById(org.mockito.AdditionalMatchers.not(eq("s1"))))
                 .thenReturn(Optional.of(detail("shift_copy", source, 1)));
@@ -251,9 +269,9 @@ class ShiftServiceTest {
     @Test
     void createMany_isAllOrNothing_whenAnyConfigIsInvalid() {
         ShiftRequest ok = new ShiftRequest("Ca ok", day(0), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
         ShiftRequest bad = new ShiftRequest(" ", day(1), t(8, 0), t(12, 0), 0, null, "level", 1, null, null,
-                null, Map.of("lvl1", 1), null, null, null, null, null);
+                null, Map.of("lvl1", 1), null, null, null, null, null, "p1");
 
         assertThatThrownBy(() -> service.createMany(List.of(ok, bad), "admin"))
                 .isInstanceOfSatisfying(ShiftRejectedException.class, e ->

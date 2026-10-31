@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -56,6 +57,28 @@ class OpenShiftServiceTest {
         when(validator.validate(anyString(), anyString(), any(), any(), any())).thenReturn(List.of());
         when(schedule.findShift("sh_1")).thenReturn(Optional.of(new ShiftInfo("sh_1", "Ca tối", D5,
                 LocalTime.of(14, 30), LocalTime.of(22, 30), "published", 5, 3)));
+    }
+
+    /** BA-R4: mọi thao tác ghi khóa dòng open_shifts trước mọi đọc/ghi khác, cùng một thứ tự khóa. */
+    @Test
+    void everyMutation_locksTheOpenShiftRowFirst() {
+        List<Runnable> calls = List.of(
+                () -> service.claim(AN, "os1", null),
+                () -> service.withdraw(AN, "os1"),
+                () -> service.approveClaim(ADMIN, "os1", "c1", new OpenShiftService.Decision(null, null)),
+                () -> service.rejectClaim(ADMIN, "os1", "c1", new OpenShiftService.Decision(null, "Đủ người")),
+                () -> service.close(ADMIN, "os1", false, new OpenShiftService.Decision(null, null)));
+        for (Runnable call : calls) {
+            org.mockito.Mockito.clearInvocations(repository);
+            try {
+                call.run();
+            } catch (RuntimeException ignored) {
+                // Dữ liệu giả không đủ để hoàn tất; chỉ kiểm tra thứ tự khóa.
+            }
+            var invocations = org.mockito.Mockito.mockingDetails(repository).getInvocations();
+            assertTrue(!invocations.isEmpty());
+            assertEquals("lock", invocations.iterator().next().getMethod().getName());
+        }
     }
 
     @Test

@@ -86,6 +86,23 @@ class ReportServiceTest {
     }
 
     @Test
+    void employeeWithMissingRequiredRules_isReportedAsMissingConfig_notOverAZeroCeiling() {
+        org.dacnpm.schedulemanager.schedule.rules.EmployeeRules notReady =
+                new org.dacnpm.schedulemanager.schedule.rules.EmployeeRules(0, 0, null, 0, null, null, null, null, null,
+                        List.of(new org.dacnpm.schedulemanager.schedule.rules.EmployeeRules.MissingParameter(
+                                "max_hours_per_week", "Giờ tối đa mỗi tuần", "Chưa cấu hình.")));
+        when(data.load("p1")).thenAnswer(inv -> Optional.of(new ScheduleData(PERIOD, rules(12, 60.0), staff, infos,
+                List.of("s0", "s2"), freeAllPeriod(staff), saved, blocked, (userId, date) -> notReady)));
+
+        EmployeeHours u1 = row(reports.hours("p1", null, null, NONE), "u1");
+
+        assertThat(u1.hours()).isEqualTo(6.0);
+        assertThat(u1.limitStatus()).isEqualTo("missing_config");
+        assertThat(u1.maxHoursPerWeek()).isNull();
+        assertThat(u1.maxHoursPerPeriod()).isNull();
+    }
+
+    @Test
     void publishedReport_excludesDraftShiftsAndCancelledAssignments() {
         HoursReport hours = reports.hours("p1", null, null, NONE);
 

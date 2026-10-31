@@ -297,14 +297,6 @@ public class AssignmentValidator {
         }
     }
 
-    /**
-     * Trần giờ mỗi tuần = giá trị nhỏ nhất của: giới hạn chính sách, giới hạn hợp đồng và
-     * giờ mục tiêu tuần × target_rate / 100 (ví dụ 60 × 125% = 75).
-     */
-    public static double weeklyLimit(ScheduleRules rules, Employee employee) {
-        return EmployeeRules.derive(rules, employee, null).maxHoursPerWeek();
-    }
-
     private void checkConsecutiveDays(ScheduleContext ctx, Employee employee, ShiftInfo shift,
                                       List<Assignment> userAssignments, EmployeeRules rules, List<Violation> out) {
         Integer max = rules.maxConsecutiveDays();

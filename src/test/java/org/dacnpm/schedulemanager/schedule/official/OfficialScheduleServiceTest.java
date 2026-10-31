@@ -67,11 +67,10 @@ class OfficialScheduleServiceTest {
         service = new OfficialScheduleService(official, shifts, data, validator, exceptions, plans, events::add);
         for (ShiftInfo s : shiftInfos) {
             ShiftRequest r = new ShiftRequest(s.name(), s.date(), s.startTime(), s.endTime(), 0, null, "user",
-                    s.totalRequired(), null, null, null, null, null, null, null, null, null);
+                    s.totalRequired(), null, null, null, null, null, null, null, null, null, "p1");
             when(shifts.findById(s.id())).thenReturn(Optional.of(new ShiftDetail(s.id(), r, "published", 1, false,
                     null, null, null, null)));
         }
-        when(shifts.periodIdFor(any())).thenReturn(Optional.of("p1"));
         when(data.load("p1")).thenAnswer(inv -> Optional.of(new ScheduleData(PERIOD, rules(12, 60.0), staff, shiftInfos,
                 List.of("s0", "s1", "s2"), freeAllPeriod(staff), official.asAssignments(), blocked)));
     }
@@ -162,6 +161,75 @@ class OfficialScheduleServiceTest {
 
         assertThat(service.validate("u1", "s1", null, Set.of(), null).has(ViolationCode.OVERLAP)).isTrue();
         assertThat(service.validate("u1", "s1", null, Set.of(s0), null).valid()).isTrue();
+    }
+
+    @Test
+    void swap_isValidatedOnTheFinalState_andEmitsOneEvent() {
+        String a = official.put("s0", "u1");
+        String b = official.put("s1", "u2"); // s0 và s1 trùng giờ: thêm từng người trước khi gỡ ca cũ sẽ báo OVERLAP
+
+        List<ChangeResult> result = service.swap(a, "u1", b, "u2", "admin", "Duyệt yêu cầu req1");
+
+        assertThat(official.confirmed()).extracting(x -> x.shiftId() + ":" + x.userId())
+                .containsExactlyInAnyOrder("s0:u2", "s1:u1");
+        assertThat(result).extracting(ChangeResult::userId).containsExactly("u2", "u1");
+        assertThat(events).singleElement().satisfies(e -> {
+            assertThat(e.type()).isEqualTo(ScheduleEvent.SCHEDULE_CHANGED);
+            assertThat(e.eventId()).isEqualTo("schedule.changed:" + a + ":v2");
+            assertThat(e.recipients()).containsExactlyInAnyOrder("u1", "u2");
+        });
+        org.mockito.Mockito.verify(shifts).writeHistory(org.mockito.ArgumentMatchers.eq("manual_swap"), anyString(),
+                anyString(), org.mockito.ArgumentMatchers.eq("admin"), any(), any(), anyString());
+    }
+
+    @Test
+    void swap_whenOneSideIsInvalid_changesNothing_andEmitsNothing() {
+        String a = official.put("s0", "u1");
+        String b = official.put("s2", "u2");
+        blocked.put("u2", Set.of(day(0))); // u2 không thể nhận ca s0
+
+        assertCode(() -> service.swap(a, "u1", b, "u2", "admin", "Duyệt yêu cầu req2"),
+                PlanException.EXCEPTION_REQUIRED);
+        assertThat(official.confirmed()).extracting(x -> x.shiftId() + ":" + x.userId())
+                .containsExactlyInAnyOrder("s0:u1", "s2:u2");
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void swap_whenAHolderChangedMeanwhile_isAConflict() {
+        String a = official.put("s0", "u1");
+        String b = official.put("s2", "u2");
+
+        assertCode(() -> service.swap(a, "u1", b, "u3", "admin", "Duyệt"), PlanException.VERSION_CONFLICT);
+        assertThat(events).isEmpty();
+    }
+
+    @Test
+    void shiftWithoutPeriod_isNotGuessedFromItsDate() {
+        ShiftRequest r = new ShiftRequest("Ca chưa phân loại", day(3), t(8, 0), t(12, 0), 0, null, "user", 1, null,
+                null, null, null, null, null, null, null, null, null);
+        when(shifts.findById("s9")).thenReturn(Optional.of(new ShiftDetail("s9", r, "draft", 1, false, null, null,
+                null, null)));
+
+        assertCode(() -> service.addAssignment("s9", "u1", "admin", "Thêm", null), PlanException.SHIFT_PERIOD_UNASSIGNED);
+        assertCode(() -> service.validate("u1", "s9", null, Set.of(), null), PlanException.SHIFT_PERIOD_UNASSIGNED);
+        org.mockito.Mockito.verify(plans, org.mockito.Mockito.never()).lockPeriod(anyString());
+        org.mockito.Mockito.verify(shifts, org.mockito.Mockito.never()).periodIdFor(any());
+    }
+
+    @Test
+    void changesRequestedByAnotherModule_doNotEmitASecondNotification_butAreStillAudited() {
+        String a = official.put("s0", "u1");
+        String b = official.put("s1", "u2");
+
+        service.swap(a, "u1", b, "u2", "admin", "Duyệt yêu cầu req3", false);
+        service.addAssignment("s2", "u3", "admin", "Nhận ca trống", null, false);
+
+        assertThat(official.confirmed()).extracting(x -> x.shiftId() + ":" + x.userId())
+                .containsExactlyInAnyOrder("s0:u2", "s1:u1", "s2:u3");
+        assertThat(events).isEmpty();
+        org.mockito.Mockito.verify(shifts).writeHistory(org.mockito.ArgumentMatchers.eq("manual_swap"), anyString(),
+                anyString(), org.mockito.ArgumentMatchers.eq("admin"), any(), any(), anyString());
     }
 
     @Test

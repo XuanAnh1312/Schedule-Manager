@@ -126,7 +126,11 @@ public class ShiftRequestService {
             repository.insert(id, type, me.id(), source.assignmentId(), source.shiftId(), target.id(),
                     targetAssignment == null ? null : targetAssignment.assignmentId(),
                     targetAssignment == null ? null : targetAssignment.shiftId(), reason);
-            repository.captureScheduleSnapshot(id);
+            if (repository.captureScheduleSnapshot(id) != 1) {
+                // Ném lỗi → rollback yêu cầu vừa tạo: không để yêu cầu thiếu snapshot (BA-R2).
+                throw ApiException.conflict("SCHEDULE_CHANGED",
+                        "Không chụp được phiên bản lịch hiện tại của ca. Vui lòng tải lại lịch rồi gửi lại yêu cầu.");
+            }
         } catch (DuplicateKeyException e) {
             throw ApiException.conflict("REQUEST_ALREADY_OPEN", "Ca này đã có một yêu cầu đang chờ xử lý.");
         }
@@ -226,12 +230,9 @@ public class ShiftRequestService {
 
         String auditReason = "Duyệt yêu cầu " + id;
         if (targetAssignment != null) {
-            // Remove both old assignments before validating either replacement. The surrounding
-            // transaction rolls back both removals if either new assignment is invalid.
-            schedule.cancelAssignment(source.assignmentId(), current.requesterId(), me.id(), auditReason);
-            schedule.cancelAssignment(targetAssignment.assignmentId(), current.targetUserId(), me.id(), auditReason);
-            schedule.addAssignment(source.shiftId(), current.targetUserId(), me.id(), auditReason);
-            schedule.addAssignment(targetAssignment.shiftId(), current.requesterId(), me.id(), auditReason);
+            // Lõi lịch đổi nguyên tử theo trạng thái cuối và chỉ phát một sự kiện lịch (TW-R4, BA-R3).
+            schedule.swap(source.assignmentId(), current.requesterId(), targetAssignment.assignmentId(),
+                    current.targetUserId(), me.id(), auditReason);
         } else {
             schedule.reassign(source.assignmentId(), current.requesterId(), current.targetUserId(), me.id(), auditReason);
         }
@@ -417,10 +418,20 @@ public class ShiftRequestService {
         return repository.findById(id).orElseThrow(() -> ApiException.notFound("yêu cầu"));
     }
 
+    /**
+     * Khóa kỳ của các ca liên quan rồi so snapshot lúc gửi với lịch hiện tại (BA-R2). Khóa giữ tới hết giao dịch nên
+     * lịch không đổi giữa lúc so và lúc lõi lịch ghi. Yêu cầu cũ không có snapshot không được chấp thuận/duyệt.
+     */
     private void requireScheduleUnchanged(String id) {
-        repository.scheduleUnchanged(id).filter(unchanged->!unchanged).ifPresent(ignored->{
-            throw ApiException.conflict("SCHEDULE_CHANGED","Lịch đã thay đổi từ khi gửi yêu cầu. Vui lòng hủy và tạo yêu cầu mới.");
-        });
+        repository.lockSchedulePeriods(id);
+        switch (repository.scheduleSnapshotState(id)) {
+            case UNCHANGED -> { }
+            case MISSING -> throw ApiException.conflict("SCHEDULE_SNAPSHOT_MISSING",
+                    "Yêu cầu được tạo trước khi hệ thống lưu phiên bản lịch nên không đủ căn cứ để duyệt. "
+                            + "Hãy từ chối hoặc hủy yêu cầu này và tạo yêu cầu mới.");
+            case CHANGED -> throw ApiException.conflict("SCHEDULE_CHANGED",
+                    "Lịch đã thay đổi từ khi gửi yêu cầu. Vui lòng hủy và tạo yêu cầu mới.");
+        }
     }
 
     private static void checkVersion(ShiftRequestView current, Integer expectedVersion) {

@@ -100,6 +100,7 @@ class PlanWorkflowTest {
         PlanView plan = approved(draft());
         assertThat(plan.status()).isEqualTo("approved");
         assertThat(official.confirmed()).isEmpty();
+        int locksBefore = plans.periodLocks;
 
         PublishReport report = workflow.publish(plan.id(), plan.version(), false, "admin");
 
@@ -108,7 +109,7 @@ class PlanWorkflowTest {
                 .containsExactlyInAnyOrderElementsOf(plan.roster().stream().map(p -> p.shiftId() + ":" + p.userId()).toList());
         assertThat(official.publishedShifts).containsExactlyInAnyOrder("s0", "s1");
         assertThat(plans.status(plan.id())).isEqualTo("published");
-        assertThat(plans.periodLocks).isEqualTo(1);
+        assertThat(plans.periodLocks).isEqualTo(locksBefore + 1);
         assertThat(events).singleElement().satisfies(e -> {
             assertThat(e.type()).isEqualTo(ScheduleEvent.SCHEDULE_PUBLISHED);
             assertThat(e.eventId()).isEqualTo("schedule.published:" + plan.id() + ":v" + report.version());

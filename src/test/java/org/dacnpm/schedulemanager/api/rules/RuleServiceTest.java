@@ -154,6 +154,27 @@ class RuleServiceTest {
     }
 
     @Test
+    void scheduling_usesTheEmployeeScopeContextFromTheDatabase() {
+        when(repository.scopeContext("nv001")).thenReturn(Optional.of(
+                new RuleModels.ScopeContext("nv001", "b1", "pt", "g1", null)));
+
+        RuleModels.EffectiveRules rules = service.effectiveForScheduling("nv001", TODAY);
+
+        assertEquals("b1", rules.scopeContext().branchId());
+        assertEquals("g1", rules.scopeContext().groupId());
+    }
+
+    @Test
+    void scheduling_withoutAnEmployeeRecord_isNotReady_insteadOfFallingBackToCompanyRules() {
+        when(repository.scopeContext("ghost")).thenReturn(Optional.empty());
+
+        RuleModels.EffectiveRules rules = service.effectiveForScheduling("ghost", TODAY);
+
+        assertTrue(!rules.readyForScheduling());
+        assertTrue(rules.issues().stream().anyMatch(i -> i.startsWith("SCOPE_CONTEXT_MISSING")));
+    }
+
+    @Test
     void templates_areOnlySuggestions_andNeverIncludeConsecutiveDays() {
         when(repository.findTemplate()).thenReturn(Optional.of(new RuleRepository.TemplateRow(
                 new java.math.BigDecimal("80"), new java.math.BigDecimal("12"), new java.math.BigDecimal("48"),

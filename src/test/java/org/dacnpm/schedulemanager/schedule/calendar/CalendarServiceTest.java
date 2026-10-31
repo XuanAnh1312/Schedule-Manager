@@ -49,7 +49,8 @@ class CalendarServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new CalendarService(shifts, repository, plans);
+        service = new CalendarService(shifts, repository, plans,
+                java.time.Clock.fixed(java.time.Instant.parse("2026-01-07T03:00:00Z"), java.time.ZoneId.of("Asia/Ho_Chi_Minh")));
         when(shifts.search(any(), any(), any(), anyBoolean())).thenReturn(List.of(
                 detail("s0", day(0), "published", null),
                 detail("s1", day(1), "draft", Map.of("lvl2", 1)),

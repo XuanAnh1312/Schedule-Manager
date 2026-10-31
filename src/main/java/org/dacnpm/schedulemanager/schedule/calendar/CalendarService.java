@@ -1,8 +1,10 @@
 package org.dacnpm.schedulemanager.schedule.calendar;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -14,6 +16,7 @@ import java.util.Set;
 import org.dacnpm.schedulemanager.schedule.calendar.CalendarRepository.AssignmentRow;
 import org.dacnpm.schedulemanager.schedule.calendar.CalendarRepository.Person;
 import org.dacnpm.schedulemanager.schedule.calendar.CalendarRepository.PublishedVersion;
+import org.dacnpm.schedulemanager.common.BusinessTime;
 import org.dacnpm.schedulemanager.schedule.engine.EngineResult;
 import org.dacnpm.schedulemanager.schedule.model.Period;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
@@ -62,10 +65,13 @@ public class CalendarService {
     public record Assignee(String userId, String fullName, String levelId, String assignmentId, Integer version) {
     }
 
-    /** source: official hoặc id phương án. */
+    /**
+     * source: official hoặc id phương án. periodId null nghĩa là ca chưa được phân loại kỳ (chỉ hiện khi không lọc kỳ).
+     */
     public record CalendarShift(String shiftId, String name, LocalDate date, LocalTime startTime, LocalTime endTime,
                                 String locationId, String status, String coverage, int required, int minimum,
-                                int filled, boolean emergency, String source, List<Assignee> assignees) {
+                                int filled, boolean emergency, String source, List<Assignee> assignees,
+                                String periodId) {
     }
 
     public record CalendarView(LocalDate from, LocalDate to, String planId, List<CalendarShift> shifts) {
@@ -83,16 +89,18 @@ public class CalendarService {
     private final ShiftRepository shifts;
     private final CalendarRepository repository;
     private final PlanService plans;
+    private final Clock clock;
 
-    public CalendarService(ShiftRepository shifts, CalendarRepository repository, PlanService plans) {
+    public CalendarService(ShiftRepository shifts, CalendarRepository repository, PlanService plans, Clock clock) {
         this.shifts = shifts;
         this.repository = repository;
         this.plans = plans;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
     public CalendarView calendar(Query q) {
-        LocalDate[] range = range(q.view(), q.date(), q.from(), q.to());
+        LocalDate[] range = range(q.view(), q.date(), q.from(), q.to(), BusinessTime.today(clock));
         LocalDate from = range[0];
         LocalDate to = range[1];
         if (q.periodId() != null && !q.periodId().isBlank()) {
@@ -126,7 +134,10 @@ public class CalendarService {
         Set<String> groupMembers = q.groupId()==null || q.groupId().isBlank() ? null : repository.groupMembers(q.groupId());
         List<CalendarShift> result = new ArrayList<>();
         for (ShiftDetail detail : shifts.search(from, to, blankToNull(q.locationId()), false)) {
-            if(q.periodId()!=null&&!q.periodId().isBlank()&&detail.shift().periodId()!=null&&!q.periodId().equals(detail.shift().periodId()))continue;
+            // Lọc theo kỳ chỉ lấy ca gắn đúng kỳ; ca chưa phân loại (period_id NULL) không được tính vào kỳ nào.
+            if (q.periodId() != null && !q.periodId().isBlank() && !q.periodId().equals(detail.shift().periodId())) {
+                continue;
+            }
             List<Assignee> assignees = byShift.getOrDefault(detail.id(), List.of());
             ShiftInfo info = ShiftConfigRules.toShiftInfo(detail.id(), detail.shift());
             int filled = assignees.size();
@@ -134,7 +145,8 @@ public class CalendarService {
                     : info.understaffedWith(filled) ? EngineResult.UNDERSTAFFED : EngineResult.BELOW_TARGET;
             CalendarShift entry = new CalendarShift(detail.id(), info.name(), info.date(), info.startTime(),
                     info.endTime(), info.locationId(), detail.status(), coverage, info.totalRequired(), info.minimum(),
-                    filled, detail.emergency(), planShifts.contains(detail.id()) ? q.planId() : "official", assignees);
+                    filled, detail.emergency(), planShifts.contains(detail.id()) ? q.planId() : "official", assignees,
+                    detail.shift().periodId());
             if (matches(entry, info, q) && (groupMembers==null || assignees.stream().anyMatch(a->groupMembers.contains(a.userId())))) {
                 result.add(entry);
             }
@@ -145,7 +157,7 @@ public class CalendarService {
     /** Lịch chính thức của chính nhân viên: chỉ ca đã công bố, chỉ phân công confirmed của người đó. */
     @Transactional(readOnly = true)
     public MySchedule mine(String userId, String view, LocalDate date, LocalDate fromDate, LocalDate toDate) {
-        LocalDate[] range = range(view, date, fromDate, toDate);
+        LocalDate[] range = range(view, date, fromDate, toDate, BusinessTime.today(clock));
         Map<String, String> mine = new HashMap<>();
         for (AssignmentRow row : repository.confirmedAssignments(range[0], range[1])) {
             if (row.userId().equals(userId)) {
@@ -182,6 +194,11 @@ public class CalendarService {
     }
 
     static LocalDate[] range(String view, LocalDate date, LocalDate from, LocalDate to) {
+        return range(view, date, from, to, LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")));
+    }
+
+    /** @param today ngày nghiệp vụ hôm nay theo Clock, dùng khi không truyền date */
+    static LocalDate[] range(String view, LocalDate date, LocalDate from, LocalDate to, LocalDate today) {
         if (from != null || to != null) {
             if (from == null || to == null || to.isBefore(from)) {
                 throw new IllegalArgumentException("Khoảng ngày không hợp lệ: cần cả from và to, to không trước from.");
@@ -195,7 +212,7 @@ public class CalendarService {
         if (!VIEWS.contains(v)) {
             throw new IllegalArgumentException("view phải là day, week hoặc month.");
         }
-        LocalDate d = date == null ? LocalDate.now() : date;
+        LocalDate d = date == null ? today : date;
         return switch (v) {
             case "day" -> new LocalDate[] {d, d};
             case "month" -> new LocalDate[] {d.withDayOfMonth(1), d.with(TemporalAdjusters.lastDayOfMonth())};

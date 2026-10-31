@@ -56,7 +56,8 @@ public class FakeOfficialSchedule extends OfficialScheduleRepository {
         for (OfficialAssignment a : new ArrayList<>(rows.values())) {
             if (a.shiftId().equals(shiftId) && a.userId().equals(userId)) {
                 if (a.confirmed()) {
-                    throw new IllegalStateException("Đã được phân.");
+                    throw new org.dacnpm.schedulemanager.schedule.plan.PlanException(
+                            org.dacnpm.schedulemanager.schedule.plan.PlanException.ALREADY_ASSIGNED, 409, "Đã được phân.");
                 }
                 rows.put(a.id(), copy(a, "confirmed", a.version() + 1));
                 return a.id();

@@ -195,6 +195,11 @@ public class PlanService {
 
     private Execution execute(String periodId, PlanOptions options, boolean official) {
         PlanOptions opts = options == null ? new PlanOptions(null, false) : options;
+        if (official) {
+            // Giữ khóa dòng kỳ tới hết giao dịch: lưu trữ kỳ (cũng khóa dòng này rồi kiểm tra SchedulePlanGate) không thể
+            // chen giữa lúc đọc trạng thái locked và lúc ghi phương án.
+            plans.lockPeriod(periodId);
+        }
         String status = plans.periodStatus(periodId)
                 .orElseThrow(() -> PlanException.notFound("Không tìm thấy kỳ " + periodId + "."));
         if (official && !"locked".equals(status)) {

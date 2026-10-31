@@ -76,6 +76,59 @@ class ShiftRequestServiceTest {
         when(schedule.findAssignment("asg_an")).thenReturn(Optional.of(anMorning));
         when(schedule.findAssignment("asg_bich")).thenReturn(Optional.of(bichEvening));
         when(validator.validate(anyString(), anyString(), any(), any(), any())).thenReturn(List.of());
+        when(repository.captureScheduleSnapshot(anyString())).thenReturn(1);
+        when(repository.scheduleSnapshotState(anyString())).thenReturn(ShiftRequestRepository.SnapshotState.UNCHANGED);
+    }
+
+    /* ── BA-R2: snapshot phiên bản lịch ──────────────────────────────── */
+
+    @Test
+    void create_withoutAScheduleSnapshot_isRejected_andRolledBack() {
+        when(repository.captureScheduleSnapshot(anyString())).thenReturn(0);
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.create(AN,
+                new ShiftRequestService.CreateRequest("cover", "asg_an", "nv002", null, "Bận")));
+
+        assertEquals("SCHEDULE_CHANGED", ex.getCode());
+        verify(events, never()).publish(any());
+    }
+
+    @Test
+    void approve_whenTheScheduleChangedSinceSubmission_isAConflict_andChangesNothing() {
+        when(repository.findById("req1")).thenReturn(Optional.of(view("pending_approval", "cover", 1)));
+        when(repository.scheduleSnapshotState("req1")).thenReturn(ShiftRequestRepository.SnapshotState.CHANGED);
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.approve(ADMIN, "req1", null, null));
+
+        assertEquals("SCHEDULE_CHANGED", ex.getCode());
+        verify(schedule, never()).reassign(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(repository, never()).decide(anyString(), anyInt(), anyList(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    void approve_legacyRequestWithoutSnapshot_cannotBeApproved() {
+        when(repository.findById("req1")).thenReturn(Optional.of(view("pending_approval", "swap", 1)));
+        when(repository.scheduleSnapshotState("req1")).thenReturn(ShiftRequestRepository.SnapshotState.MISSING);
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.approve(ADMIN, "req1", null, null));
+
+        assertEquals("SCHEDULE_SNAPSHOT_MISSING", ex.getCode());
+        verify(schedule, never()).swap(anyString(), anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void approve_locksTheSchedulePeriodsBeforeComparingTheSnapshot() {
+        when(repository.findById("req1"))
+                .thenReturn(Optional.of(view("pending_approval", "cover", 1)))
+                .thenReturn(Optional.of(view("approved", "cover", 2)));
+        when(repository.decide(eq("req1"), eq(1), anyList(), eq("approved"), any(), any(), any())).thenReturn(1);
+
+        service.approve(ADMIN, "req1", null, null);
+
+        var order = org.mockito.Mockito.inOrder(repository, schedule);
+        order.verify(repository).lockSchedulePeriods("req1");
+        order.verify(repository).scheduleSnapshotState("req1");
+        order.verify(schedule).reassign(eq("asg_an"), eq("nv001"), eq("nv002"), eq("admin"), anyString());
     }
 
     /* ── Gửi yêu cầu ─────────────────────────────────────────────────── */
@@ -189,7 +242,7 @@ class ShiftRequestServiceTest {
     }
 
     @Test
-    void approve_swap_removesBothOldAssignmentsBeforeAddingReplacements() {
+    void approve_swap_usesOneAtomicScheduleSwap() {
         when(repository.findById("req1"))
                 .thenReturn(Optional.of(view("pending_approval", "swap", 1)))
                 .thenReturn(Optional.of(view("approved", "swap", 2)));
@@ -197,11 +250,9 @@ class ShiftRequestServiceTest {
 
         service.approve(ADMIN, "req1", null, null);
 
-        var order = org.mockito.Mockito.inOrder(schedule);
-        order.verify(schedule).cancelAssignment(eq("asg_an"), eq("nv001"), eq("admin"), anyString());
-        order.verify(schedule).cancelAssignment(eq("asg_bich"), eq("nv002"), eq("admin"), anyString());
-        order.verify(schedule).addAssignment(eq("sh_1"), eq("nv002"), eq("admin"), anyString());
-        order.verify(schedule).addAssignment(eq("sh_2"), eq("nv001"), eq("admin"), anyString());
+        verify(schedule).swap(eq("asg_an"), eq("nv001"), eq("asg_bich"), eq("nv002"), eq("admin"), anyString());
+        verify(schedule, never()).cancelAssignment(anyString(), anyString(), anyString(), anyString());
+        verify(schedule, never()).addAssignment(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

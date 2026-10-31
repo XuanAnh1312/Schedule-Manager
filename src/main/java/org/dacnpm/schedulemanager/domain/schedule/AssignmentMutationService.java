@@ -27,4 +27,12 @@ public interface AssignmentMutationService {
 
     /** Hủy phân công (ví dụ do nghỉ phép được duyệt) nếu hiện vẫn do {@code expectedUserId} giữ. */
     void cancelAssignment(String assignmentId, String expectedUserId, String actorId, String reason);
+
+    /**
+     * Đổi ca nguyên tử: {@code firstUserId} nhận ca của {@code secondAssignmentId} và ngược lại. Hai vị trí được kiểm
+     * tra theo trạng thái cuối (cả hai phân công cũ đã gỡ); lỗi một bên thì không bên nào thay đổi. Lõi lịch phát một
+     * sự kiện lịch duy nhất cho trạng thái cuối, không phát sự kiện trung gian.
+     */
+    void swap(String firstAssignmentId, String firstUserId, String secondAssignmentId, String secondUserId,
+              String actorId, String reason);
 }

@@ -28,7 +28,8 @@ import java.util.Optional;
  *   <li>Với mỗi tham số, chỉ xét giá trị active có {@code effectiveFrom <= date} thuộc phạm vi khớp
  *       với nhân viên.</li>
  *   <li>Phạm vi cụ thể hơn thắng ({@link RuleScopeType#precedence()}); cùng phạm vi thì ngày hiệu lực
- *       mới nhất thắng.</li>
+ *       mới nhất thắng. Hai giá trị cùng mức phạm vi và cùng ngày hiệu lực là lỗi cấu hình {@code CONFLICT}
+ *       trong {@code issues}: không chọn theo thứ tự DB, nhân viên không sẵn sàng phân lịch.</li>
  *   <li>Giờ tối đa được suy ra: fixed lấy trực tiếp, percent = mục tiêu × % / 100 (AC-01, AC-14).</li>
  *   <li>Thiếu tham số bắt buộc → checklist {@code missing}; không tự điền giá trị nghiệp vụ.</li>
  * </ol>
@@ -42,16 +43,31 @@ public final class EffectiveRuleResolver {
     public static EffectiveRules resolve(List<Setting> activeSettings, ScopeContext context, LocalDate date,
                                          LevelSubstitutionsInfo levelSubstitutions) {
         Map<RuleParameter, EffectiveValue> chosen = new EnumMap<>(RuleParameter.class);
+        List<String> issues = new ArrayList<>();
+        java.util.Set<RuleParameter> conflicted = java.util.EnumSet.noneOf(RuleParameter.class);
         for (RuleParameter parameter : RuleParameter.values()) {
             if (parameter == RuleParameter.LEVEL_SUBSTITUTIONS) {
                 continue; // nguồn runtime là bảng level_substitutions, trả riêng
             }
-            pick(activeSettings, parameter, context, date).ifPresent(s -> chosen.put(parameter, toValue(parameter, s)));
+            Optional<Setting> winner = pick(activeSettings, parameter, context, date);
+            if (winner.isEmpty()) {
+                continue;
+            }
+            List<Setting> tied = tiedWith(activeSettings, parameter, context, date, winner.get());
+            if (tied.size() > 1) {
+                // Cùng mức phạm vi và cùng ngày hiệu lực: không chọn theo thứ tự DB, báo lỗi cấu hình.
+                conflicted.add(parameter);
+                issues.add("CONFLICT: " + parameter.key() + " có " + tied.size() + " giá trị cùng phạm vi "
+                        + winner.get().scopeType() + " và cùng ngày hiệu lực " + winner.get().effectiveFrom() + " ("
+                        + String.join(", ", tied.stream().map(Setting::id).toList()) + ").");
+                continue;
+            }
+            chosen.put(parameter, toValue(parameter, winner.get()));
         }
 
         List<Missing> missing = new ArrayList<>();
         for (RuleParameter parameter : RuleParameter.values()) {
-            if (parameter.requiredForScheduling() && !chosen.containsKey(parameter)) {
+            if (parameter.requiredForScheduling() && !chosen.containsKey(parameter) && !conflicted.contains(parameter)) {
                 missing.add(new Missing(parameter.key(), parameter.label(), "Chưa cấu hình."));
             }
         }
@@ -66,7 +82,6 @@ public final class EffectiveRuleResolver {
         }
 
         Derived derived = derive(chosen, mode);
-        List<String> issues = new ArrayList<>();
         if (derived.maxHours() != null && derived.targetHours() != null
                 && derived.maxHours().compareTo(derived.targetHours()) < 0) {
             issues.add("MAX_BELOW_TARGET: giờ tối đa " + plain(derived.maxHours())
@@ -96,6 +111,19 @@ public final class EffectiveRuleResolver {
                 .filter(s -> matches(s, context))
                 .max(Comparator.comparingInt((Setting s) -> scopeOf(s).precedence())
                         .thenComparing(Setting::effectiveFrom));
+    }
+
+    /** Các giá trị cùng mức phạm vi và cùng ngày hiệu lực với giá trị thắng (gồm chính nó). */
+    static List<Setting> tiedWith(List<Setting> settings, RuleParameter parameter, ScopeContext context, LocalDate date,
+                                  Setting winner) {
+        int precedence = scopeOf(winner).precedence();
+        return settings.stream()
+                .filter(s -> parameter.key().equals(s.paramKey()))
+                .filter(s -> "active".equals(s.status()))
+                .filter(s -> !s.effectiveFrom().isAfter(date))
+                .filter(s -> matches(s, context))
+                .filter(s -> scopeOf(s).precedence() == precedence && s.effectiveFrom().equals(winner.effectiveFrom()))
+                .toList();
     }
 
     private static boolean matches(Setting s, ScopeContext c) {

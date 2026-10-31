@@ -115,6 +115,12 @@ public class ShiftService {
             throw versionConflict();
         }
         checkConfig(request);
+        String currentPeriod = current.shift().periodId();
+        if (currentPeriod != null && !currentPeriod.equals(request.periodId()) && shifts.countReferences(id) > 0) {
+            throw new ShiftRejectedException(List.of("Ca đã có phân công hoặc nằm trong phương án của kỳ "
+                    + currentPeriod + "; không chuyển sang kỳ khác. Hãy hủy ca và tạo ca mới ở kỳ đúng."),
+                    List.of(), List.of());
+        }
         Set<String> assignees = shifts.confirmedAssignees(id);
         int capacity = request.maxAllowed() != null ? request.maxAllowed() : request.totalRequired();
         if (assignees.size() > capacity) {
@@ -241,8 +247,12 @@ public class ShiftService {
     /** Lỗi cấu hình và id danh mục/Level/nhân viên không tồn tại. */
     private void checkConfig(ShiftRequest r) {
         List<String> errors = ShiftConfigRules.check(r);
-        if(r!=null && r.periodId()!=null && !shifts.validPeriod(r.periodId(),r.date()))
+        // Ngày ca không đủ xác định kỳ khi hai kỳ chồng ngày, nên mọi ca tạo/sửa phải chọn kỳ tường minh (baseline mục 3).
+        if (r != null && (r.periodId() == null || r.periodId().isBlank())) {
+            errors.add("Phải chọn kỳ (periodId) cho ca.");
+        } else if (r != null && r.date() != null && !shifts.validPeriod(r.periodId(), r.date())) {
             errors.add("Kỳ không tồn tại, đã lưu trữ hoặc ngày ca không thuộc kỳ đã chọn.");
+        }
         if (!errors.isEmpty()) {
             throw new ShiftRejectedException(errors, List.of(), List.of());
         }
@@ -280,9 +290,7 @@ public class ShiftService {
         if (users.isEmpty()) {
             return;
         }
-        String periodId = r.periodId()!=null?r.periodId():shifts.periodIdFor(r.date()).orElseThrow(() -> new ShiftRejectedException(
-                List.of("Ngày " + r.date() + " không thuộc kỳ nào nên chưa kiểm tra được điều kiện của nhân viên chỉ định."),
-                List.of(), List.of()));
+        String periodId = r.periodId();
         ScheduleData d = data.load(periodId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));
 
         Set<String> replaced = d.savedAssignments().stream()

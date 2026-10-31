@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -22,8 +21,10 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Cài đặt TẠM THỜI của hai hợp đồng lịch để module của Bảo chạy được trước khi service của
- * Tường hoàn tất. Khi Tường có bean chính thức, xóa lớp này (hoặc bỏ {@code @Component}).
+ * Lớp nền KHÔNG phải bean (BA-R1): chỉ còn được dùng làm phần đọc dữ liệu (find*) cho
+ * {@link OfficialJdbcScheduleAdapter}, bean duy nhất của hai hợp đồng lịch. Mọi kiểm tra và ghi lịch đi qua lõi
+ * lịch chính thức ({@code OfficialScheduleService}); các phương thức kiểm tra/ghi bên dưới là bản tạm cũ, được lớp con
+ * ghi đè và không được nạp như một bean ghi lịch song song. Không thêm lại {@code @Component} cho lớp này.
  *
  * <p>Ràng buộc đã kiểm tra: tài khoản hoạt động, đã có trong ca, trùng giờ (kể cả ca qua đêm),
  * nghỉ tối thiểu giữa 2 ca, giờ tối đa/ngày, giờ tối đa/tuần (T2–CN), giờ tối đa/kỳ (theo
@@ -307,6 +308,20 @@ public class InterimJdbcScheduleAdapter implements AssignmentValidationService, 
             throw ApiException.conflict("SCHEDULE_CHANGED", "Phân công đã thay đổi, vui lòng tải lại.");
         }
         touchShiftOf(assignmentId);
+    }
+
+    /** Bản tạm: gỡ hai phân công cũ rồi thêm hai phân công mới trong giao dịch của bên gọi. */
+    @Override
+    public void swap(String firstAssignmentId, String firstUserId, String secondAssignmentId, String secondUserId,
+                     String actorId, String reason) {
+        AssignmentInfo first = findAssignment(firstAssignmentId)
+                .orElseThrow(() -> ApiException.conflict("SCHEDULE_CHANGED", "Phân công đã thay đổi, vui lòng tải lại."));
+        AssignmentInfo second = findAssignment(secondAssignmentId)
+                .orElseThrow(() -> ApiException.conflict("SCHEDULE_CHANGED", "Phân công đã thay đổi, vui lòng tải lại."));
+        cancelAssignment(firstAssignmentId, firstUserId, actorId, reason);
+        cancelAssignment(secondAssignmentId, secondUserId, actorId, reason);
+        addAssignment(first.shiftId(), secondUserId, actorId, reason);
+        addAssignment(second.shiftId(), firstUserId, actorId, reason);
     }
 
     private void touchShiftOf(String assignmentId) {

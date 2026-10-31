@@ -56,13 +56,14 @@ public final class ReportModels {
      * Giờ của một nhân viên trong kỳ theo nguồn của ngữ cảnh.
      *
      * @param peakWeekHours     số giờ của tuần cao nhất
-     * @param maxHoursPerWeek   trần tuần có hiệu lực
+     * @param maxHoursPerWeek   trần tuần có hiệu lực; null khi nhân viên còn thiếu cấu hình bắt buộc
      * @param percentOfTarget   hours / targetHours × 100; null nếu không có mục tiêu
-     * @param limitStatus       ok, near_limit (≥ 90% trần tuần hoặc kỳ), at_limit, over_limit
+     * @param limitStatus       ok, near_limit (≥ 90% trần tuần hoặc kỳ), at_limit, over_limit, hoặc missing_config
+     *                          khi thiếu tham số bắt buộc (không so với trần 0)
      */
     public record EmployeeHours(String userId, String fullName, String levelId, int shifts, double hours,
                                 Double targetHours, Double percentOfTarget, double peakWeekHours,
-                                double maxHoursPerWeek, Double maxHoursPerPeriod, String maxHoursFormula,
+                                Double maxHoursPerWeek, Double maxHoursPerPeriod, String maxHoursFormula,
                                 String limitStatus, Map<LocalDate, Double> hoursByWeek) {
     }
 

@@ -7,8 +7,8 @@ import java.time.LocalDate;
 public interface EffectiveRules {
 
     /**
-     * @return quy tắc hiệu lực, hoặc null nếu nguồn không có dữ liệu cho nhân viên này (khi đó dùng quy tắc suy ra từ
-     *         schedule_rules)
+     * @return quy tắc hiệu lực; {@link TableRulesSource} luôn trả giá trị (thiếu cấu hình nằm trong missing). null chỉ
+     *         dùng cho ngữ cảnh test không nối module quy tắc, khi đó {@code ScheduleContext} suy ra từ ScheduleRules
      */
     EmployeeRules at(String userId, LocalDate date);
 }

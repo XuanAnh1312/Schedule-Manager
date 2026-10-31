@@ -24,7 +24,9 @@ import java.util.Map;
  * <p>eventId gồm kỳ + mốc giờ + hạn chót, nên mỗi mốc chỉ nhắc một lần; nếu Tuấn/Admin
  * gia hạn kỳ, hạn chót mới tạo eventId mới và nhắc lại theo hạn mới.
  *
- * <p>Giả định: {@code periods.deadline} lưu theo UTC như các cột thời điểm khác (cần Tuấn xác nhận).
+ * <p>{@code periods.deadline} lưu theo UTC: {@code PeriodRepository} ghi {@code deadlineUtc} do module kỳ đổi từ giờ
+ * nghiệp vụ (Asia/Ho_Chi_Minh) sang UTC. Chỉ kỳ {@code open} được nhắc, nên kỳ đã khóa không nhận nhắc thêm; mở lại
+ * kỳ bắt buộc có hạn mới nên nhắc theo hạn mới, không lặp lại mốc cũ. Người đã gửi đăng ký không nằm trong danh sách.
  */
 @Profile("sqlserver")
 @Component

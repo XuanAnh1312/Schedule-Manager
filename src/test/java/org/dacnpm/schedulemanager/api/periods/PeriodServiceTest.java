@@ -41,7 +41,7 @@ class PeriodServiceTest {
         repository = mock(PeriodRepository.class);
         audit = mock(AuditTrail.class);
         clock = MutableClock.atVn(LocalDateTime.of(2026, 10, 29, 10, 0));
-        service = new PeriodService(repository, audit, clock, Optional.empty());
+        service = new PeriodService(repository, audit, clock, periodId -> List.of());
     }
 
     /* ── Quyền ───────────────────────────────────────────────────────────── */
@@ -141,7 +141,7 @@ class PeriodServiceTest {
         PeriodRecord locked = period(PeriodStatus.LOCKED, true, true);
         when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(locked));
         PeriodService withPlans = new PeriodService(repository, audit, clock,
-                Optional.of(periodId -> List.of("plan_1 — pending_approval")));
+                periodId -> List.of("plan_1 — pending_approval"));
 
         ApiException ex = assertThrows(ApiException.class, () -> withPlans.archive(ADMIN, "p1", null));
 
@@ -151,17 +151,34 @@ class PeriodServiceTest {
     }
 
     @Test
-    void archive_allowedWhenNoUnfinishedPlans_orNoScheduleModuleYet() {
+    void archive_allowedWhenNoUnfinishedPlans() {
         PeriodRecord locked = period(PeriodStatus.LOCKED, true, true);
         when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(locked));
         when(repository.updateStatus("p1", PeriodStatus.ARCHIVED, locked.deadlineUtc(), locked.version())).thenReturn(true);
         when(repository.findById("p1")).thenReturn(Optional.of(locked.withStatus(PeriodStatus.ARCHIVED, locked.deadlineUtc())));
 
-        new PeriodService(repository, audit, clock, Optional.of(periodId -> List.of())).archive(ADMIN, "p1", null);
-        service.archive(ADMIN, "p1", null); // không có module lịch
+        service.archive(ADMIN, "p1", null);
 
-        verify(repository, org.mockito.Mockito.times(2))
-                .updateStatus("p1", PeriodStatus.ARCHIVED, locked.deadlineUtc(), locked.version());
+        verify(repository).updateStatus("p1", PeriodStatus.ARCHIVED, locked.deadlineUtc(), locked.version());
+    }
+
+    @Test
+    void archive_locksThePeriodRowBeforeAskingTheScheduleGate() {
+        PeriodRecord locked = period(PeriodStatus.LOCKED, true, true);
+        when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(locked));
+        SchedulePlanGate gate = org.mockito.Mockito.mock(SchedulePlanGate.class);
+        when(gate.unfinishedPlans("p1")).thenReturn(List.of("plan_2 — approved"));
+
+        assertThrows(ApiException.class, () -> new PeriodService(repository, audit, clock, gate).archive(ADMIN, "p1", null));
+
+        var order = org.mockito.Mockito.inOrder(repository, gate);
+        order.verify(repository).findByIdForUpdate("p1");
+        order.verify(gate).unfinishedPlans("p1");
+    }
+
+    @Test
+    void periodService_cannotBeBuiltWithoutAScheduleGate() {
+        assertThrows(NullPointerException.class, () -> new PeriodService(repository, audit, clock, null));
     }
 
     /* ── Mở lại (AC-06) ──────────────────────────────────────────────────── */

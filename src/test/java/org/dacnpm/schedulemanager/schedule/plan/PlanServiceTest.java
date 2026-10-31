@@ -46,9 +46,15 @@ class PlanServiceTest {
         final Map<String, String> periodStatus = new HashMap<>();
         final Map<String, PlanRow> rows = new LinkedHashMap<>();
         final Map<String, List<PlanPair>> pairs = new HashMap<>();
+        final List<String> locks = new java.util.ArrayList<>();
 
         InMemoryPlans() {
             super(null);
+        }
+
+        @Override
+        public void lockPeriod(String periodId) {
+            locks.add(periodId);
         }
 
         @Override
@@ -163,6 +169,17 @@ class PlanServiceTest {
                 .isInstanceOf(PlanException.class)
                 .satisfies(e -> assertThat(((PlanException) e).code()).isEqualTo(PlanException.PERIOD_NOT_READY));
         assertThat(plans.rows).isEmpty();
+        // Trạng thái kỳ được đọc khi đã giữ khóa dòng kỳ, nên lưu trữ kỳ không chen vào giữa (TW-R5).
+        assertThat(plans.locks).containsExactly("p1");
+    }
+
+    @Test
+    void dryRun_doesNotLockThePeriod() {
+        given("open", List.of(employee("u1", "lvl1", 100.0)), List.of(s0()), List.of(), Map.of());
+
+        service.dryRun("p1", null);
+
+        assertThat(plans.locks).isEmpty();
     }
 
     @Test

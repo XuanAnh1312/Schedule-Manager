@@ -78,7 +78,9 @@ public class OfficialScheduleRepository {
                     WHERE id = ? AND status = 'cancelled'
                     """, actorId, reason, sourcePlanId, id);
             if (updated == 0) {
-                throw new IllegalStateException("Nhân viên " + userId + " đã được phân vào ca " + shiftId + ".");
+                throw new org.dacnpm.schedulemanager.schedule.plan.PlanException(
+                        org.dacnpm.schedulemanager.schedule.plan.PlanException.ALREADY_ASSIGNED, 409,
+                        "Nhân viên " + userId + " đã được phân vào ca " + shiftId + ".");
             }
             return id;
         }

@@ -11,6 +11,7 @@ import java.util.Set;
 import org.dacnpm.schedulemanager.schedule.model.Assignment;
 import org.dacnpm.schedulemanager.schedule.model.ScheduleContext;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
+import org.dacnpm.schedulemanager.schedule.plan.PlanException;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository;
 import org.dacnpm.schedulemanager.schedule.plan.ScheduleDataRepository.ScheduleData;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftConfigRules;
@@ -259,13 +260,15 @@ public class AssignmentCheckService {
     }
 
     private ScheduleData loadFor(ShiftDetail shift) {
-        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
-                .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
+        String periodId = shift.shift().periodId();
+        if (periodId == null || periodId.isBlank()) {
+            throw PlanException.periodUnassigned(shift.id());
+        }
         return data.load(periodId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));
     }
 
     private void requireSamePeriod(ScheduleData d, ShiftDetail shift) {
-        if (!d.period().contains(shift.shift().date()) || (shift.shift().periodId()!=null&&!d.period().id().equals(shift.shift().periodId()))) {
+        if (!d.period().contains(shift.shift().date()) || !d.period().id().equals(shift.shift().periodId())) {
             throw new IllegalArgumentException("Các ca phải thuộc cùng một kỳ (" + d.period().name() + ").");
         }
     }

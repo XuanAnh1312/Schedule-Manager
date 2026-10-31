@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -646,9 +647,21 @@ public class RuleService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    /** Số giờ tối đa đang có hiệu lực của nhân viên — dùng cho bộ xếp lịch (TW-03) qua service nội bộ. */
+    /**
+     * Quy tắc hiệu lực cho bộ xếp lịch (TW-03) qua service nội bộ, cùng resolver/context với API effective và preview.
+     * Không tìm thấy hồ sơ nhân viên thì không âm thầm áp quy tắc công ty: trả issue để nhân viên không sẵn sàng.
+     */
     public EffectiveRules effectiveForScheduling(String userId, LocalDate date) {
-        return EffectiveRuleResolver.resolve(repository.findActiveSettings(), contextOf(userId), date,
-                levelSubstitutionsInfo());
+        Optional<ScopeContext> context = repository.scopeContext(userId);
+        EffectiveRules rules = EffectiveRuleResolver.resolve(repository.findActiveSettings(),
+                context.orElseGet(() -> new ScopeContext(userId, null, null, null, null)), date, levelSubstitutionsInfo());
+        if (context.isPresent()) {
+            return rules;
+        }
+        List<String> issues = new ArrayList<>(rules.issues());
+        issues.add("SCOPE_CONTEXT_MISSING: không tìm thấy hồ sơ nhân viên " + userId
+                + " nên không xác định được chi nhánh/loại nhân viên/nhóm.");
+        return new EffectiveRules(rules.userId(), rules.date(), rules.scopeContext(), rules.values(), rules.derived(),
+                rules.missing(), List.copyOf(issues), false, rules.levelSubstitutions());
     }
 }

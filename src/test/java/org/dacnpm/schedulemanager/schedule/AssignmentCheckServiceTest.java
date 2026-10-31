@@ -44,13 +44,12 @@ class AssignmentCheckServiceTest {
     @BeforeEach
     void setUp() {
         service = new AssignmentCheckService(shifts, data, new AssignmentValidator());
-        when(shifts.periodIdFor(any())).thenReturn(Optional.of("p1"));
         when(shifts.periodIdsOverlapping(any(), any())).thenReturn(List.of("p1"));
     }
 
     private static ShiftDetail detail(ShiftInfo s, Instant cancelledAt) {
         ShiftRequest request = new ShiftRequest(s.name(), s.date(), s.startTime(), s.endTime(), s.breakMinutes(), null,
-                s.mode(), s.totalRequired(), null, null, null, null, null, null, null, null, null);
+                s.mode(), s.totalRequired(), null, null, null, null, null, null, null, null, null, "p1");
         return new ShiftDetail(s.id(), request, "not_scheduled", 1, false, null, cancelledAt,
                 cancelledAt == null ? null : "admin", cancelledAt == null ? null : "đã hủy");
     }

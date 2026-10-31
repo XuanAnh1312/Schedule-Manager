@@ -18,7 +18,7 @@
     if(!response.ok){let error={};try{error=await response.json();}catch{}
       if(response.status===401){logout();throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');}
       const details=error.details||error.fieldErrors||[];
-      throw new Error((error.message||error.error||'Không thể thực hiện thao tác')+(Array.isArray(details)&&details.length?'\n'+details.map(d=>typeof d==='string'?d:JSON.stringify(d)).join('\n'):''));
+      throw Object.assign(new Error((error.message||error.error||'Không thể thực hiện thao tác')+(Array.isArray(details)&&details.length?'\n'+details.map(d=>typeof d==='string'?d:JSON.stringify(d)).join('\n'):'')),{code:error.code,status:response.status});
     }
     return raw?response:response.status===204?null:response.json();
   }
@@ -72,8 +72,10 @@
       await api('/api/periods'+(p.id?'/'+p.id:''),p.id?'PUT':'POST',v);
     });
   }
+  /** Hạn đăng ký theo giờ máy chủ và múi giờ nghiệp vụ của kỳ (không dùng giờ máy người dùng). */
+  const deadlineLabel = p => p?.deadline ? p.deadline.replace('T',' ').slice(0,16)+' ('+p.timezone+')' : 'Chưa đặt hạn';
   async function periodsScreen(){const root=panel();if(admin())root.append(button('Tạo kỳ',()=>editPeriod(),false));
-    table(root,state.periods,[['Tên kỳ','name'],['Thời gian',p=>p.startDate+' → '+p.endDate],['Đăng ký','statusLabel'],['Phiên bản','version']],p=>[
+    table(root,state.periods,[['Tên kỳ','name'],['Thời gian',p=>p.startDate+' → '+p.endDate],['Hạn đăng ký',deadlineLabel],['Cách khóa',p=>p.autoLock?'Tự khóa khi hết hạn':'Chỉ khóa thủ công (autoLock tắt)'],['Đăng ký','statusLabel'],['Phiên bản','version']],p=>[
       admin()&&p.status==='draft'&&button('Sửa',()=>editPeriod(p)),
       admin()&&p.status==='draft'&&button('Mở đăng ký',async()=>{await api('/api/periods/'+p.id+'/open','POST',{version:p.version});await render();}),
       admin()&&p.status==='open'&&button('Khóa đăng ký',async()=>{await api('/api/periods/'+p.id+'/lock','POST',{version:p.version});await render();}),
@@ -86,6 +88,8 @@
       metrics(root,[['Áp dụng',progress.applicable],['Đã gửi',progress.submitted],['Lưu nháp',progress.draft],['Chưa đăng ký',progress.notStarted]]);
       table(root,progress.employees,[['Nhân viên','fullName'],['Trạng thái','status']]);table(root,summary.days,[['Ngày','date'],['Người rảnh','availableEmployees'],['Người không thể làm','unavailableEmployees'],['Tổng giờ rảnh','availableHours']]);return;}
     const data=await api(url('/api/availability/my',{periodId:state.periodId}));root.append(el('p',data.statusLabel));
+    if(data.period)root.append(el('p','Hạn đăng ký: '+deadlineLabel(data.period)+' · '+(data.period.autoLock?'tự khóa khi hết hạn':'chỉ khóa thủ công')+'. Máy chủ kiểm tra hạn khi lưu và gửi.','muted'));
+    if(!data.editable)root.append(el('p','Đăng ký hiện không sửa được; thay đổi gửi sau hạn sẽ bị máy chủ từ chối.','muted'));
     const entries=el('div'),rows=[];root.append(entries);
     function row(date='',start='08:00',end='17:00',type='available'){
       const node=el('div',null,'availability-row'),fields=[field({key:'date',label:'Ngày',type:'date',required:true},{date}),field({key:'start',label:'Từ',type:'time',required:true},{start}),field({key:'end',label:'Đến',type:'time',required:true},{end}),field({key:'type',label:'Loại',options:[['available','Rảnh'],['unavailable','Không thể làm']]},{type})];fields.forEach(f=>{f.input.disabled=!data.editable;node.append(f.label);});
@@ -98,8 +102,9 @@
         await api(url('/api/availability/my'+(submit?'/submit':''),{periodId:state.periodId}),submit?'POST':'PUT',{entries:[...grouped].map(([date,slots])=>({date,slots}))});await render();notice(submit?'Đã gửi đăng ký.':'Đã lưu đăng ký.');};
       bar.append(button('Lưu nháp',()=>save(false)),button('Gửi đăng ký',()=>save(true),false));root.append(bar);}
   }
+  const sourceLabel = v => v.source.scopeType+(v.source.scopeId?': '+v.source.scopeId:'');
   async function rulesScreen(){const root=panel();const catalog=await api('/api/rules/catalog');
-    if(!admin()){const rules=await api('/api/rules/effective');metrics(root,[['Mục tiêu (giờ)',rules.derived.targetHours],['Trần (giờ)',rules.derived.maxHours]]);table(root,rules.values,[['Quy tắc','label'],['Giá trị','value'],['Đơn vị','unit'],['Nguồn',v=>v.source.scopeType]]);table(root,rules.missing,[['Cần cấu hình','label'],['Lý do','reason']]);return;}
+    if(!admin()){const rules=await api('/api/rules/effective');metrics(root,[['Mục tiêu (giờ)',rules.derived.targetHours],['Trần (giờ)',rules.derived.maxHours]]);table(root,rules.values,[['Quy tắc','label'],['Giá trị','value'],['Đơn vị','unit'],['Nguồn',sourceLabel],['Hiệu lực từ',v=>v.source.effectiveFrom],['Mã thay đổi',v=>v.source.changeId]]);table(root,rules.missing,[['Cần cấu hình','label'],['Lý do','reason']]);for(const issue of rules.issues||[])root.append(el('p',issue,'error'));return;}
     const settings=await api('/api/rules/settings');
     async function configure(){const defs=[{key:'scopeType',label:'Phạm vi',options:catalog.scopes.filter(s=>s.available).map(s=>[s.scopeType,({company:'Công ty',user:'Cá nhân',branch:'Chi nhánh',group:'Nhóm',employee_type:'Loại nhân viên'})[s.scopeType]])},{key:'scopeId',label:'Nhân viên',options:employees(),help:'Chỉ chọn khi áp dụng cho cá nhân.'},{key:'effectiveFrom',label:'Ngày hiệu lực',type:'date',value:day(),required:true},{key:'reason',label:'Lý do thay đổi',required:true}];
       const scopeOptions=[...employees()];for(const [type,label]of [['locations','Chi nhánh'],['work_groups','Nhóm'],['employee_types','Loại nhân viên']]){const rows=await api('/api/schedule/catalog/'+type);rows.forEach(r=>scopeOptions.push([r.id,label+': '+r.name]));}defs[1]={...defs[1],label:'Đối tượng áp dụng',options:scopeOptions,help:'Bỏ trống khi cấu hình toàn công ty.'};
@@ -110,10 +115,15 @@
     root.append(button('Thay đổi quy tắc',configure,false),button('Mẫu đề xuất',async()=>{const template=await api('/api/rules/templates');const preview=await api('/api/rules/changes','POST',{reason:'Xem xét mẫu đề xuất',items:template.items});showRulePreview(preview);await render();}));
     function showRulePreview(preview){state.rulePreview=preview;}
     root.append(button('Level thay thế',async()=>{const levels=await api('/api/levels');edit('Thêm quy tắc thay thế Level',[{key:'higherLevelId',label:'Level được làm thay',options:levels.map(l=>[l.id,l.name]),required:true},{key:'lowerLevelId',label:'Level yêu cầu của vị trí',options:levels.map(l=>[l.id,l.name]),required:true},{key:'reason',label:'Lý do',required:true}],{},async v=>{const existing=settings.find(s=>s.paramKey==='level_substitutions'&&s.scopeType==='company');const pairs=existing?JSON.parse(existing.value):[];pairs.push({higherLevelId:v.higherLevelId,lowerLevelId:v.lowerLevelId});const preview=await api('/api/rules/changes','POST',{reason:v.reason,items:[{paramKey:'level_substitutions',scopeType:'company',value:JSON.stringify(pairs)}]});showRulePreview(preview);},'Xem trước');}));
-    table(root,settings,[['Quy tắc',s=>catalog.parameters.find(p=>p.key===s.paramKey)?.label||s.paramKey],['Giá trị',s=>s.paramKey==='level_substitutions'?'Đã cấu hình '+JSON.parse(s.value).length+' cặp':s.value],['Phạm vi','scopeType'],['Hiệu lực','effectiveFrom']],s=>[button('Bỏ giá trị',()=>edit('Bỏ quy tắc',[{key:'reason',label:'Lý do',required:true}],{},async v=>{const preview=await api('/api/rules/changes','POST',{reason:v.reason,items:[{op:'remove',paramKey:s.paramKey,scopeType:s.scopeType,scopeId:s.scopeId}]});showRulePreview(preview);},'Xem trước'))]);
+    table(root,settings,[['Quy tắc',s=>catalog.parameters.find(p=>p.key===s.paramKey)?.label||s.paramKey],['Giá trị',s=>s.paramKey==='level_substitutions'?'Đã cấu hình '+JSON.parse(s.value).length+' cặp':s.value],['Phạm vi','scopeType'],['Đối tượng','scopeId'],['Hiệu lực','effectiveFrom'],['Mã thay đổi','changeId']],s=>[button('Bỏ giá trị',()=>edit('Bỏ quy tắc',[{key:'reason',label:'Lý do',required:true}],{},async v=>{const preview=await api('/api/rules/changes','POST',{reason:v.reason,items:[{op:'remove',paramKey:s.paramKey,scopeType:s.scopeType,scopeId:s.scopeId}]});showRulePreview(preview);},'Xem trước'))]);
     const history=await api('/api/rules/changes?status=all');table(panel('Lịch sử cấu hình'),history,[['Thời điểm','createdAt'],['Lý do','reason'],['Trạng thái','status']]);
-    if(state.rulePreview){const preview=state.rulePreview,p=panel('Xem trước tác động');metrics(p,[['Nhân viên ảnh hưởng',preview.affectedUsers],['Còn thiếu cấu hình',preview.notReadyAfter]]);table(p,preview.companyChanges,[['Tham số','key'],['Trước','before'],['Sau','after']]);for(const w of preview.warnings||[])p.append(el('p',w));
-      p.append(button('Xác nhận áp dụng',async()=>{if(!confirm('Áp dụng cấu hình đã xem trước? Lịch đã công bố được giữ nguyên.'))return;await api('/api/rules/changes/'+preview.changeId+'/apply','POST',{confirm:true});state.rulePreview=null;await render();notice('Đã áp dụng quy tắc.');},false));p.scrollIntoView({block:'nearest'});}
+    if(state.rulePreview){const preview=state.rulePreview,p=panel('Xem trước tác động');metrics(p,[['Nhân viên ảnh hưởng',preview.affectedUsers],['Còn thiếu cấu hình',preview.notReadyAfter]]);
+      p.append(el('p','Lý do: '+preview.reason+' · Revision gốc: '+preview.baseRevision+' · Tính tại ngày '+preview.evaluatedAt,'muted'));
+      table(p,preview.items||[],[['Tham số','paramKey'],['Thao tác',i=>i.op||'set'],['Phạm vi','scopeType'],['Đối tượng','scopeId'],['Giá trị mới','value'],['Hiệu lực từ','effectiveFrom']]);
+      table(p,preview.userChanges||[],[['Nhân viên','fullName'],['Thay đổi',u=>u.changes.map(c=>c.key+': '+(c.before??'—')+' → '+(c.after??'—')).join('; ')],['Sẵn sàng phân lịch sau thay đổi',u=>u.readyAfter?'Có':'Còn thiếu cấu hình']]);
+      table(p,preview.periods||[],[['Kỳ liên quan','name'],['Trạng thái','status'],['Ghi chú','note']]);table(p,preview.companyChanges,[['Tham số','key'],['Trước','before'],['Sau','after']]);for(const w of preview.warnings||[])p.append(el('p',w));
+      p.append(button('Xác nhận áp dụng',async()=>{if(!confirm('Áp dụng cấu hình đã xem trước? Lịch đã công bố được giữ nguyên.'))return;await api('/api/rules/changes/'+preview.changeId+'/apply','POST',{confirm:true});state.rulePreview=null;await render();notice('Đã áp dụng quy tắc.');},false),
+        button('Bỏ bản xem trước',async()=>{await api('/api/rules/changes/'+preview.changeId+'/cancel','POST');state.rulePreview=null;await render();notice('Đã bỏ bản xem trước; quy tắc không thay đổi.');}));p.scrollIntoView({block:'nearest'});}
   }
   async function shiftsScreen(){const root=panel();periodPicker(root);const p=currentPeriod();if(!p)return;
     const [rows,levels,locations,skills,certificates,positions]=await Promise.all([api(url('/api/schedule/shifts',{periodId:p.id,from:p.startDate,to:p.endDate,includeCancelled:true})),api('/api/levels'),...['locations','skills','certificates','positions'].map(t=>api('/api/schedule/catalog/'+t))]);
@@ -142,7 +152,8 @@
     table(root,result.missingParameters||[],[['Nhân viên','userId'],['Thông số','key'],['Lý do','message']]);
   }
   async function planDetail(id){const workflow=await api('/api/schedule/plans/'+id+'/workflow'),plan=workflow.plan,readiness=await api('/api/schedule/plans/'+id+'/readiness');const root=panel(plan.name+' · '+text(plan.status)+' · v'+plan.version);
-    engineResult(root,plan.result);table(root,plan.roster||[],[['Ca','shiftId'],['Nhân viên',r=>state.employees.find(e=>e.id===r.userId)?.fullName||r.userId]],r=>[plan.status==='draft'&&button('Gỡ',async()=>{await api('/api/schedule/plans/'+id+'/assignments/remove','POST',{...r,expectedVersion:plan.version});await render();await planDetail(id);})]);
+    engineResult(root,plan.result);table(root,plan.roster||[],[['Ca','shiftId'],['Nhân viên',r=>state.employees.find(e=>e.id===r.userId)?.fullName||r.userId]],r=>[plan.status==='draft'&&button('Gỡ',async()=>{await api('/api/schedule/plans/'+id+'/assignments/remove','POST',{...r,expectedVersion:plan.version});await render();await planDetail(id);}),
+      plan.status==='draft'&&plan.shiftIds.length>1&&button('Chuyển ca',()=>edit('Chuyển nhân viên sang ca khác',[{key:'toShiftId',label:'Ca đích',options:plan.shiftIds.filter(x=>x!==r.shiftId),required:true}],{},async v=>{await api('/api/schedule/plans/'+id+'/assignments/move','POST',{userId:r.userId,fromShiftId:r.shiftId,toShiftId:v.toShiftId,expectedVersion:plan.version});},'Chuyển'))]);
     const bar=el('div',null,'toolbar');root.append(bar);
     if(plan.status==='draft'){
       const p=currentPeriod(),shifts=await api(url('/api/schedule/shifts',{periodId:p.id,from:p.startDate,to:p.endDate}));
@@ -164,10 +175,30 @@
     const filters={};if(admin()){const [locations,groups,levels]=await Promise.all([api('/api/schedule/catalog/locations'),api('/api/schedule/catalog/work_groups'),api('/api/levels')]);
       for(const def of [{key:'periodId',label:'Kỳ',options:state.periods.map(p=>[p.id,p.name])},{key:'locationId',label:'Chi nhánh / địa điểm',options:locations.map(x=>[x.id,x.name])},{key:'groupId',label:'Nhóm',options:groups.map(x=>[x.id,x.name])},{key:'userId',label:'Nhân viên',options:employees()},{key:'levelId',label:'Level',options:levels.map(l=>[l.id,l.name])},{key:'status',label:'Trạng thái',options:[['published','Đã công bố'],['draft','Nháp'],['not_scheduled','Chưa xếp']]}]){const f=field(def);filters[def.key]=f.input;controls.append(f.label);}}
     async function load(){const result=await api(url(admin()?'/api/schedule/calendar':'/api/my/schedule',{view:view.input.value,date:date.input.value,...Object.fromEntries(Object.entries(filters).map(([key,input])=>[key,input.value]))}));list.replaceChildren();
-      for(const s of result.shifts){const card=el('article');card.append(el('span',s.date,'muted'),el('h3',s.name),el('p',s.startTime+' → '+s.endTime));if(admin()){card.append(el('p',text(s.coverage)+' · '+s.filled+'/'+s.required));for(const person of s.assignees||[])card.append(el('span',person.fullName||person.userId,'chip'));}else card.append(el('p',s.hours+' giờ'));list.append(card);}
+      for(const s of result.shifts){const card=el('article');card.append(el('span',s.date,'muted'),el('h3',s.name),el('p',s.startTime+' → '+s.endTime));if(admin()){card.append(el('p',text(s.coverage)+' · '+s.filled+'/'+s.required));if(!s.periodId)card.append(el('p','Chưa phân loại kỳ: chọn kỳ cho ca trước khi sửa lịch.','error'));officialControls(card,s);}else card.append(el('p',s.hours+' giờ'));list.append(card);}
       if(!result.shifts.length)list.append(el('p','Chưa có lịch đã công bố trong khoảng này.','empty'));
       if(!admin())for(const version of result.versions||[]){const box=el('article');box.append(el('h3',version.planName||'Phiên bản lịch'),button('Đã xem',async()=>{await api('/api/my/schedule/viewed','POST',{planId:version.planId});notice('Đã ghi nhận xem lịch.');}),button('Xác nhận lịch',async()=>{await api('/api/my/schedule/confirm','POST',{planId:version.planId});await load();notice('Đã xác nhận lịch.');},false));list.append(box);}}
     await load();
+  }
+  /** Sửa lịch chính thức (TW-05/06): thêm, thay, hủy phân công; vi phạm thuộc nhóm ngoại lệ đi qua xem trước + xác nhận. */
+  function officialControls(card,s){const editable=s.source==='official'&&!!s.periodId,label=p=>p.fullName||p.userId;
+    for(const person of s.assignees||[]){const row=el('div',null,'actions');row.append(el('span',label(person),'chip'));
+      if(editable&&person.assignmentId)row.append(
+        button('Thay người',()=>edit('Thay '+label(person),[{key:'newUserId',label:'Người thay',options:employees().filter(([id])=>id!==person.userId),required:true},{key:'reason',label:'Lý do',type:'textarea',required:true}],{},
+          v=>officialChange('/api/schedule/official/assignments/'+person.assignmentId+'/reassign',{expectedUserId:person.userId,newUserId:v.newUserId,reason:v.reason},{shiftId:s.shiftId,userId:v.newUserId,replacingAssignmentId:person.assignmentId}))),
+        button('Hủy phân công',()=>edit('Hủy phân công của '+label(person),[{key:'reason',label:'Lý do',type:'textarea',required:true}],{},
+          v=>api('/api/schedule/official/assignments/'+person.assignmentId+'/cancel','POST',{expectedUserId:person.userId,reason:v.reason}))));
+      card.append(row);}
+    if(editable)card.append(button('Thêm người',()=>edit('Thêm người vào '+s.name,[{key:'userId',label:'Nhân viên',options:employees(),required:true},{key:'reason',label:'Lý do',type:'textarea',required:true}],{},
+      v=>officialChange('/api/schedule/official/assignments',{shiftId:s.shiftId,userId:v.userId,reason:v.reason},{shiftId:s.shiftId,userId:v.userId}))));
+  }
+  async function officialChange(path,body,previewBody){
+    try{return await api(path,'POST',body);}
+    catch(e){if(e.code!=='EXCEPTION_REQUIRED')throw e;
+      const preview=await api('/api/schedule/official/preview','POST',previewBody);
+      if(!preview.allowed)throw new Error(preview.message+(preview.blocking?.length?'\n'+preview.blocking.map(x=>x.message).join('\n'):''));
+      if(!confirm('Thay đổi cần ngoại lệ:\n'+preview.exceptionable.map(x=>x.message).join('\n')+'\nXác nhận ngoại lệ với lý do đã nhập?'))throw new Error('Chưa xác nhận ngoại lệ nên lịch không thay đổi.');
+      return api(path,'POST',{...body,override:{reason:body.reason,previewToken:preview.previewToken,confirm:true}});}
   }
   async function requestsScreen(){const root=panel();const rows=await api('/api/requests?scope='+(admin()?'all':'mine'));
     if(!admin())root.append(button('Tạo yêu cầu đổi / thay ca',async()=>{const mine=await api(url('/api/my/schedule',{from:day(),to:new Date(Date.now()+90*86400000).toISOString().slice(0,10)}));
@@ -196,10 +227,13 @@
       admin()&&button('Đăng ký chờ duyệt',async()=>{const detail=await api('/api/open-shifts/'+r.id);table(panel('Người đăng ký'),detail.claims||[],[['Nhân viên','userName'],['Trạng thái','status']],c=>['pending'].includes(c.status)?[button('Duyệt',async()=>{await api('/api/open-shifts/'+r.id+'/claims/'+c.id+'/approve','POST',{expectedVersion:c.version});await render();}),button('Từ chối',()=>edit('Từ chối đăng ký',[{key:'note',label:'Lý do',required:true}],{},v=>api('/api/open-shifts/'+r.id+'/claims/'+c.id+'/reject','POST',{...v,expectedVersion:c.version})))]:[]);}),
       admin()&&r.status==='open'&&button('Đóng',async()=>{await api('/api/open-shifts/'+r.id+'/close','POST',{expectedVersion:r.version,note:'Đóng đăng ký'});await render();})]);
   }
+  /** Thời điểm UTC từ API → giờ Asia/Ho_Chi_Minh để hiển thị. */
+  const utcLabel = value => value ? new Date(String(value).replace(' ','T')+(String(value).endsWith('Z')?'':'Z')).toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'}) : '—';
   async function notificationsScreen(){const root=panel();state.notificationPage=state.notificationPage||0;const page=await api(url('/api/notifications',{page:state.notificationPage,size:20}));
     root.append(button('Đánh dấu tất cả đã đọc',async()=>{await api('/api/notifications/read-all','POST');await render();}));
-    table(root,page.items||page.content||page.notifications||[],[['Thông báo','title'],['Nội dung','body'],['Thời điểm','createdAt'],['Đã đọc',n=>n.readAt?'Đã đọc':'Chưa đọc']],n=>[button('Đã đọc',async()=>{await api('/api/notifications/'+n.id+'/read','POST');await render();}),button('Mở',async()=>{await api('/api/notifications/'+n.id+'/read','POST');state.route=({'my-schedule':'calendar','my-requests':'requests',approvals:'requests',leave:'leave','open-shifts':'openShifts',register:'availability'})[n.linkRoute]||'calendar';await render();})]);
-    const bar=el('div',null,'toolbar');if(state.notificationPage>0)bar.append(button('Trang trước',async()=>{state.notificationPage--;await render();}));if((page.items||[]).length===20)bar.append(button('Trang sau',async()=>{state.notificationPage++;await render();}));root.append(bar);
+    metrics(root,[['Chưa đọc',page.unread],['Tổng số',page.total]]);
+    table(root,page.items||[],[['Thông báo','title'],['Nội dung','body'],['Thời điểm',n=>utcLabel(n.createdAt)],['Đã đọc',n=>n.read?'Đã đọc':'Chưa đọc']],n=>[!n.read&&button('Đã đọc',async()=>{await api('/api/notifications/'+n.id+'/read','POST');await render();}),button('Mở',async()=>{await api('/api/notifications/'+n.id+'/read','POST');state.route=({'my-schedule':'calendar','my-requests':'requests',approvals:'requests',leave:'leave','open-shifts':'openShifts',register:'availability'})[n.linkRoute]||'calendar';await render();})]);
+    const bar=el('div',null,'toolbar'),pages=Math.max(1,Math.ceil(page.total/page.size));bar.append(el('span','Trang '+(page.page+1)+'/'+pages,'muted'));if(page.page>0)bar.append(button('Trang trước',async()=>{state.notificationPage--;await render();}));if(page.page+1<pages)bar.append(button('Trang sau',async()=>{state.notificationPage++;await render();}));root.append(bar);
     if(admin()){const settings=await api('/api/notifications/settings');root.append(button('Nhắc hạn đăng ký',()=>edit('Cấu hình nhắc hạn',[{key:'hours',label:'Nhắc trước hạn (giờ)',help:'Cách nhau bằng dấu phẩy. Để trống để tắt.'}],{hours:settings.deadlineReminderHours.join(',')},v=>api('/api/notifications/settings','PUT',{deadlineReminderHours:split(v.hours).map(Number)}))));}
   }
   async function reportsScreen(){const root=panel();periodPicker(root);if(!state.periodId)return;

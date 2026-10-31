@@ -21,6 +21,10 @@ public class PlanException extends RuntimeException {
     public static final String FORBIDDEN = "FORBIDDEN";
     public static final String STALE_PREVIEW = "STALE_PREVIEW";
     public static final String CONFIRM_REQUIRED = "CONFIRM_REQUIRED";
+    /** Ca chưa gắn kỳ (period_id NULL): Admin phải phân loại trước khi sửa lịch của ca (baseline mục 3). */
+    public static final String SHIFT_PERIOD_UNASSIGNED = "SHIFT_PERIOD_UNASSIGNED";
+    /** Nhân viên đã có phân công confirmed trong ca. */
+    public static final String ALREADY_ASSIGNED = "ALREADY_ASSIGNED";
 
     private final String code;
     private final int status;
@@ -51,6 +55,12 @@ public class PlanException extends RuntimeException {
 
     public static PlanException periodNotReady(String message) {
         return new PlanException(PERIOD_NOT_READY, 409, message);
+    }
+
+    /** Ca chưa được phân loại kỳ: không đoán kỳ theo ngày vì hai kỳ có thể chồng ngày. */
+    public static PlanException periodUnassigned(String shiftId) {
+        return new PlanException(SHIFT_PERIOD_UNASSIGNED, 409, "Ca " + shiftId
+                + " chưa được gắn kỳ (period_id). Admin cần chọn kỳ cho ca trước khi kiểm tra hoặc sửa lịch.");
     }
 
     public static PlanException of(String code, int status, String message, List<String> details) {

@@ -12,8 +12,15 @@ import org.dacnpm.schedulemanager.api.rules.RuleService;
 import org.dacnpm.schedulemanager.api.rules.RuleModels;
 
 /**
- * Nguồn quy tắc mặc định: một bộ schedule_rules cho cả công ty, không đổi theo ngày; giới hạn riêng của nhân viên suy
- * ra từ target_rate và giới hạn hợp đồng ({@link EmployeeRules#derive}).
+ * Nguồn quy tắc của lịch (TW-R1): mỗi nhân viên/ngày lấy từ {@code RuleService.effectiveForScheduling(userId, date)},
+ * cùng resolver và scope context với API effective/preview của module quy tắc. Không đọc bộ schedule_rules legacy.
+ *
+ * <ul>
+ *   <li>max_hours_per_week bị kẹp thêm bởi giới hạn hợp đồng của nhân viên (hợp đồng chặt hơn vẫn thắng).</li>
+ *   <li>Trần kỳ và giờ mục tiêu là giá trị suy ra của module quy tắc (fixed hoặc target × %), không tự tính lại.</li>
+ *   <li>Tham số bắt buộc còn thiếu và lỗi cấu hình (issues) đi vào {@link EmployeeRules#missing()}; validator dừng ở
+ *       đó nên các giá trị 0 tạm thời không bao giờ được dùng làm giới hạn.</li>
+ * </ul>
  */
 @Component
 @Profile("sqlserver")

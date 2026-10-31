@@ -50,15 +50,17 @@ public class PeriodService {
     private final PeriodRepository repository;
     private final AuditTrail audit;
     private final Clock clock;
-    private final Optional<SchedulePlanGate> planGate;
+    private final SchedulePlanGate planGate;
 
-    /** {@code planGate} rỗng khi module lịch chưa cài đặt {@link SchedulePlanGate}. */
-    public PeriodService(PeriodRepository repository, AuditTrail audit, Clock clock,
-                         Optional<SchedulePlanGate> planGate) {
+    /**
+     * {@code planGate} bắt buộc (TU-R2): thiếu bean thì ứng dụng không khởi động, thay vì âm thầm cho lưu trữ kỳ còn
+     * phương án lịch chưa hoàn tất. Bản chạy SQL Server là {@code schedule.plan.PeriodPlanGate}.
+     */
+    public PeriodService(PeriodRepository repository, AuditTrail audit, Clock clock, SchedulePlanGate planGate) {
         this.repository = repository;
         this.audit = audit;
         this.clock = clock;
-        this.planGate = planGate;
+        this.planGate = java.util.Objects.requireNonNull(planGate, "SchedulePlanGate");
     }
 
     /* ── Đọc ─────────────────────────────────────────────────────────────── */
@@ -186,7 +188,7 @@ public class PeriodService {
         me.requireAdmin();
         PeriodRecord current = lockForChange(id, versionOf(action));
         requireStatus(current, PeriodStatus.LOCKED, "Chỉ kỳ đã đóng mới lưu trữ được.");
-        List<String> unfinished = planGate.map(g -> g.unfinishedPlans(id)).orElse(List.of());
+        List<String> unfinished = planGate.unfinishedPlans(id);
         if (!unfinished.isEmpty()) {
             throw new ApiException(HttpStatus.CONFLICT, "PLAN_NOT_FINALIZED",
                     "Kỳ còn phương án lịch chưa hoàn tất. Hãy công bố hoặc hủy phương án trước khi lưu trữ.",

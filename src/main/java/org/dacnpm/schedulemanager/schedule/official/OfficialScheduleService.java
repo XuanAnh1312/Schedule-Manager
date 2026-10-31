@@ -7,6 +7,7 @@ import org.dacnpm.schedulemanager.schedule.events.ScheduleEvent;
 import org.dacnpm.schedulemanager.schedule.events.ScheduleEventSink;
 import org.dacnpm.schedulemanager.schedule.exception.ExceptionService;
 import org.dacnpm.schedulemanager.schedule.exception.ExceptionService.Preview;
+import org.dacnpm.schedulemanager.schedule.model.Assignment;
 import org.dacnpm.schedulemanager.schedule.model.Employee;
 import org.dacnpm.schedulemanager.schedule.model.ScheduleContext;
 import org.dacnpm.schedulemanager.schedule.model.ShiftInfo;
@@ -103,6 +104,16 @@ public class OfficialScheduleService {
 
     @Transactional
     public ChangeResult addAssignment(String shiftId, String userId, String actorId, String reason, ExceptionOverride override) {
+        return addAssignment(shiftId, userId, actorId, reason, override, true);
+    }
+
+    /**
+     * @param notify false khi module gọi (đổi ca, nghỉ phép, ca trống) tự gửi thông báo nghiệp vụ cho cùng người nhận,
+     *               để một thao tác chỉ tạo một thông báo (BA-R1); lịch sử vẫn được ghi
+     */
+    @Transactional
+    public ChangeResult addAssignment(String shiftId, String userId, String actorId, String reason,
+                                      ExceptionOverride override, boolean notify) {
         ShiftDetail shift = activeShift(shiftId);
         String periodId = lockPeriodOf(shift);
         ValidationResult result = validate(userId, shiftId, null, Set.of(), null);
@@ -113,7 +124,7 @@ public class OfficialScheduleService {
                 id + ": " + userId + " vào ca " + shiftId + " (kỳ " + periodId + ")"
                         + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId, null,
                 ShiftRepository.auditJson(java.util.Map.of("assignmentId",id,"shiftId",shiftId,"userId",userId,"version",version)), reason);
-        events.publish(ScheduleEvent.of(ScheduleEvent.ASSIGNMENT_ADDED, "assignment", id, version, actorId,
+        if (notify) events.publish(ScheduleEvent.of(ScheduleEvent.ASSIGNMENT_ADDED, "assignment", id, version, actorId,
                 List.of(userId), "Bạn được phân thêm ca", label(shift) + (reason == null ? "" : ". Lý do: " + reason),
                 "my-schedule"));
         return new ChangeResult(id, shiftId, userId, exceptionId, List.of());
@@ -123,6 +134,13 @@ public class OfficialScheduleService {
     @Transactional
     public ChangeResult reassign(String assignmentId, String expectedUserId, String newUserId, String actorId,
                                  String reason, ExceptionOverride override) {
+        return reassign(assignmentId, expectedUserId, newUserId, actorId, reason, override, true);
+    }
+
+    /** @param notify xem {@link #addAssignment(String, String, String, String, ExceptionOverride, boolean)} */
+    @Transactional
+    public ChangeResult reassign(String assignmentId, String expectedUserId, String newUserId, String actorId,
+                                 String reason, ExceptionOverride override, boolean notify) {
         OfficialAssignment current = confirmed(assignmentId);
         requireHolder(current, expectedUserId);
         ShiftDetail shift = activeShift(current.shiftId());
@@ -137,7 +155,7 @@ public class OfficialScheduleService {
                 current.shiftId() + ": " + expectedUserId + " → " + newUserId
                         + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId,
                 ShiftRepository.auditJson(current),ShiftRepository.auditJson(java.util.Map.of("assignmentId",newId,"shiftId",current.shiftId(),"userId",newUserId)), reason);
-        events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
+        if (notify) events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
                 actorId, List.of(expectedUserId, newUserId), "Lịch làm việc thay đổi",
                 label(shift) + ": " + expectedUserId + " được thay bằng " + newUserId + ".", "my-schedule"));
         return new ChangeResult(newId, current.shiftId(), newUserId, exceptionId, List.of());
@@ -146,6 +164,13 @@ public class OfficialScheduleService {
     /** Hủy phân công (ví dụ nghỉ phép được duyệt) nếu vẫn do expectedUserId giữ; cảnh báo nếu ca thành thiếu người. */
     @Transactional
     public ChangeResult cancelAssignment(String assignmentId, String expectedUserId, String actorId, String reason) {
+        return cancelAssignment(assignmentId, expectedUserId, actorId, reason, true);
+    }
+
+    /** @param notify xem {@link #addAssignment(String, String, String, String, ExceptionOverride, boolean)} */
+    @Transactional
+    public ChangeResult cancelAssignment(String assignmentId, String expectedUserId, String actorId, String reason,
+                                         boolean notify) {
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("Lý do hủy phân công không được để trống.");
         }
@@ -165,10 +190,70 @@ public class OfficialScheduleService {
                 current.id() + ": " + expectedUserId + " khỏi ca " + current.shiftId() + ".", actorId,
                 ShiftRepository.auditJson(current),ShiftRepository.auditJson(java.util.Map.of("assignmentId",current.id(),"status","cancelled","version",current.version()+1)),
                 reason.trim());
-        events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
+        if (notify) events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
                 actorId, List.of(expectedUserId), "Ca của bạn đã bị hủy", label(shift) + ". Lý do: " + reason.trim(),
                 "my-schedule"));
         return new ChangeResult(current.id(), current.shiftId(), expectedUserId, null, warnings);
+    }
+
+    /**
+     * Đổi ca nguyên tử giữa hai người (TW-R4, BA-R3): cả hai phân công cũ được bỏ khỏi ngữ cảnh rồi kiểm tra hai vị
+     * trí theo trạng thái cuối, nên xung đột tạm thời với ca cũ không chặn một swap hợp lệ. Hai lần hủy, hai lần thêm,
+     * lịch sử và một sự kiện duy nhất nằm trong cùng giao dịch; lỗi ở bất kỳ bước nào làm rollback toàn bộ và không
+     * phát thông báo trung gian.
+     */
+    @Transactional
+    public List<ChangeResult> swap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
+                                   String secondUserId, String actorId, String reason) {
+        return swap(firstAssignmentId, firstUserId, secondAssignmentId, secondUserId, actorId, reason, true);
+    }
+
+    /** @param notify xem {@link #addAssignment(String, String, String, String, ExceptionOverride, boolean)} */
+    @Transactional
+    public List<ChangeResult> swap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
+                                   String secondUserId, String actorId, String reason, boolean notify) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("Lý do đổi ca không được để trống.");
+        }
+        OfficialAssignment first = confirmed(firstAssignmentId);
+        OfficialAssignment second = confirmed(secondAssignmentId);
+        requireHolder(first, firstUserId);
+        requireHolder(second, secondUserId);
+        if (first.shiftId().equals(second.shiftId()) || firstUserId.equals(secondUserId)) {
+            throw new IllegalArgumentException("Đổi ca cần hai người khác nhau ở hai ca khác nhau.");
+        }
+        ShiftDetail firstShift = activeShift(first.shiftId());
+        ShiftDetail secondShift = activeShift(second.shiftId());
+        // Khóa theo thứ tự id kỳ để hai thao tác đổi ca chéo kỳ chạy song song không khóa chéo nhau.
+        new java.util.TreeSet<>(List.of(periodOf(firstShift), periodOf(secondShift))).forEach(plans::lockPeriod);
+
+        Set<String> removed = Set.of(first.id(), second.id());
+        guard(first.shiftId(), secondUserId, validateFinal(firstShift, secondUserId, firstUserId, removed,
+                new Assignment("swap_pending", second.shiftId(), firstUserId, Assignment.CONFIRMED)), null, actorId);
+        guard(second.shiftId(), firstUserId, validateFinal(secondShift, firstUserId, secondUserId, removed,
+                new Assignment("swap_pending", first.shiftId(), secondUserId, Assignment.CONFIRMED)), null, actorId);
+
+        String cleanReason = reason.trim();
+        if (!official.cancel(first.id(), firstUserId, first.version(), cleanReason)
+                || !official.cancel(second.id(), secondUserId, second.version(), cleanReason)) {
+            throw conflict();
+        }
+        String firstNew = official.addOrReactivate(first.shiftId(), secondUserId, actorId, cleanReason, null);
+        String secondNew = official.addOrReactivate(second.shiftId(), firstUserId, actorId, cleanReason, null);
+        shifts.writeHistory("manual_swap", "Đổi ca trên lịch chính thức",
+                first.shiftId() + ": " + firstUserId + " → " + secondUserId + "; " + second.shiftId() + ": "
+                        + secondUserId + " → " + firstUserId + ".", actorId,
+                ShiftRepository.auditJson(List.of(first, second)),
+                ShiftRepository.auditJson(List.of(
+                        java.util.Map.of("assignmentId", firstNew, "shiftId", first.shiftId(), "userId", secondUserId),
+                        java.util.Map.of("assignmentId", secondNew, "shiftId", second.shiftId(), "userId", firstUserId))),
+                cleanReason);
+        if (notify) events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", first.id(), first.version() + 1,
+                actorId, List.of(firstUserId, secondUserId), "Lịch làm việc thay đổi",
+                "Đổi ca: " + label(firstShift) + " do " + secondUserId + " phụ trách; " + label(secondShift) + " do "
+                        + firstUserId + " phụ trách.", "my-schedule"));
+        return List.of(new ChangeResult(firstNew, first.shiftId(), secondUserId, null, List.of()),
+                new ChangeResult(secondNew, second.shiftId(), firstUserId, null, List.of()));
     }
 
     @Transactional(readOnly = true)
@@ -218,17 +303,37 @@ public class OfficialScheduleService {
         return shift;
     }
 
+    /** Kỳ của ca; ca chưa gắn kỳ bị từ chối thay vì đoán kỳ theo ngày (hai kỳ có thể chồng ngày). */
+    private static String periodOf(ShiftDetail shift) {
+        String periodId = shift.shift().periodId();
+        if (periodId == null || periodId.isBlank()) {
+            throw PlanException.periodUnassigned(shift.id());
+        }
+        return periodId;
+    }
+
     private String lockPeriodOf(ShiftDetail shift) {
-        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
-                .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
+        String periodId = periodOf(shift);
         plans.lockPeriod(periodId);
         return periodId;
     }
 
     private ScheduleData load(ShiftDetail shift) {
-        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
-                .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
+        String periodId = periodOf(shift);
         return data.load(periodId).orElseThrow(() -> PlanException.notFound("Không tìm thấy kỳ " + periodId + "."));
+    }
+
+    /**
+     * Kiểm tra một vị trí theo trạng thái cuối của thao tác đổi ca: cả hai phân công cũ đã bị gỡ khỏi ngữ cảnh và phân
+     * công mới còn lại được thêm vào như đề xuất.
+     */
+    private ValidationResult validateFinal(ShiftDetail shift, String userId, String replacingUserId,
+                                           Set<String> removed, Assignment otherNew) {
+        ScheduleContext ctx = load(shift).context(removed);
+        if (ctx.shift(otherNew.shiftId()) != null) {
+            ctx.addProposed(otherNew);
+        }
+        return validator.validate(ctx, new AssignmentCandidate(userId, shift.id(), levelOf(ctx, replacingUserId, shift.id())));
     }
 
     /** Level của người đang giữ vị trí, nếu ca có yêu cầu Level đó. */

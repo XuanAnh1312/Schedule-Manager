@@ -69,6 +69,8 @@ public class ReportService {
             + "trong kỳ (ca qua đêm/qua kỳ chỉ tính phần trong kỳ); phân công đã hủy không tính.";
     static final String ROUNDING = "HALF_UP, 2 chữ số thập phân, làm tròn sau khi cộng.";
     static final double NEAR_LIMIT_RATIO = 0.9;
+    /** Nhân viên còn thiếu tham số bắt buộc nên không có trần để so (TW-R1). */
+    static final String MISSING_CONFIG = "missing_config";
     private static final double EPSILON = 1e-6;
     private static final Set<String> WORKFLOW_STATUSES = Set.of("not_scheduled", "draft", "published");
 
@@ -174,11 +176,15 @@ public class ReportService {
             Double target = rules.targetHours();
             Map<LocalDate, Double> roundedWeeks = new TreeMap<>();
             byWeek.forEach((week, h) -> roundedWeeks.put(week, round(h)));
+            // Thiếu tham số bắt buộc: không hiển thị trần 0 (sẽ thành over_limit sai), ghi rõ thiếu cấu hình.
+            boolean configured = rules.ready();
             rows.add(new EmployeeHours(e.id(), e.label(), e.levelId(), mine.size(), round(hours),
                     target == null ? null : round(target),
                     target == null || target <= 0 ? null : round(hours / target * 100), round(peak),
-                    rules.maxHoursPerWeek(), rules.maxHoursPerPeriod(), rules.maxHoursFormula(),
-                    configuredLimitStatus(peak, rules.maxHoursPerWeek(), hours, rules.maxHoursPerPeriod(),rules.warningHours()), roundedWeeks));
+                    configured ? rules.maxHoursPerWeek() : null, configured ? rules.maxHoursPerPeriod() : null,
+                    configured ? rules.maxHoursFormula() : null,
+                    configured ? configuredLimitStatus(peak, rules.maxHoursPerWeek(), hours, rules.maxHoursPerPeriod(),
+                            rules.warningHours()) : MISSING_CONFIG, roundedWeeks));
         }
         rows.sort(Comparator.comparing(EmployeeHours::fullName, Comparator.nullsLast(String::compareTo))
                 .thenComparing(EmployeeHours::userId));

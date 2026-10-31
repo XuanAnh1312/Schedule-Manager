@@ -106,6 +106,73 @@ class EffectiveRuleResolverTest {
         assertEquals(0, new BigDecimal("75").compareTo(resolve(s).derived().maxHours()));
     }
 
+    // ── TU-R1: scope thực tế, thứ tự ưu tiên và xung đột cùng mức ──────────────
+
+    @Test
+    void sameDay_employeesOfDifferentBranches_getTheirBranchLimit() {
+        List<Setting> s = new ArrayList<>(complete("percent", "125", null));
+        s.add(setting("max_hours_per_week", "branch", "b1", "40", TODAY));
+        s.add(setting("max_hours_per_week", "branch", "b2", "44", TODAY));
+
+        EffectiveRules first = EffectiveRuleResolver.resolve(s, new ScopeContext("nv001", "b1", null, null, null), TODAY, NO_LEVELS);
+        EffectiveRules second = EffectiveRuleResolver.resolve(s, new ScopeContext("nv002", "b2", null, null, null), TODAY, NO_LEVELS);
+        EffectiveRules noBranch = resolve(s);
+
+        assertEquals("40", value(first, "max_hours_per_week"));
+        assertEquals("branch", source(first, "max_hours_per_week").scopeType());
+        assertEquals("44", value(second, "max_hours_per_week"));
+        assertEquals("48", value(noBranch, "max_hours_per_week"));
+    }
+
+    @Test
+    void precedence_userOverGroupOverEmployeeTypeOverBranchOverCompany() {
+        List<Setting> s = new ArrayList<>(complete("percent", "125", null));
+        s.add(setting("max_hours_per_week", "branch", "b1", "40", TODAY));
+        s.add(setting("max_hours_per_week", "employee_type", "pt", "30", TODAY));
+        s.add(setting("max_hours_per_week", "group", "g1", "25", TODAY));
+        ScopeContext all = new ScopeContext("nv001", "b1", "pt", "g1", null);
+
+        assertEquals("25", value(EffectiveRuleResolver.resolve(s, all, TODAY, NO_LEVELS), "max_hours_per_week"));
+        s.add(setting("max_hours_per_week", "user", "nv001", "20", TODAY));
+        EffectiveRules withUser = EffectiveRuleResolver.resolve(s, all, TODAY, NO_LEVELS);
+        assertEquals("20", value(withUser, "max_hours_per_week"));
+        assertEquals("chg", source(withUser, "max_hours_per_week").changeId());
+    }
+
+    @Test
+    void twoValuesAtTheSameScopeAndDate_areAConfigurationConflict_notARandomPick() {
+        List<Setting> s = new ArrayList<>(complete("percent", "125", null));
+        s.add(new Setting("dup-a", "max_hours_per_week", "group", "g1", "25", TODAY, "active", "c1", null, null));
+        s.add(new Setting("dup-b", "max_hours_per_week", "group", "g1", "30", TODAY, "active", "c2", null, null));
+
+        EffectiveRules r = EffectiveRuleResolver.resolve(s, new ScopeContext("nv001", null, null, "g1", null), TODAY, NO_LEVELS);
+
+        assertFalse(r.readyForScheduling());
+        assertTrue(r.issues().stream().anyMatch(i -> i.startsWith("CONFLICT: max_hours_per_week")));
+        assertNull(value(r, "max_hours_per_week"));
+        assertTrue(r.missing().stream().noneMatch(m -> m.key().equals("max_hours_per_week")));
+    }
+
+    @Test
+    void newerValueAtTheSameScope_isNotAConflict() {
+        List<Setting> s = new ArrayList<>(complete("percent", "125", null));
+        s.add(setting("max_hours_per_week", "group", "g1", "25", TODAY.minusDays(10)));
+        s.add(setting("max_hours_per_week", "group", "g1", "30", TODAY));
+
+        EffectiveRules r = EffectiveRuleResolver.resolve(s, new ScopeContext("nv001", null, null, "g1", null), TODAY, NO_LEVELS);
+
+        assertTrue(r.readyForScheduling());
+        assertEquals("30", value(r, "max_hours_per_week"));
+    }
+
+    private static String value(EffectiveRules r, String key) {
+        return r.values().stream().filter(v -> v.key().equals(key)).map(RuleModels.EffectiveValue::value).findFirst().orElse(null);
+    }
+
+    private static RuleModels.Source source(EffectiveRules r, String key) {
+        return r.values().stream().filter(v -> v.key().equals(key)).map(RuleModels.EffectiveValue::source).findFirst().orElseThrow();
+    }
+
     private static EffectiveRules resolve(List<Setting> settings) {
         return EffectiveRuleResolver.resolve(settings, NV1, TODAY, NO_LEVELS);
     }

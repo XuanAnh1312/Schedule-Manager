@@ -20,6 +20,7 @@ const ADMIN_ROUTES = [
   { id: 'approvals',    label: 'Duyệt yêu cầu',       icon: iconInbox(),    section: 'Yêu cầu', render: () => HrViews.renderApprovals() },
   { id: 'open-shifts',  label: 'Ca trống',            icon: iconOpenShift(), section: 'Yêu cầu', render: () => HrViews.renderOpenShifts() },
   { id: 'notifications',label: 'Thông báo',           icon: iconBell(),     section: 'Yêu cầu', render: () => HrViews.renderNotifications() },
+  { id: 'attendance-sql', label: 'Chấm công SQL & Báo cáo', icon: iconClock(), section: 'Admin', render: () => AttendanceEntry.render() },
 ];
 
 const USER_ROUTES = [
@@ -32,6 +33,7 @@ const USER_ROUTES = [
   { id: 'leave',       label: 'Nghỉ phép',             icon: iconLeave(),    section: 'Yêu cầu', render: () => HrViews.renderLeave() },
   { id: 'open-shifts', label: 'Ca trống',              icon: iconOpenShift(), section: 'Yêu cầu', render: () => HrViews.renderOpenShifts() },
   { id: 'notifications',label: 'Thông báo',            icon: iconBell(),     section: 'Yêu cầu', render: () => HrViews.renderNotifications() },
+  { id: 'attendance-sql', label: 'Chấm công và báo cáo', icon: iconClock(), section: 'User', render: () => AttendanceEntry.render() },
 ];
 
 /* ═══════════════════════════════════════════════════════════

@@ -285,46 +285,137 @@ Chỉ đóng từng mã review khi có code và bằng chứng tương ứng. M�
 
 ## 9. Thứ tự hoàn thiện task và phần có thể làm song song
 
-Thứ tự dưới đây phân biệt **thứ tự chốt hợp đồng/tích hợp** với **thứ tự bắt đầu làm**. Không cần đợi người trước hoàn thành toàn bộ module mới được bắt đầu; các phần song song dùng chung schema/API phải chốt contract trước, làm bằng mock/branch riêng trong lúc chờ implementation.
+Mục này là nội dung giao việc trực tiếp cho từng thành viên. Tất cả prompt đều lấy baseline đã push `integration/moc-a-completion@ae8f740` và code tích hợp `6a0df73` làm chuẩn. Mỗi người làm trên nhánh feature của mình. Có thể bắt đầu song song ngay; chỉ các phần ghi “phối hợp/chờ contract” mới cần đồng bộ trước khi tích hợp hoặc chốt semantics.
 
-### Giai đoạn 0 — Anh chốt baseline chung (chặn merge, không chặn mọi công việc)
+### 9.1. Việc Tuấn cần làm — task 3.2
 
-Anh cần công bố một commit baseline đã push cho cả nhóm, gồm: bảng migration version duy nhất và thứ tự phụ thuộc; hợp đồng scope/effective rules; period_id trên ca và cách xử lý dữ liệu không backfill duy nhất; version snapshot request/công; event/outbox; tên bean report; trạng thái plan nào chặn archive. Chỉ rõ phần nào trong các sửa local tích hợp đã được nhận vào baseline để chủ module tránh làm lại.
+**Nhánh:** `feature/task-5-periods`. **Mã review:** TU-R1, TU-R2, TU-R3.
 
-Trong lúc Anh chốt, cả bốn thành viên vẫn có thể sửa các lỗi thuần module, viết unit test và làm UI dựa trên contract hiện có. Chưa rebase/merge các migration cùng version vào nhánh tích hợp dùng để chạy Flyway.
+**Việc cần hoàn thành:**
 
-### Giai đoạn 1 — Bốn luồng sửa độc lập, làm song song
+1. Đối chiếu code hiện tại với baseline; giữ các phần context scope, validate scope ID, migration V15 và PeriodPlanGate đã có trong `6a0df73`, chỉ bổ sung nếu phát hiện thiếu/lỗi.
+2. Hoàn thiện resolver dùng employee context lấy từ backend, theo scope ưu tiên user > group > employee_type > branch > company; kiểm tra effective date, revision, xung đột cùng mức và missing required rule. Preview, effective API và nguồn mà Tường tiêu thụ phải dùng cùng resolver.
+3. Phối hợp Anh/Tường kiểm tra PeriodPlanGate: archive phải bị chặn với `draft`, `pending_approval`, `approved`; chỉ archive khi không còn plan ở các trạng thái đó. Không đổi trạng thái plan trong API kỳ.
+4. Kiểm tra UI/API kỳ, availability, rules: loading/empty/error/409; autoLock, submit sau hạn, mở lại có quyền/lý do; preview rồi confirm có reason/version/audit. Bỏ đường ghi localStorage làm nguồn nghiệp vụ chuẩn trong các màn hình nghiệm thu.
+5. Gửi hợp đồng effective rules cho Tường và Bình: tên API/DTO, ý nghĩa `target_rate`, target/max riêng biệt, missing checklist, nguồn scope và version.
+6. Chạy test unit/module; phối hợp chạy SQL Server migration và test deadline/scope trên baseline tích hợp. Gửi SHA, test output, API/UI evidence và lỗi còn mở.
 
-**Tuấn trên `feature/task-5-periods`:** xử lý TU-R1 và TU-R3: context scope thật và đường UI/API; viết test resolver theo công ty/chi nhánh/nhóm/cá nhân, thiếu cấu hình, preview/confirm. Có thể làm độc lập với Tường bằng interface effective rules/mock đã chốt. TU-R2 cần Tường cung cấp trạng thái plan; Tuấn có thể hoàn thiện interface, còn integration test chờ Giai đoạn 2.
+**Làm song song:** có thể làm resolver, validate scope, UI kỳ/rules và unit tests cùng lúc Tường làm slot/period, Bảo làm snapshot, Bình làm responsive/evidence. Chỉ phần contract effective rules với Tường cần chốt chung trước khi engine bridge được kết luận; PeriodPlanGate integration test cần Tường có repository plan nhưng Tuấn vẫn làm unit/API trước được.
 
-**Tường trên `feature/tuong-case-cycle`:** xử lý TW-R2/TW-R3: đọc available/unavailable và nghỉ đã duyệt; ràng buộc ca với period, đối tượng áp dụng, assignment lân cận. Có thể code song song Tuấn sau khi thống nhất schema slot_type, period_id và dữ liệu scope. Đồng thời viết test repository/validator bằng fixture. TW-R1 dùng contract từ Tuấn; có thể dựng adapter/mock trước, nhưng chỉ chốt sau khi effective rules contract được Anh/Tuấn công bố.
+**Prompt dành cho AI Agent:**
 
-**Bảo trên `feature/bao-requests-leave-notifications`:** xử lý BA-R2 và phần UI/notification của BA-R5 song song với Tuấn/Tường; snapshot version cần migration baseline nhưng service/test có thể viết trên migration tạm theo contract. Chuẩn bị BA-R1 bằng cách thay adapter qua interface mutation đã thống nhất. BA-R3 swap và BA-R4 locking cần cùng làm với Tường về transaction, version, thứ tự khóa; có thể viết test trước nhưng không tự chọn semantics/schema riêng.
+```text
+Bạn đang làm task 3.2 (Tuấn) trong repo ManageSchedule. Hãy hoàn thiện các mã TU-R1, TU-R2, TU-R3 theo Docs/review-task-3.2-3.5.md và hợp đồng chuẩn trong Docs/integration-baseline-moc-a.md. Baseline code là integration/moc-a-completion@6a0df73; tài liệu baseline đã push tại ae8f740. Làm trên branch feature/task-5-periods.
 
-**Bình trên `feature/cham-cong-bao-cao`:** xử lý BI-R3 (version công), BI-R5 (sửa evidence và E2E harness), responsive UI độc lập với report nguồn. Chuẩn bị BI-R1/BI-R2 qua interface report/context và period_id đã chốt; có thể viết adapter/mock trước. Không tự định nghĩa lại công thức planned hours.
+Trước tiên kiểm tra git status, branch, commit hiện tại và đọc hai tài liệu trên. Không ghi đè hoặc xóa thay đổi có sẵn. Không làm lại các phần đã có trong baseline; kiểm tra và chỉ sửa gap/regression. Không sửa migration V1-V17; migration mới phải xin Anh cấp version, hiện version kế tiếp V18. Không force-push, không commit file secret/fixture/log.
 
-**Anh:** song song với các nhánh trên điều tra failure JWT, rà quyền và chuẩn bị SQL Server QA DB an toàn. Đây là việc nền tảng độc lập; báo kết quả để Tuấn/Bảo dùng chung, không để mỗi nhánh tự sửa security khác nhau.
+Phạm vi: (1) đảm bảo context scope được dựng từ employee backend và resolver ưu tiên user > group > employee_type > branch > company, áp đúng effective date/version, trả missing/issues thay vì tự gán mặc định; preview/effective API/scheduling source thống nhất; (2) xác nhận archive kỳ gọi SchedulePlanGate và chặn draft/pending_approval/approved; (3) rà UI/API kỳ, availability, rules với loading/empty/error, deadline/autolock/reopen, preview-confirm/audit và không dùng localStorage làm dữ liệu chuẩn. Chốt DTO/API/ý nghĩa target_hours, target_rate và max_hours với Tường/Bình; target và trần là hai đại lượng riêng.
 
-### Giai đoạn 2 — Tuấn và Tường tích hợp quy tắc/lịch
+Viết/sửa test có ý nghĩa cho từng scope, xung đột/missing config, ngày hiệu lực, archive gate và deadline server. Chạy test phù hợp, ghi đúng lệnh/môi trường/pass/fail; không tuyên bố SQL Server/E2E pass nếu chưa chạy thật. Rà git diff, commit thay đổi của riêng task này với message rõ, push origin feature/task-5-periods. Cuối cùng báo: mã TU-R đã xử lý, file/migration, SHA, test/evidence, dependency và lỗi còn mở. Nếu contract với Tường chưa rõ, nêu chính xác điểm cần chốt nhưng tiếp tục phần độc lập.
+```
 
-Sau khi contract effective rules, slot_type, period_id và scope được chốt, Tuấn push API/source rules hoàn chỉnh; Tường nối `EffectiveRulesSource`, availability, plan gate và lọc ca theo kỳ. Hai người làm theo cặp ở phần bridge: Tuấn sở hữu ý nghĩa/nguồn rules và kỳ; Tường sở hữu cách engine tiêu thụ, validator và plan. Không sửa chéo file sở hữu nếu chưa thống nhất.
+### 9.2. Việc Tường cần làm — task 3.3
 
-Đầu ra trước khi chuyển giai đoạn: tests fixed/percent/thiếu cấu hình, scope theo nhân viên; tests slot unavailable/nghỉ, ca đêm/qua tuần; archive bị chặn khi plan chưa kết thúc; SQL Server migration thống nhất. Khi các test này chạy trên cùng baseline, Bình có thể bắt đầu nối report theo dữ liệu thật.
+**Nhánh:** `feature/tuong-case-cycle`. **Mã review:** TW-R1, TW-R2, TW-R3, TW-R4, TW-R5.
 
-### Giai đoạn 3 — Tường và Bảo tích hợp mutation lịch
+**Việc cần hoàn thành:**
 
-Tường cung cấp và push validator/mutation service chính thức trước. Bảo thay adapter tạm bằng service này, sau đó hoàn thiện swap nguyên tử, snapshot/version, Open Shift locking và event outbox. Tường chịu trách nhiệm đúng một mutation/audit/event cho lịch; Bảo chịu trách nhiệm state request, quyền duyệt và thông báo. Hai bên cùng review thứ tự khóa và rollback.
+1. Giữ migration V6–V12 tích hợp; không khôi phục V7 tự set 60/75. Kiểm tra `TableRulesSource` dùng effective rules của Tuấn; không tính một bộ rule legacy khác. Thiếu required config phải chặn lập/công bố và trả checklist.
+2. Đọc `availability_slots.slot_type`; available là khoảng được phép, unavailable và nghỉ đã duyệt là hard block. Slot không có giờ không được tự biến thành available cả ngày. Xử lý ca/slot qua đêm, giờ nghỉ và ngày biên.
+3. Giữ `shifts.period_id` từ V16; lọc ca/người theo đúng kỳ, xử lý NULL theo baseline; vẫn nạp assignment lân cận để kiểm tra giờ tuần/nghỉ/ngày liên tiếp. Không backfill thêm heuristic riêng.
+4. Giữ `PeriodPlanGate` và status gate theo baseline. Kiểm tra đúng plan chưa kết thúc làm chặn archive.
+5. Nối mutation/validation chính thức và schedule event. Event lịch qua `SpringScheduleEventSink` vào outbox Bảo; transaction rollback không tạo event, retry/dedup không gửi trùng. Đảm bảo Bảo có API nội bộ ổn định để gọi mutation.
+6. Kiểm tra workflow plan/assignment: version optimistic lock, hard constraints khi publish/sửa tay, audit before/after/reason, phân biệt draft với published; hoàn thiện UI ca/lịch/plan dùng API thật.
+7. Test fixed/percent/missing rules, unavailable/leave, ca đêm/ranh kỳ, stale version, rollback, archive gate và event. Phối hợp SQL Server test với Bảo.
 
-Phần có thể chạy song song: Bảo làm snapshot/DTO/UI và test mock; Tường làm mutation/event adapter và test lõi. Phần phải chờ nhau: chọn API cuối, kiểm thử SQL Server race/rollback và xác nhận event recipient/dedup. Không merge BA-R1/R3 nếu test vẫn dùng InterimJdbcScheduleAdapter.
+**Làm song song:** slot reader/validator, period filtering, unit tests và UI có thể làm song song với Tuấn/Bảo/Bình theo schema baseline. Effective rules bridge cần contract Tuấn; mutation adapter/event/atomic swap cần làm cặp với Bảo. Bảo có thể chuẩn bị DTO/UI/mock trong khi Tường hoàn thiện service, nhưng không chốt tích hợp BA-R1/R3 trước khi test dùng mutation chính thức.
 
-### Giai đoạn 4 — Bình tích hợp báo cáo và nghiệm thu giao diện
+**Prompt dành cho AI Agent:**
 
-Khi ca–kỳ, report context và effective target đã có, Bình nối scheduled/actual/approved vào cùng context, sửa Dashboard và export. Bình có thể làm responsive, mapping AC và browser harness từ Giai đoạn 1; chỉ kết luận số liệu đúng sau khi chạy trên service thật của Tuấn/Tường/Bảo. Tường xác nhận planned hours; Tuấn xác nhận target/effective rules; Bảo xác nhận pending request categories. Bình không tự sửa nghiệp vụ nguồn của ba module kia.
+```text
+Bạn đang làm task 3.3 (Tường) trong repo ManageSchedule. Hoàn thiện TW-R1…TW-R5 theo Docs/review-task-3.2-3.5.md và Docs/integration-baseline-moc-a.md. Baseline code 6a0df73, baseline tài liệu ae8f740 trên integration/moc-a-completion. Làm trên feature/tuong-case-cycle.
 
-### Giai đoạn 5 — tích hợp theo lát cắt và sửa lỗi hồi quy
+Kiểm tra git status/branch trước khi sửa; bảo toàn thay đổi hiện có. Review code baseline trước, không làm lại phần đã nhận. Giữ V6–V12; không khôi phục V7 seed 60/75, không sửa V1–V17. Migration tiếp theo chỉ dùng sau khi Anh cấp V18. Không force-push hoặc commit fixture/secret.
 
-Merge theo lát cắt có thể chạy được: (1) baseline+migrations; (2) kỳ/rules/ca/plan; (3) request/leave/open shift/outbox; (4) attendance/report/dashboard/UI. Sau mỗi lát cắt, Anh chạy SQL Server migration/startup và test tích hợp liên quan; chủ module sửa lỗi trên nhánh của mình, push commit mới rồi mới nhận lát cắt tiếp theo. Bình cập nhật bảng evidence từ output thật, không copy kết quả unit test thành bằng chứng E2E.
+Hoàn thiện: TableRulesSource tiêu thụ effective rules cùng resolver của Tuấn; availability phân biệt available/unavailable, nghỉ đã duyệt và khoảng qua đêm; validator chặn hard constraints; mọi ca gắn period_id, ca NULL được xử lý đúng baseline, assignment ngoài kỳ vẫn được tính khi ảnh hưởng hard constraints; PlanGate chặn archive với draft/pending_approval/approved; mutation chính thức có version/transaction/audit và cung cấp contract để Bảo gọi; schedule event ghi transactional outbox qua DomainEventPublisher với đúng entity/version/recipients. Rà UI/API plan, shifts, calendar, publish và quyền dữ liệu.
 
-### Giai đoạn 6 — điều kiện chốt task 3.2–3.5
+Phối hợp Tuấn chốt EffectiveRules DTO/semantics và Bảo chốt mutation/swap/event/locking; ghi rõ các điểm đã thống nhất. Viết test cho percent/fixed/missing config, availability/leave, qua đêm/ranh kỳ, stale version, rollback, archive gate, event retry/dedup. Chạy test; không nhận SQL Server/race pass nếu chỉ dùng mock. Rà diff, commit riêng, push origin feature/tuong-case-cycle. Báo mã TW-R, SHA, file, kết quả test, evidence, dependency và lỗi còn mở.
+```
 
-Chỉ báo hoàn tất khi từng mã TU-R/TW-R/BA-R/BI-R đã có commit trên đúng nhánh, migration sạch trên DB mới và DB baseline hỗ trợ, API/UI dùng chung nguồn dữ liệu, race/rollback được thử trên SQL Server, quyền nhân viên được gọi trực tiếp qua API, browser flow và viewport có bằng chứng, AC liên quan được đối chiếu. Mỗi thành viên push nhánh riêng trong mục 1; Anh merge theo thứ tự ở mục 8.2, không push hộ thành viên và không merge thẳng các nhánh gốc đồng thời trước khi xử lý migration/bean conflict.
+### 9.3. Việc Bảo cần làm — task 3.4
+
+**Nhánh:** `feature/bao-requests-leave-notifications`. **Mã review:** BA-R1, BA-R2, BA-R3, BA-R4, BA-R5.
+
+**Việc cần hoàn thành:**
+
+1. Giữ V13 và V17 baseline; giữ snapshot source/target assignment+shift version lúc tạo request. Kiểm tra ở peer accept và manager approve; stale trả 409. Request lịch sử thiếu snapshot không được approve; có thể hủy/từ chối hoặc tạo request mới.
+2. Dùng mutation/validator service chính thức của Tường, không để InterimJdbcScheduleAdapter còn là bean ghi lịch song song. Không phát duplicate audit/event nếu core mutation đã chịu trách nhiệm.
+3. Làm swap nguyên tử theo trạng thái cuối: bỏ cả hai assignment khỏi context validation rồi áp hai assignment mới trong cùng transaction. Lỗi một bên phải rollback toàn bộ; giữ đúng audit/version/event.
+4. Chuẩn hóa row lock Open Shift theo thứ tự đã chốt cho claim/withdraw/approve/reject/close; kiểm tra slot cuối và điều kiện lần cuối trong transaction. Chạy race test trên SQL Server.
+5. Outbox phải ghi cùng transaction, đúng người nhận, idempotent, retry được; notification read chỉ bởi người nhận. Deadline reminder dùng config của Tuấn, không spam sau submit/lock.
+6. Leave đã duyệt đi vào validator/coverage qua hợp đồng Tường; giữ quyền nghỉ cho Part-time. Hoàn thiện UI request/leave/open shift/notifications và các state loading/empty/error.
+
+**Làm song song:** snapshot service/DTO/UI, V17-compatible tests và notification UI có thể làm độc lập. Tường đồng thời làm validator/mutation core. BA-R1 và BA-R3 chỉ tích hợp/chốt sau khi Tường cung cấp service và cùng review transaction/lock order; race/rollback/outbox acceptance phải chạy sau khi merge lát cắt của cả hai.
+
+**Prompt dành cho AI Agent:**
+
+```text
+Bạn đang làm task 3.4 (Bảo) trong repo ManageSchedule. Hoàn thiện BA-R1…BA-R5 theo Docs/review-task-3.2-3.5.md và Docs/integration-baseline-moc-a.md. Baseline code 6a0df73, tài liệu ae8f740 trên integration/moc-a-completion. Làm trên feature/bao-requests-leave-notifications.
+
+Kiểm tra branch/status trước khi sửa, bảo toàn thay đổi riêng. Review code baseline đã nhận để tránh làm lại. Giữ V13/V17; không sửa V1–V17, migration tiếp theo chỉ sau khi Anh cấp V18. Không force-push, không thêm credential/test data thật.
+
+Hoàn thiện snapshot version ca/phân công lúc request được tạo và xác minh ở peer accept/approve; stale schedule trả 409, snapshot cũ NULL không được approve. Thay adapter tạm bằng service mutation/validation chính thức của Tường, đảm bảo một mutation/audit/event duy nhất. Thực hiện swap nguyên tử với validation trạng thái cuối và rollback toàn phần nếu một assignment lỗi. Khóa Open Shift theo thứ tự nhất quán trên mọi mutation, kiểm tra chỗ cuối trong transaction. Nối event qua transactional outbox, recipient đúng, dedup/retry, rollback không phát; hoàn thiện leave/request/notification UI, quyền đọc notification và deadline reminder theo config Tuấn.
+
+Phối hợp trực tiếp Tường để thống nhất signature service, transaction boundary, thứ tự lock, trách nhiệm audit/event. Viết test stale snapshot, swap hợp lệ/không hợp lệ và rollback, approve cạnh tranh, slot cuối, outbox retry/dedup, leave ảnh hưởng validator. Chạy SQL Server race test nếu môi trường sẵn; ghi rõ nếu chưa chạy. Commit riêng và push origin feature/bao-requests-leave-notifications. Báo mã BA-R, SHA, test/evidence, dependency và lỗi còn mở.
+```
+
+### 9.4. Việc Bình cần làm — task 3.5
+
+**Nhánh:** `feature/cham-cong-bao-cao`. **Mã review:** BI-R1, BI-R2, BI-R3, BI-R4, BI-R5.
+
+**Việc cần hoàn thành:**
+
+1. Giữ bean `attendanceReportService`; dùng schedule report/context của Tường làm nguồn planned hours và effective target của Tuấn. Không tự tính target từ `schedule_rules` legacy hoặc tính giờ planned khác nguồn engine.
+2. Mọi số liệu theo period_id/context/variant/version đã chọn; chia giờ ca qua kỳ theo timezone Asia/Ho_Chi_Minh và quy ước UTC; published/draft, scheduled/actual/approved phải tách. Dashboard, table, chart và CSV/XLSX phải dùng cùng filter/định nghĩa.
+3. Giữ V15 `base_record_version`; xử lý stale adjustment bằng conflict, không overwrite; bổ sung case request bổ sung khi record được tạo trước lúc duyệt.
+4. Hoàn thiện Dashboard với pending attendance/shift/leave tách rõ, kỳ/hạn, ca hôm nay/thiếu người, draft và xác nhận lịch; định nghĩa đơn vị đếm và timestamp. Scope employee/branch/group/level/type phải được kiểm soát.
+5. Sửa mapping evidence BI↔AC theo task; chạy HTTP/browser với backend thật khi có QA fixture, đủ viewport 320/360/390/768/1024/1280. Ghi rõ CSS viewport, Windows scale, zoom và deviceScaleFactor; có assertion overflow, modal, keyboard/focus, 401/403/error/loading/empty, refresh/session/browser khác.
+6. Phối hợp Tường xác nhận scheduled source/context; Tuấn xác nhận target/effective rules; Bảo xác nhận pending categories. Bình tổng hợp evidence nhưng mỗi chủ module tự sửa lỗi nguồn của họ.
+
+**Làm song song:** BI-R3, responsive/UI, sửa tài liệu evidence và dựng HTTP/browser harness có thể làm ngay. Report planned hours, lọc kỳ và Dashboard tổng hợp chỉ chốt sau khi Tuấn/Tường cung cấp contract/implementation tương ứng; có thể viết adapter/mock trước nhưng không báo số liệu chuẩn trước khi đối chiếu dữ liệu thật.
+
+**Prompt dành cho AI Agent:**
+
+```text
+Bạn đang làm task 3.5 (Bình) trong repo ManageSchedule. Hoàn thiện BI-R1…BI-R5 theo Docs/review-task-3.2-3.5.md và Docs/integration-baseline-moc-a.md. Baseline code 6a0df73, tài liệu ae8f740 trên integration/moc-a-completion. Làm trên feature/cham-cong-bao-cao.
+
+Kiểm tra git status/branch và giữ thay đổi có sẵn. Review phần baseline đã tích hợp; không làm lại. Giữ V14/V15, không sửa V1–V17; migration mới chỉ sau khi Anh cấp V18. Không force-push, không commit fixture nhạy cảm.
+
+Dùng `attendanceReportService`; nối planned hours với schedule report/context của Tường và effective target của Tuấn. Giữ rõ published/draft, scheduled/actual/approved; dùng period_id, cắt ca qua ranh kỳ đúng timezone; cùng filter/định nghĩa cho cards/table/chart/CSV. Bổ sung kiểm tra target 0/missing, break, overnight, overlap period, cancelled shift và employee scope. Dùng base_record_version khi duyệt adjustment; stale trả 409, không ghi đè. Bổ sung pending attendance/shift/leave, định nghĩa rõ count và timestamp. Sửa mapping AC/evidence và browser harness backend thật với đủ viewport, role/error/loading/empty/reload/session, overflow/modal/keyboard/focus.
+
+Phối hợp Tường xác nhận nguồn planned hours/period context, Tuấn xác nhận target/effective rules, Bảo xác nhận request categories. Chạy module tests; nếu SQL Server/browser thật chưa chạy thì ghi CHƯA XÁC MINH, không biến unit test thành E2E evidence. Commit riêng và push origin feature/cham-cong-bao-cao. Báo mã BI-R, SHA, lệnh/môi trường/kết quả test, evidence, dependency và lỗi còn mở.
+```
+
+### 9.5. Việc Anh cần làm và trình tự nhận kết quả
+
+Baseline đã push tại `integration/moc-a-completion@ae8f740`; code sửa local tích hợp được nhận vào baseline là commit `6a0df73`, danh sách nằm trong `Docs/integration-baseline-moc-a.md`. Anh gửi prompt đúng người và yêu cầu mỗi người cập nhật branch từ baseline, nhưng tránh yêu cầu họ merge lẫn nhau cùng lúc.
+
+**Có thể giao cả bốn prompt cùng lúc.** Tuấn làm rules/UI; Tường làm availability/period/UI; Bảo làm snapshot/notification/UI; Bình làm attendance version/responsive/evidence. Yêu cầu họ thông báo trước khi sửa contract chung. Sau đó nhận tích hợp theo thứ tự: (1) Tuấn + Tường kiểm thử effective rules, availability và plan gate; (2) Tường + Bảo kiểm thử mutation, swap, locking, event/outbox; (3) Bình nối report/dashboard với nguồn lịch và pending categories; (4) Anh kiểm tra migration/startup trên SQL Server, quyền API và luồng xuyên hệ thống, rồi mới merge nhánh tích hợp vào `main`.
+
+Anh chịu trách nhiệm cấp V18 nếu thực sự cần migration mới; điều tra failure JWT chung nếu tái hiện; chuẩn bị DB QA cô lập; review conflict/schema và quyết định release. Không nhận bàn giao chỉ có “đã sửa”: cần branch + commit SHA, mã review, lệnh test và kết quả, bằng chứng môi trường thật nếu task yêu cầu, cùng danh sách lỗi chưa đóng.
+
+### 9.6. Mẫu báo cáo thành viên gửi Anh
+
+```text
+Tên / task / mã review:
+Nhánh và commit SHA đã push:
+Baseline đã tích hợp:
+Phần đã sửa và file chính:
+Migration mới (nếu có) và version Anh đã cấp:
+Lệnh test, môi trường, pass/fail/skip:
+SQL Server/API/browser evidence:
+Phần đã phối hợp với ai, contract nào đã chốt:
+Phần chưa xác minh hoặc lỗi còn mở:
+```
+
+Chỉ đóng review khi code đã push đúng nhánh và bằng chứng khớp mức nghiệm thu. Unit test không thay SQL Server race/migration; screenshot không thay assertion/flow trình duyệt; interface chưa được bean/service thật sử dụng không được tính là tích hợp xong.

@@ -1,0 +1,75 @@
+/* hr-module.css — Giao diện module yêu cầu / nghỉ phép / ca trống / thông báo (Bảo, task v1.1).
+   Dùng lại token màu của styles.css; mọi class riêng có tiền tố hr- để không đụng CSS chung. */
+
+.mb-3 { margin-bottom: 12px; }
+.hr-small { font-size: 0.786rem; line-height: 1.4; margin-top: 2px; }
+.hr-reason { max-width: 260px; white-space: normal; word-break: break-word; }
+.hr-align-end { justify-content: flex-end; }
+.hr-stat-warn .stat-value { color: var(--warning); }
+.form-label-text { font-size: 0.857rem; font-weight: 500; color: var(--text-primary); }
+.hr-radio-row { display: flex; flex-direction: column; gap: 6px; font-size: 0.857rem; }
+.hr-radio-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.hr-violation-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Chuông thông báo trên topbar ─────────────────────────────── */
+.hr-bell-wrap { position: relative; }
+.hr-bell-btn {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: var(--radius-full);
+  background: none; border: 0; color: var(--text-secondary); cursor: pointer;
+}
+.hr-bell-btn:hover, .hr-bell-btn[aria-expanded="true"] { background: var(--gray-100); color: var(--text-primary); }
+.hr-bell-btn:focus-visible { outline: 2px solid var(--primary-light); outline-offset: 2px; }
+.hr-bell-count {
+  position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: var(--radius-full); background: var(--danger); color: #fff;
+  font-size: 0.714rem; font-weight: 700; line-height: 18px; text-align: center;
+}
+.hr-bell-panel {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  width: min(380px, calc(100vw - 24px)); max-height: 70vh; overflow-y: auto;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+}
+.hr-bell-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+.hr-bell-empty { padding: 24px 14px; text-align: center; color: var(--text-muted); font-size: 0.857rem; }
+.hr-bell-all {
+  display: block; width: 100%; padding: 10px; border: 0; border-top: 1px solid var(--border);
+  background: var(--gray-50); color: var(--primary); font-weight: 500; cursor: pointer;
+}
+.hr-bell-all:hover { background: var(--primary-bg); }
+
+/* ── Danh sách thông báo ─────────────────────────────────────── */
+.hr-notif-list { list-style: none; margin: 0; padding: 0; }
+.hr-notif-item + .hr-notif-item { border-top: 1px solid var(--gray-100); }
+.hr-notif-link {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 12px 20px 12px 26px;
+  background: none; border: 0; text-align: left; cursor: pointer; position: relative; color: inherit;
+}
+.hr-notif-list.compact .hr-notif-link { padding: 10px 14px 10px 24px; }
+.hr-notif-link:hover { background: var(--gray-50); }
+.hr-notif-item.unread .hr-notif-link::before {
+  content: ''; position: absolute; left: 10px; top: 18px; width: 8px; height: 8px;
+  border-radius: var(--radius-full); background: var(--primary-light);
+}
+.hr-notif-title { font-weight: 600; font-size: 0.857rem; color: var(--text-primary); }
+.hr-notif-item:not(.unread) .hr-notif-title { font-weight: 500; color: var(--text-secondary); }
+.hr-notif-body { font-size: 0.821rem; color: var(--text-secondary); white-space: normal; }
+.hr-notif-time { font-size: 0.714rem; color: var(--text-muted); }
+
+/* ── Số việc chờ trên menu ───────────────────────────────────── */
+.hr-nav-count {
+  margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px;
+  border-radius: var(--radius-full); background: var(--danger); color: #fff;
+  font-size: 0.714rem; font-weight: 700; line-height: 20px; text-align: center;
+}
+.sidebar.collapsed .hr-nav-count { position: absolute; top: 4px; right: 8px; margin: 0; min-width: 16px; height: 16px; line-height: 16px; padding: 0 4px; }
+
+@media (max-width: 640px) {
+  /* Trên điện thoại, bảng thông báo bám theo màn hình thay vì theo nút chuông */
+  .hr-bell-panel { position: fixed; top: calc(var(--topbar-height) + 4px); left: 12px; right: 12px; width: auto; }
+}
+@media (max-width: 480px) {
+  .hr-bell-btn { width: 36px; height: 36px; }
+  .hr-reason { max-width: 180px; }
+}

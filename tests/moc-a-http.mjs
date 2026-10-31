@@ -1,0 +1,93 @@
+/* Run only against the isolated test server on localhost:8082. No production data. */
+import assert from 'node:assert/strict';
+import {writeFile} from 'node:fs/promises';
+const base=process.env.SM_TEST_URL||'http://localhost:8082';
+if(!/^http:\/\/(localhost|127\.0\.0\.1):8082$/.test(base))throw new Error('Only the isolated localhost:8082 test server is allowed');
+const pass=process.env.SM_TEST_PASSWORD||'Admin@123';
+const fixturePassword='MocA-test-2026!';
+const prefix='e2e_'+Date.now();
+const proof=[];
+async function call(path,token='',method='GET',body,expected=200){
+  const response=await fetch(base+path,{method,headers:{...(token?{Authorization:'Bearer '+token}:{}),...(body!==undefined?{'Content-Type':'application/json'}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})});
+  const raw=await response.text();let data;try{data=raw?JSON.parse(raw):null;}catch{data=raw;}
+  assert.equal(response.status,expected,`${method} ${path}: ${raw}`);return data;
+}
+function ok(message){proof.push(message);console.log('PASS '+message);}
+const localDate=offset=>{const now=new Date();now.setUTCDate(now.getUTCDate()+offset);return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Ho_Chi_Minh',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);};
+const login=async(username,password)=> (await call('/api/auth/login','','POST',{username,password})).token;
+const admin=await login(process.env.SM_TEST_ADMIN||'admin',pass);
+const levels=await call('/api/levels',admin);
+const people=[];
+for(const suffix of ['a','b']){
+  const username=prefix+suffix;
+  const p=await call('/api/workspace/employees',admin,'POST',{employeeCode:username,username,password:fixturePassword,fullName:'Nhân viên kiểm thử '+suffix.toUpperCase(),levelId:levels[0].id,status:'active'},200);
+  people.push({...p,username,token:await login(username,fixturePassword)});
+}
+ok('Tạo nhân viên và đăng nhập JWT thật');
+const period=await call('/api/periods',admin,'POST',{name:'E2E '+prefix,cycle:'weekly',startDate:localDate(1),endDate:localDate(7),openAt:new Date(Date.now()-3600000+7*3600000).toISOString().slice(0,19),deadline:new Date(Date.now()+3600000+7*3600000).toISOString().slice(0,19),autoLock:true,allowReopenByAdmin:true,requiredDaysOfWeek:[0,1,2,3,4,5,6],exemptDates:[],closedDates:[],applicableUserIds:people.map(p=>p.id)},201);
+let current=await call('/api/periods/'+period.id+'/open',admin,'POST',{version:period.version});
+for(const p of people)await call('/api/availability/my/submit?periodId='+period.id,p.token,'POST',{entries:Array.from({length:7},(_,i)=>({date:localDate(i+1),slots:[{start:'00:00',end:'23:59',type:'available'}]}))});
+ok('Mở kỳ và lưu đăng ký vào SQL Server qua API');
+const values={target_hours:'60',max_hours_mode:'percent',max_hours_percent:'125',max_hours_per_day:'12',max_hours_per_week:'80',min_rest_hours:'8',max_consecutive_days:'7',warning_threshold_percent:'90',weight_balance_hours:'100',weight_balance_shifts:'50'};
+const preview=await call('/api/rules/changes',admin,'POST',{reason:'Dữ liệu E2E trong database test riêng',items:Object.entries(values).map(([paramKey,value])=>({paramKey,value,scopeType:'company',effectiveFrom:localDate(0)}))},201);
+await call('/api/rules/changes/'+preview.changeId+'/apply',admin,'POST',{confirm:true});
+const effective=await call('/api/rules/effective?userId='+people[0].id,admin);assert.equal(effective.derived.maxHours,75);ok('Preview/xác nhận rules và tự tính 60 × 125% = 75');
+const shifts=[];
+for(let i=0;i<2;i++)shifts.push(await call('/api/schedule/shifts',admin,'POST',{periodId:period.id,name:'Ca E2E '+(i+1),date:localDate(i+2),startTime:'08:00',endTime:'12:00',breakMinutes:30,mode:'combined',totalRequired:1,minRequired:1,maxAllowed:1,mandatoryUserIds:[people[i].id]},201));
+const dry=await call('/api/schedule/plans/dry-run',admin,'POST',{periodId:period.id,shiftIds:shifts.map(s=>s.id),replaceExisting:false});assert.equal(dry.result.assignments.length,2);
+current=await call('/api/periods/'+period.id+'/lock',admin,'POST',{version:current.version});
+await call('/api/availability/my/submit?periodId='+period.id,people[0].token,'POST',{entries:[]},409);
+ok('Dry-run không công bố lịch; backend chặn đăng ký sau khóa');
+const plan=await call('/api/schedule/plans',admin,'POST',{periodId:period.id,name:'Phương án E2E',shiftIds:shifts.map(s=>s.id),replaceExisting:false},201);
+await call('/api/periods/'+period.id+'/archive',admin,'POST',{version:current.version},409);
+const submitted=await call('/api/schedule/plans/'+plan.id+'/submit',admin,'POST',{expectedVersion:plan.version});
+const approved=await call('/api/schedule/plans/'+plan.id+'/approve',admin,'POST',{expectedVersion:submitted.plan.version});
+await call('/api/schedule/plans/'+plan.id+'/publish',admin,'POST',{expectedVersion:approved.plan.version,confirmUnderstaffed:false});
+ok('Nháp → duyệt → công bố; không archive kỳ khi còn nháp');
+const mine=p=>call('/api/my/schedule?from='+period.startDate+'&to='+period.endDate,p.token);
+let schedules=await Promise.all(people.map(mine));
+assert.equal(schedules[0].shifts.length,1);assert.equal(schedules[1].shifts.length,1);
+await call('/api/my/schedule/confirm',people[0].token,'POST',{planId:plan.id},204);
+const req=await call('/api/requests',people[0].token,'POST',{type:'swap',sourceAssignmentId:schedules[0].shifts[0].assignmentId,targetUserId:people[1].id,targetAssignmentId:schedules[1].shifts[0].assignmentId,reason:'Đổi lịch kiểm thử'},201);
+const accepted=await call('/api/requests/'+req.id+'/accept',people[1].token,'POST',{expectedVersion:req.version});
+const swapped=await call('/api/requests/'+req.id+'/approve',admin,'POST',{expectedVersion:accepted.version});
+await call('/api/requests/'+req.id+'/approve',admin,'POST',{expectedVersion:swapped.version});
+schedules=await Promise.all(people.map(mine));assert.equal(schedules[0].shifts[0].shiftId,shifts[1].id);assert.equal(schedules[1].shifts[0].shiftId,shifts[0].id);
+ok('Đổi chéo ca chính thức và duyệt lặp không đổi lần hai');
+const types=await call('/api/leave/types',people[0].token);
+const type=types.find(t=>!t.requiresDocument&&t.minNoticeDays===0);
+const leave=await call('/api/leave',people[0].token,'POST',{leaveTypeId:type.id,startDate:localDate(3),endDate:localDate(3),reason:'Nghỉ kiểm thử'},201);
+await call('/api/leave/'+leave.id+'/approve',admin,'POST',{expectedVersion:leave.version});
+assert.equal((await mine(people[0])).shifts.length,0);ok('Nghỉ được duyệt gỡ phân công chính thức');
+const extra=await call('/api/schedule/shifts',admin,'POST',{periodId:period.id,name:'Tranh chỗ E2E',date:localDate(5),startTime:'08:00',endTime:'12:00',mode:'combined',totalRequired:1,minRequired:1,maxAllowed:1},201);
+// Publish the empty shift through a plan, explicitly confirming the shortage.
+const racePlan=await call('/api/schedule/plans',admin,'POST',{periodId:period.id,name:'Ca trống E2E',shiftIds:[extra.id],replaceExisting:false},201);
+for(const pair of racePlan.roster)await call('/api/schedule/plans/'+racePlan.id+'/assignments/remove',admin,'POST',{expectedVersion:(await call('/api/schedule/plans/'+racePlan.id,admin)).version,shiftId:pair.shiftId,userId:pair.userId});
+let raceView=await call('/api/schedule/plans/'+racePlan.id,admin);
+raceView=(await call('/api/schedule/plans/'+racePlan.id+'/submit',admin,'POST',{expectedVersion:raceView.version})).plan;
+raceView=(await call('/api/schedule/plans/'+racePlan.id+'/approve',admin,'POST',{expectedVersion:raceView.version})).plan;
+await call('/api/schedule/plans/'+racePlan.id+'/publish',admin,'POST',{expectedVersion:raceView.version,confirmUnderstaffed:true});
+const open=await call('/api/open-shifts',admin,'POST',{shiftId:extra.id,slots:1,claimDeadline:localDate(4)+'T20:00',note:'Kiểm thử đồng thời'},201);
+const claims=await Promise.all(people.map(p=>call('/api/open-shifts/'+open.id+'/claims',p.token,'POST',{},201)));
+const results=await Promise.all(claims.map(c=>fetch(base+'/api/open-shifts/'+open.id+'/claims/'+c.id+'/approve',{method:'POST',headers:{Authorization:'Bearer '+admin,'Content-Type':'application/json'},body:JSON.stringify({expectedVersion:c.version})})));
+const bodies=await Promise.all(results.map(r=>r.text()));
+assert.equal(results.filter(r=>r.ok).length,1,'Only one concurrent approval may win: '+bodies.join(' | '));
+assert.ok(results.filter(r=>!r.ok).every(r=>[409,422].includes(r.status)),bodies.join(' | '));
+assert.equal((await call('/api/open-shifts/'+open.id,admin)).openShift?.filledCount??(await call('/api/open-shifts/'+open.id,admin)).filledCount,1);
+ok('Hai request duyệt đồng thời tranh chỗ cuối: chỉ một request thành công');
+const canonical=await call('/api/schedule/reports/hours?periodId='+period.id,admin);
+const report=await call('/api/reports/users?periodId='+period.id,admin);
+assert.equal(report.reduce((sum,r)=>sum+r.scheduledHours,0),canonical.totals.hours);ok('Báo cáo lịch và báo cáo công cùng tổng giờ');
+await call('/api/schedule/plans?periodId='+period.id,people[0].token,'GET',undefined,403);
+await call('/api/reports/users?periodId='+period.id+'&userId='+people[1].id,people[0].token,'GET',undefined,403);ok('API chặn vượt quyền và đọc báo cáo người khác');
+const notificationDeadline=Date.now()+10000;let notifications;
+do{notifications=await call('/api/notifications',people[1].token);if(notifications.items.length)break;await new Promise(r=>setTimeout(r,500));}while(Date.now()<notificationDeadline);
+assert.ok(notifications.items.length>0);ok('Công bố / đổi ca sinh thông báo thật qua outbox');
+const first=people[0];
+const employeeUpdate={employeeCode:first.username,username:first.username,fullName:'Nhân viên kiểm thử A',levelId:levels[0].id,status:'inactive'};
+await call('/api/workspace/employees/'+first.id,admin,'PUT',employeeUpdate);
+await call('/api/periods',first.token,'GET',undefined,401);
+await call('/api/workspace/employees/'+first.id,admin,'PUT',{...employeeUpdate,status:'active'});
+ok('Tài khoản bị khóa không tiếp tục dùng được token cũ');
+await writeFile('.local-test/browser-fixture.json',JSON.stringify({base,adminUsername:process.env.SM_TEST_ADMIN||'admin',adminPassword:pass,people:people.map(({id,username})=>({id,username,password:fixturePassword})),period,planId:plan.id,proof},null,2));
+await writeFile('.local-test/http-evidence.json',JSON.stringify({at:new Date().toISOString(),proof},null,2));

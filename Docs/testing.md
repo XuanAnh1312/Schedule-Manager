@@ -1,5 +1,16 @@
 # Kiểm thử
 
+## Bản tích hợp mốc A
+
+Ứng dụng chính hiện dùng `workspace.html` và API cùng origin. Xem [hướng dẫn kiểm thử và kết quả tích hợp](moc-a-completion.md).
+
+- `mvn test`: unit/controller và kiểm tra wiring.
+- `IntegratedMocAIT`: kiểm tra SQL Server thật, bật có chủ đích trên database test riêng.
+- `tests/moc-a-http.mjs`: luồng API thật, đồng thời và thông báo.
+- `tests/moc-a-browser.mjs`: Admin/Employee, form, phiên đăng nhập và responsive trên Chromium.
+
+Nội dung bên dưới mô tả bộ smoke của **demo cũ**, hiện tải `demo.html`. Kết quả demo không thay thế nghiệm thu API/SQL/E2E của bản tích hợp.
+
 ## Kiểm thử trình duyệt tự động
 
 Ứng dụng có smoke-test trình duyệt không cần cài thêm thư viện tại `tests/browser-smoke.html`.
@@ -15,6 +26,10 @@ Runner tạm thay dữ liệu `localStorage` có tiền tố `pls_` trong lúc c
 ## Tình trạng hiện tại
 
 Chưa có test runner/lệnh test được tích hợp vào Maven hoặc package manager. `pom.xml` là cấu hình Maven cho lớp Java mẫu; nó không kiểm thử luồng SPA.
+
+## Kiểm thử Issue #8: chấm công thực tế và báo cáo
+
+Xem [hướng dẫn BI-01..BI-07](./issue8-attendance.md) và [ma trận bằng chứng AC](./issue8-ac-evidence.md). Suite API là `tests/attendance-api.ps1`, fixture local-only là `tests/attendance-fixture.sql`, responsive ở `tests/attendance-responsive.html`. Chạy `mvn test` và kiểm thử cả API 401/403/409, hai user cạnh tranh, login/logout/refresh, 320/360/390/768/1024/1280 px và Windows Scale 125%/150%.
 
 ## Kiểm tra cú pháp JavaScript
 

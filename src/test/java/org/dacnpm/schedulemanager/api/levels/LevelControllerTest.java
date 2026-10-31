@@ -8,7 +8,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -84,17 +83,26 @@ class LevelControllerTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void getLevels_withTamperedSignature_returns401() throws Exception {
-        String token = jwtUtil.issue("usr_001", "testuser", "user");
-        // Flip the last character to corrupt the signature.
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.charAt(token.length() - 1) == 'a' ? 'b' : 'a');
+@Test
+void getLevels_withTamperedSignature_returns401() throws Exception {
+    String token = jwtUtil.issue("usr_001", "testuser", "user");
 
-        mockMvc.perform(get("/api/levels")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + tampered))
-                .andExpect(status().isUnauthorized());
-    }
+    // Tách JWT thành 3 phần: header, payload và signature.
+    String[] parts = token.split("\\.");
+
+    // Thay ký tự đầu tiên của signature để chắc chắn chữ ký bị thay đổi.
+    String signature = parts[2];
+    char replacement = signature.charAt(0) == 'A' ? 'B' : 'A';
+
+    String tamperedSignature = replacement + signature.substring(1);
+
+    // Ghép lại JWT có chữ ký không hợp lệ.
+    String tamperedToken = parts[0] + "." + parts[1] + "." + tamperedSignature;
+
+    mockMvc.perform(get("/api/levels")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + tamperedToken))
+            .andExpect(status().isUnauthorized());
+}
 
     @Test
     void getLevels_withExpiredToken_returns401() throws Exception {

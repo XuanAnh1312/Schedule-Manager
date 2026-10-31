@@ -214,7 +214,7 @@ public class PlanService {
         if (opts.shiftIds().isEmpty()) {
             shiftIds = d.plannableShiftIds();
         } else {
-            Set<String> allowed = d.shifts().stream().filter(s -> d.period().contains(s.date()))
+            Set<String> allowed = d.shifts().stream().filter(s -> d.period().contains(s.date())&&d.belongs(s.id()))
                     .map(ShiftInfo::id).collect(Collectors.toSet());
             List<String> invalid = opts.shiftIds().stream().filter(id -> !allowed.contains(id)).toList();
             if (!invalid.isEmpty()) {

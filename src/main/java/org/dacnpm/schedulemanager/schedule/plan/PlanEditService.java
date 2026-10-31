@@ -49,7 +49,8 @@ public class PlanEditService {
         touch(planId, expectedVersion);
         plans.addPair(planId, pair);
         history.writeHistory("plan_edit", "Thêm phân công vào phương án", planId + ": thêm " + userId + " vào " + shiftId + ".",
-                actorId, null, null, null);
+                actorId, ShiftRepository.auditJson(java.util.Map.of("assignment",pair,"present",false,"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("assignment",pair,"present",true,"version",expectedVersion+1)), null);
         return planService.get(planId);
     }
 
@@ -63,7 +64,8 @@ public class PlanEditService {
         touch(planId, expectedVersion);
         plans.removePair(planId, pair);
         history.writeHistory("plan_edit", "Bỏ phân công khỏi phương án", planId + ": bỏ " + userId + " khỏi " + shiftId + ".",
-                actorId, null, null, null);
+                actorId, ShiftRepository.auditJson(java.util.Map.of("assignment",pair,"present",true,"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("assignment",pair,"present",false,"version",expectedVersion+1)), null);
         return planService.get(planId);
     }
 
@@ -90,7 +92,9 @@ public class PlanEditService {
         plans.removePair(planId, from);
         plans.addPair(planId, to);
         history.writeHistory("plan_edit", "Chuyển phân công trong phương án",
-                planId + ": chuyển " + userId + " từ " + fromShiftId + " sang " + toShiftId + ".", actorId, null, null, null);
+                planId + ": chuyển " + userId + " từ " + fromShiftId + " sang " + toShiftId + ".", actorId,
+                ShiftRepository.auditJson(java.util.Map.of("assignment",from,"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("assignment",to,"version",expectedVersion+1)),null);
         return planService.get(planId);
     }
 

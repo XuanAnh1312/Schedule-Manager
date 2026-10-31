@@ -46,9 +46,10 @@ public class CalendarController {
                                  @RequestParam(required = false) String userId,
                                  @RequestParam(required = false) String levelId,
                                  @RequestParam(required = false) String status,
+                                 @RequestParam(required = false) String groupId,
                                  @RequestParam(required = false) String planId) {
         String location = locationId != null && !locationId.isBlank() ? locationId : branchId;
-        return service.calendar(new Query(view, date, from, to, periodId, location, userId, levelId, status, planId));
+        return service.calendar(new Query(view, date, from, to, periodId, location, userId, levelId, status, planId,groupId));
     }
 
     @GetMapping("/api/my/schedule")

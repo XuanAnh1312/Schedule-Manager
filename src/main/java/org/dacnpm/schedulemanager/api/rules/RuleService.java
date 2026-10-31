@@ -327,6 +327,11 @@ public class RuleService {
                 continue;
             }
             String scopeId = scope == RuleScopeType.COMPANY ? null : blankToNull(in.scopeId());
+            if (scope != RuleScopeType.COMPANY && scope != RuleScopeType.USER
+                    && (scopeId == null || !repository.scopeExists(scope, scopeId))) {
+                errors.add(at + ".scopeId: không tìm thấy đối tượng áp dụng.");
+                continue;
+            }
             if (scope == RuleScopeType.USER) {
                 if (scopeId == null) {
                     errors.add(at + ".scopeId: bắt buộc với phạm vi user.");
@@ -559,8 +564,8 @@ public class RuleService {
     }
 
     /** Hiện chỉ có userId; chi nhánh/loại nhân viên/nhóm bổ sung khi có danh mục (A-04). */
-    private static ScopeContext contextOf(String userId) {
-        return new ScopeContext(userId, null, null, null, SCOPE_NOTE);
+    private ScopeContext contextOf(String userId) {
+        return repository.scopeContext(userId).orElseGet(() -> new ScopeContext(userId, null, null, null, null));
     }
 
     private static boolean sameTarget(Setting s, ChangeItem item) {

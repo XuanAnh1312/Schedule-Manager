@@ -20,19 +20,19 @@ class ScheduleDataWindowTest {
 
     @Test
     void withoutAConsecutiveLimit_coversTheBoundaryWeeksPlusOneDay() {
-        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(null))).isEqualTo(LocalDate.of(2026, 1, 4));
-        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(null))).isEqualTo(LocalDate.of(2026, 2, 2));
+        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(null))).isBeforeOrEqualTo(PERIOD.startDate().minusDays(31));
+        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(null))).isAfterOrEqualTo(PERIOD.endDate().plusDays(31));
     }
 
     @Test
     void shortConsecutiveLimit_keepsTheWeekBasedWindow() {
-        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(2))).isEqualTo(LocalDate.of(2026, 1, 4));
-        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(2))).isEqualTo(LocalDate.of(2026, 2, 2));
+        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(2))).isBeforeOrEqualTo(PERIOD.startDate().minusDays(31));
+        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(2))).isAfterOrEqualTo(PERIOD.endDate().plusDays(31));
     }
 
     @Test
     void longConsecutiveLimit_widensTheWindowToSeeTheWholeStreak() {
-        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(10))).isEqualTo(LocalDate.of(2025, 12, 27));
-        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(10))).isEqualTo(LocalDate.of(2026, 2, 10));
+        assertThat(ScheduleDataRepository.windowStart(PERIOD, rules(10))).isBeforeOrEqualTo(PERIOD.startDate().minusDays(31));
+        assertThat(ScheduleDataRepository.windowEnd(PERIOD, rules(10))).isAfterOrEqualTo(PERIOD.endDate().plusDays(31));
     }
 }

@@ -189,7 +189,7 @@ class ShiftRequestServiceTest {
     }
 
     @Test
-    void approve_swap_reassignsBothAssignments() {
+    void approve_swap_removesBothOldAssignmentsBeforeAddingReplacements() {
         when(repository.findById("req1"))
                 .thenReturn(Optional.of(view("pending_approval", "swap", 1)))
                 .thenReturn(Optional.of(view("approved", "swap", 2)));
@@ -197,8 +197,11 @@ class ShiftRequestServiceTest {
 
         service.approve(ADMIN, "req1", null, null);
 
-        verify(schedule).reassign(eq("asg_an"), eq("nv001"), eq("nv002"), eq("admin"), anyString());
-        verify(schedule).reassign(eq("asg_bich"), eq("nv002"), eq("nv001"), eq("admin"), anyString());
+        var order = org.mockito.Mockito.inOrder(schedule);
+        order.verify(schedule).cancelAssignment(eq("asg_an"), eq("nv001"), eq("admin"), anyString());
+        order.verify(schedule).cancelAssignment(eq("asg_bich"), eq("nv002"), eq("admin"), anyString());
+        order.verify(schedule).addAssignment(eq("sh_1"), eq("nv002"), eq("admin"), anyString());
+        order.verify(schedule).addAssignment(eq("sh_2"), eq("nv001"), eq("admin"), anyString());
     }
 
     @Test

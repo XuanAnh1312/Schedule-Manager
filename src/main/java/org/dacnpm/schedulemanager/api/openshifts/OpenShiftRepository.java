@@ -82,6 +82,11 @@ public class OpenShiftRepository {
         return jdbc.query(SELECT + " WHERE o.id = ?", MAPPER, viewerId, id).stream().findFirst();
     }
 
+    /** One lock order for claim/create/approve/close prevents parent/child conversion deadlocks. */
+    public void lock(String id) {
+        jdbc.queryForList("SELECT id FROM open_shifts WITH (UPDLOCK,HOLDLOCK) WHERE id=?",String.class,id);
+    }
+
     /** Admin: mọi ca trống (lọc trạng thái). */
     public List<OpenShiftView> findAll(String status, String viewerId) {
         if (status == null) {

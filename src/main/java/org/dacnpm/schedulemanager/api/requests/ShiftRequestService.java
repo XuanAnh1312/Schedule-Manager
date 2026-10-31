@@ -126,6 +126,7 @@ public class ShiftRequestService {
             repository.insert(id, type, me.id(), source.assignmentId(), source.shiftId(), target.id(),
                     targetAssignment == null ? null : targetAssignment.assignmentId(),
                     targetAssignment == null ? null : targetAssignment.shiftId(), reason);
+            repository.captureScheduleSnapshot(id);
         } catch (DuplicateKeyException e) {
             throw ApiException.conflict("REQUEST_ALREADY_OPEN", "Ca này đã có một yêu cầu đang chờ xử lý.");
         }
@@ -153,6 +154,7 @@ public class ShiftRequestService {
         checkVersion(current, expectedVersion);
         String cleanNote = optionalText(note);
         if (accept) {
+            requireScheduleUnchanged(id);
             List<String> blocking = blockingViolations(current);
             if (!blocking.isEmpty()) {
                 throw ApiException.unprocessable("VALIDATION_FAILED",
@@ -198,6 +200,7 @@ public class ShiftRequestService {
         checkVersion(current, expectedVersion);
 
         // Kiểm tra lại tại thời điểm duyệt: lịch có thể đã đổi từ lúc gửi.
+        requireScheduleUnchanged(id);
         AssignmentInfo source = requireOwnFutureAssignment(current.sourceAssignmentId(), current.requesterId(),
                 "Ca gốc");
         AssignmentInfo targetAssignment = TYPE_SWAP.equals(current.type())
@@ -222,10 +225,15 @@ public class ShiftRequestService {
         }
 
         String auditReason = "Duyệt yêu cầu " + id;
-        schedule.reassign(source.assignmentId(), current.requesterId(), current.targetUserId(), me.id(), auditReason);
         if (targetAssignment != null) {
-            schedule.reassign(targetAssignment.assignmentId(), current.targetUserId(), current.requesterId(),
-                    me.id(), auditReason);
+            // Remove both old assignments before validating either replacement. The surrounding
+            // transaction rolls back both removals if either new assignment is invalid.
+            schedule.cancelAssignment(source.assignmentId(), current.requesterId(), me.id(), auditReason);
+            schedule.cancelAssignment(targetAssignment.assignmentId(), current.targetUserId(), me.id(), auditReason);
+            schedule.addAssignment(source.shiftId(), current.targetUserId(), me.id(), auditReason);
+            schedule.addAssignment(targetAssignment.shiftId(), current.requesterId(), me.id(), auditReason);
+        } else {
+            schedule.reassign(source.assignmentId(), current.requesterId(), current.targetUserId(), me.id(), auditReason);
         }
 
         ShiftRequestView updated = load(id);
@@ -407,6 +415,12 @@ public class ShiftRequestService {
 
     private ShiftRequestView load(String id) {
         return repository.findById(id).orElseThrow(() -> ApiException.notFound("yêu cầu"));
+    }
+
+    private void requireScheduleUnchanged(String id) {
+        repository.scheduleUnchanged(id).filter(unchanged->!unchanged).ifPresent(ignored->{
+            throw ApiException.conflict("SCHEDULE_CHANGED","Lịch đã thay đổi từ khi gửi yêu cầu. Vui lòng hủy và tạo yêu cầu mới.");
+        });
     }
 
     private static void checkVersion(ShiftRequestView current, Integer expectedVersion) {

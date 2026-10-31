@@ -25,6 +25,12 @@ import org.springframework.stereotype.Repository;
 @Profile("sqlserver")
 @Repository
 public class ShiftRepository {
+    private static final com.fasterxml.jackson.databind.ObjectMapper AUDIT_JSON = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+    public static String auditJson(Object value) {
+        if(value==null)return null;
+        try{return AUDIT_JSON.writeValueAsString(value);}
+        catch(com.fasterxml.jackson.core.JsonProcessingException error){throw new IllegalStateException("Không thể ghi lịch sử thay đổi",error);}
+    }
 
     private static final int CHUNK = 500;
     /** Chỉ cho phép các bảng này trong truy vấn kiểm tra id tồn tại (tên bảng không đến từ người dùng). */
@@ -34,7 +40,7 @@ public class ShiftRepository {
     static final List<String> SHIFT_COLUMNS = List.of(
             "id", "name", "shift_date", "start_time", "end_time", "break_minutes", "location_id", "assignment_mode",
             "total_required", "min_required", "max_allowed", "note", "status", "version", "is_emergency", "series_id",
-            "cancelled_at", "cancelled_by", "cancel_reason");
+            "cancelled_at", "cancelled_by", "cancel_reason", "period_id");
 
     private static final String SELECT_SHIFT = "SELECT " + String.join(", ", SHIFT_COLUMNS) + " FROM shifts ";
 
@@ -57,11 +63,11 @@ public class ShiftRepository {
         jdbc.update("""
                 INSERT INTO shifts (id, name, shift_date, start_time, end_time, assignment_mode, total_required, note,
                                     status, break_minutes, version, location_id, min_required, max_allowed,
-                                    is_emergency, series_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'not_scheduled', ?, 1, ?, ?, ?, ?, ?)
+                                    is_emergency, series_id,period_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'not_scheduled', ?, 1, ?, ?, ?, ?, ?,?)
                 """,
                 id, r.name().trim(), r.date(), r.startTime(), r.endTime(), r.mode(), r.totalRequired(), r.note(),
-                r.breakMinutes(), r.locationId(), r.minRequired(), r.maxAllowed(), emergency, seriesId);
+                r.breakMinutes(), r.locationId(), r.minRequired(), r.maxAllowed(), emergency, seriesId,r.periodId());
         writeChildren(id, r);
     }
 
@@ -70,12 +76,12 @@ public class ShiftRepository {
         int updated = jdbc.update("""
                 UPDATE shifts
                 SET name = ?, shift_date = ?, start_time = ?, end_time = ?, assignment_mode = ?, total_required = ?,
-                    note = ?, break_minutes = ?, location_id = ?, min_required = ?, max_allowed = ?,
+                    note = ?, break_minutes = ?, location_id = ?, min_required = ?, max_allowed = ?,period_id=?,
                     version = version + 1, updated_at = SYSUTCDATETIME()
                 WHERE id = ? AND version = ? AND cancelled_at IS NULL
                 """,
                 r.name().trim(), r.date(), r.startTime(), r.endTime(), r.mode(), r.totalRequired(), r.note(),
-                r.breakMinutes(), r.locationId(), r.minRequired(), r.maxAllowed(), id, expectedVersion);
+                r.breakMinutes(), r.locationId(), r.minRequired(), r.maxAllowed(),r.periodId(), id, expectedVersion);
         if (updated == 0) {
             return false;
         }
@@ -142,8 +148,18 @@ public class ShiftRepository {
 
     /** Kỳ chứa ngày này (kỳ bắt đầu sớm nhất nếu trùng nhiều kỳ); rỗng nếu không có kỳ nào. */
     public Optional<String> periodIdFor(LocalDate date) {
-        return jdbc.queryForList("SELECT TOP 1 id FROM periods WHERE ? BETWEEN start_date AND end_date ORDER BY start_date, id",
-                String.class, date).stream().findFirst();
+        List<String> matches=jdbc.queryForList("SELECT id FROM periods WHERE ? BETWEEN start_date AND end_date ORDER BY start_date, id",String.class,date);
+        if(matches.size()>1)throw new IllegalArgumentException("Có nhiều kỳ cùng ngày; cần chọn kỳ của ca.");
+        return matches.stream().findFirst();
+    }
+
+    public Optional<String> periodIdForShift(String shiftId,LocalDate date) {
+        var bound=jdbc.queryForList("SELECT period_id FROM shifts WHERE id=? AND period_id IS NOT NULL",String.class,shiftId);
+        return bound.isEmpty()?periodIdFor(date):Optional.of(bound.get(0));
+    }
+    public boolean validPeriod(String periodId,LocalDate date) {
+        Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM periods WHERE id=? AND ? BETWEEN start_date AND end_date AND status<>'archived'",Integer.class,periodId,date);
+        return count!=null&&count>0;
     }
 
     /** Các kỳ giao với khoảng ngày [from, to], theo ngày bắt đầu. */
@@ -207,7 +223,7 @@ public class ShiftRepository {
                 rs.getInt("total_required"),
                 rs.getObject("min_required") == null ? null : rs.getInt("min_required"),
                 rs.getObject("max_allowed") == null ? null : rs.getInt("max_allowed"),
-                rs.getString("note"), null, null, null, null, null, null);
+                rs.getString("note"), null, null, null, null, null, null,rs.getString("period_id"));
         LocalDateTime cancelled = rs.getObject("cancelled_at", LocalDateTime.class);
         // DATETIME2 lưu theo UTC (SYSUTCDATETIME).
         return new Header(rs.getString("id"), base, rs.getString("status"), rs.getInt("version"),
@@ -227,7 +243,7 @@ public class ShiftRepository {
             ShiftRequest full = new ShiftRequest(b.name(), b.date(), b.startTime(), b.endTime(), b.breakMinutes(),
                     b.locationId(), b.mode(), b.totalRequired(), b.minRequired(), b.maxAllowed(), b.note(),
                     c.levels().get(h.id()), c.mandatory().get(h.id()), c.preferred().get(h.id()),
-                    c.skills().get(h.id()), c.certificates().get(h.id()), c.positions().get(h.id()));
+                    c.skills().get(h.id()), c.certificates().get(h.id()), c.positions().get(h.id()),b.periodId());
             result.add(new ShiftDetail(h.id(), full, h.status(), h.version(), h.emergency(), h.seriesId(),
                     h.cancelledAt(), h.cancelledBy(), h.cancelReason()));
         }

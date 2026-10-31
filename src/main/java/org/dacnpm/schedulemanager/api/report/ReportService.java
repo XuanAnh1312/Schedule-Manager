@@ -17,11 +17,15 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 @Profile("sqlserver")
-@Service
+@Service("attendanceReportService")
 public class ReportService {
     private final JdbcTemplate db;
     private final AttendanceService attendance;
-    public ReportService(JdbcTemplate db, AttendanceService attendance){this.db=db;this.attendance=attendance;}
+    private final org.dacnpm.schedulemanager.schedule.report.ReportService scheduleReports;
+    public ReportService(JdbcTemplate db, AttendanceService attendance,
+            org.dacnpm.schedulemanager.schedule.report.ReportService scheduleReports){
+        this.db=db;this.attendance=attendance;this.scheduleReports=scheduleReports;
+    }
 
     public record Period(String id,String name,LocalDate start,LocalDate end,String status,String deadline){}
     public Period period(String id) {
@@ -61,46 +65,53 @@ public class ReportService {
         if(!admin && userId!=null && !userId.equals(actor))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Không có quyền xem báo cáo người khác");
         Period p=period(periodId);
         String target=admin?(userId==null||userId.isBlank()?null:userId):actor;
+        var canonical = scheduleReports.hours(periodId, "published", null,
+                new org.dacnpm.schedulemanager.schedule.report.ReportService.Filters(target, null, null));
+        Map<String,org.dacnpm.schedulemanager.schedule.report.ReportModels.EmployeeHours> canonicalByUser = new HashMap<>();
+        canonical.employees().forEach(row -> canonicalByUser.put(row.userId(), row));
+        Map<String,BigDecimal[]> worked=workedHours(p,target);
         // SQL hours only from published shifts, not draft/previews. Actual requires clock-out;
         // approved hours requires a completed APPROVED timesheet (never inferred from assignments).
         String sql="""
-         SELECT u.id AS uid,u.full_name,u.employee_code,u.target_rate,
-           COALESCE((SELECT TOP 1 standard_hours FROM schedule_rules WHERE id='rules_main'),0) AS standard_hours,
-           COALESCE((SELECT SUM(CASE WHEN s.end_time<=s.start_time
-                 THEN DATEDIFF(MINUTE,s.start_time,s.end_time)+1440
-                 ELSE DATEDIFF(MINUTE,s.start_time,s.end_time) END)
-             FROM assignments a JOIN shifts s ON s.id=a.shift_id
-             WHERE a.user_id=u.id AND a.status='confirmed' AND s.status='published'
-             AND s.shift_date BETWEEN ? AND ?),0) AS scheduled_minutes,
-           COALESCE((SELECT SUM(DATEDIFF(MINUTE,r.clock_in_at,r.clock_out_at)-r.break_minutes)
-             FROM attendance_records r JOIN shifts s ON s.id=r.shift_id
-             WHERE r.user_id=u.id AND r.clock_out_at IS NOT NULL
-             AND s.shift_date BETWEEN ? AND ?),0) AS actual_minutes,
-           COALESCE((SELECT SUM(DATEDIFF(MINUTE,r.clock_in_at,r.clock_out_at)-r.break_minutes)
-             FROM attendance_records r JOIN shifts s ON s.id=r.shift_id
-             WHERE r.user_id=u.id AND r.status='approved'
-             AND s.shift_date BETWEEN ? AND ?),0) AS approved_minutes
-         FROM users u WHERE u.role='user' AND u.status='active' AND (? IS NULL OR u.id=?)
+         SELECT u.id AS uid,u.full_name,u.employee_code
+         FROM users u WHERE u.role='user' AND (? IS NULL OR u.id=?)
          ORDER BY u.full_name,u.id
         """;
         var rows=db.query(sql,(rs,n)->{
-            BigDecimal standard=rs.getBigDecimal("standard_hours");
-            BigDecimal rate=rs.getBigDecimal("target_rate");
-            BigDecimal targetHours=standard.multiply(rate).divide(BigDecimal.valueOf(100),2,java.math.RoundingMode.HALF_UP);
-            BigDecimal scheduled=BigDecimal.valueOf(rs.getLong("scheduled_minutes")).divide(BigDecimal.valueOf(60),2,java.math.RoundingMode.HALF_UP);
-            BigDecimal actual=BigDecimal.valueOf(rs.getLong("actual_minutes")).divide(BigDecimal.valueOf(60),2,java.math.RoundingMode.HALF_UP);
-            BigDecimal approved=BigDecimal.valueOf(rs.getLong("approved_minutes")).divide(BigDecimal.valueOf(60),2,java.math.RoundingMode.HALF_UP);
+            var planned = canonicalByUser.get(rs.getString("uid"));
+            BigDecimal targetHours=planned == null || planned.targetHours() == null ? null : BigDecimal.valueOf(planned.targetHours());
+            BigDecimal scheduled=planned == null ? BigDecimal.ZERO : BigDecimal.valueOf(planned.hours());
+            BigDecimal[] actualAndApproved=worked.getOrDefault(rs.getString("uid"),new BigDecimal[]{BigDecimal.ZERO,BigDecimal.ZERO});
+            BigDecimal actual=actualAndApproved[0].setScale(2,java.math.RoundingMode.HALF_UP);
+            BigDecimal approved=actualAndApproved[1].setScale(2,java.math.RoundingMode.HALF_UP);
             return new UserHours(rs.getString("uid"),rs.getString("full_name"),rs.getString("employee_code"),targetHours,scheduled,actual,approved,
-                scheduled.subtract(targetHours),ratio(scheduled,targetHours),progressLabel(scheduled,targetHours));
-        },Date.valueOf(p.start),Date.valueOf(p.end),Date.valueOf(p.start),Date.valueOf(p.end),
-          Date.valueOf(p.start),Date.valueOf(p.end),target,target);
-        return rows;
+                targetHours==null?null:scheduled.subtract(targetHours),ratio(scheduled,targetHours),progressLabel(scheduled,targetHours));
+        },target,target);
+        return rows.stream().filter(row->canonicalByUser.containsKey(row.userId())).toList();
+    }
+
+    private Map<String,BigDecimal[]> workedHours(Period period,String userId) {
+        ZoneId zone=ZoneId.of("Asia/Ho_Chi_Minh");
+        LocalDateTime from=LocalDateTime.ofInstant(period.start().atStartOfDay(zone).toInstant(),ZoneOffset.UTC);
+        LocalDateTime to=LocalDateTime.ofInstant(period.end().plusDays(1).atStartOfDay(zone).toInstant(),ZoneOffset.UTC);
+        Map<String,BigDecimal[]> result=new HashMap<>();
+        db.query("SELECT r.user_id,r.clock_in_at,r.clock_out_at,r.break_minutes,r.status FROM attendance_records r JOIN shifts s ON s.id=r.shift_id WHERE r.clock_out_at IS NOT NULL AND r.clock_in_at<? AND r.clock_out_at>? AND (? IS NULL OR r.user_id=?) AND s.period_id=?",
+            (org.springframework.jdbc.core.RowCallbackHandler)rs->{
+                LocalDateTime start=rs.getTimestamp("clock_in_at").toLocalDateTime(),end=rs.getTimestamp("clock_out_at").toLocalDateTime();
+                double total=Duration.between(start,end).toMillis()/60000.0;
+                LocalDateTime clippedStart=start.isBefore(from)?from:start,clippedEnd=end.isAfter(to)?to:end;
+                double overlap=Duration.between(clippedStart,clippedEnd).toMillis()/60000.0;
+                BigDecimal hours=total<=0?BigDecimal.ZERO:BigDecimal.valueOf(Math.max(0,overlap)*(total-rs.getInt("break_minutes"))/total/60.0);
+                BigDecimal[] sum=result.computeIfAbsent(rs.getString("user_id"),key->new BigDecimal[]{BigDecimal.ZERO,BigDecimal.ZERO});
+                sum[0]=sum[0].add(hours);if("approved".equals(rs.getString("status")))sum[1]=sum[1].add(hours);
+            },to,from,userId,userId,period.id());
+        return result;
     }
     public Map<String,Object> dashboard(String actor,String periodId,String userId){
         boolean admin=attendance.isAdmin(actor);
         Period p=period(periodId);
         List<UserHours> people=userHours(actor,periodId,userId);
-        BigDecimal target=people.stream().map(UserHours::targetHours).reduce(BigDecimal.ZERO,BigDecimal::add);
+        BigDecimal target=people.stream().anyMatch(row->row.targetHours()==null)?null:people.stream().map(UserHours::targetHours).reduce(BigDecimal.ZERO,BigDecimal::add);
         BigDecimal scheduled=people.stream().map(UserHours::scheduledHours).reduce(BigDecimal.ZERO,BigDecimal::add);
         BigDecimal actual=people.stream().map(UserHours::actualHours).reduce(BigDecimal.ZERO,BigDecimal::add);
         BigDecimal approved=people.stream().map(UserHours::approvedHours).reduce(BigDecimal.ZERO,BigDecimal::add);
@@ -108,27 +119,33 @@ public class ReportService {
         out.put("periodId",p.id());out.put("periodName",p.name());out.put("periodStatus",p.status());out.put("deadline",p.deadline());
         out.put("generatedAt",Instant.now().toString());out.put("source","sqlserver");out.put("variant","published-only");
         out.put("employeeCount",people.size());out.put("targetHours",target);out.put("scheduledHours",scheduled);
-        out.put("actualHours",actual);out.put("approvedHours",approved);out.put("differenceHours",scheduled.subtract(target));
+        out.put("actualHours",actual);out.put("approvedHours",approved);out.put("differenceHours",target==null?null:scheduled.subtract(target));
         out.put("percentage",ratio(scheduled,target));out.put("progressLabel",progressLabel(scheduled,target));
         if(admin){
-            Integer shifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE shift_date BETWEEN ? AND ?",Integer.class,Date.valueOf(p.start()),Date.valueOf(p.end()));
-            Integer published=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE status='published' AND shift_date BETWEEN ? AND ?",Integer.class,Date.valueOf(p.start()),Date.valueOf(p.end()));
+            Integer shifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE period_id=? AND cancelled_at IS NULL",Integer.class,periodId);
+            Integer published=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE status='published' AND period_id=? AND cancelled_at IS NULL",Integer.class,periodId);
             Integer understaffed=db.queryForObject("""
-              SELECT COUNT(*) FROM shifts s WHERE s.status='published' AND s.shift_date BETWEEN ? AND ?
+              SELECT COUNT(*) FROM shifts s WHERE s.status='published' AND s.period_id=? AND s.cancelled_at IS NULL
               AND (SELECT COUNT(*) FROM assignments a WHERE a.shift_id=s.id AND a.status='confirmed') < s.total_required
-              """,Integer.class,Date.valueOf(p.start()),Date.valueOf(p.end()));
+              """,Integer.class,periodId);
             Integer pending=db.queryForObject("""
               SELECT COUNT(*) FROM attendance_adjustment_requests r JOIN shifts s ON s.id=r.shift_id
-              WHERE r.status='pending' AND s.shift_date BETWEEN ? AND ?
-              """,Integer.class,Date.valueOf(p.start()),Date.valueOf(p.end()));
-            Integer working=db.queryForObject("SELECT COUNT(*) FROM attendance_records r JOIN shifts s ON s.id=r.shift_id WHERE r.clock_out_at IS NULL AND s.shift_date BETWEEN ? AND ?",Integer.class,Date.valueOf(p.start()),Date.valueOf(p.end()));
+              WHERE r.status='pending' AND s.period_id=?
+              """,Integer.class,periodId);
+            Integer working=db.queryForObject("SELECT COUNT(*) FROM attendance_records r JOIN shifts s ON s.id=r.shift_id WHERE r.clock_out_at IS NULL AND s.period_id=?",Integer.class,periodId);
             out.put("totalShifts",shifts);out.put("publishedShifts",published);out.put("understaffedShifts",understaffed);
-            out.put("pendingRequests",pending);out.put("currentlyWorking",working);
+            Integer pendingChanges=db.queryForObject("SELECT COUNT(*) FROM shift_requests WHERE status IN ('pending_peer','pending_approval') AND source_shift_id IN (SELECT id FROM shifts WHERE period_id=?)",Integer.class,periodId);
+            Integer pendingLeave=db.queryForObject("SELECT COUNT(*) FROM leave_requests WHERE status='pending' AND start_date<=? AND end_date>=?",Integer.class,Date.valueOf(p.end()),Date.valueOf(p.start()));
+            out.put("pendingAttendanceRequests",pending);
+            out.put("pendingShiftRequests",pendingChanges);out.put("pendingLeaveRequests",pendingLeave);
+            out.put("pendingRequests",pending+pendingChanges+pendingLeave);out.put("currentlyWorking",working);
+            out.put("unconfirmedSchedules",db.queryForObject("SELECT COUNT(*) FROM assignments a JOIN shifts s ON s.id=a.shift_id WHERE a.status='confirmed' AND s.status='published' AND s.period_id=? AND NOT EXISTS (SELECT 1 FROM schedule_acknowledgements k JOIN schedule_plans sp ON sp.id=k.plan_id WHERE sp.period_id=s.period_id AND sp.status='published' AND k.user_id=a.user_id AND k.confirmed_at IS NOT NULL)",Integer.class,periodId));
+            out.put("draftPlans",db.queryForObject("SELECT COUNT(*) FROM schedule_plans WHERE period_id=? AND status='draft'",Integer.class,periodId));
             out.put("unpublishedShifts",shifts-published);
             // Today's published shifts and missing punch-ins, scoped to current day in policy timezone.
             String zone=db.queryForObject("SELECT timezone_name FROM attendance_policies WHERE id='default'",String.class);
             LocalDate today=LocalDate.now(ZoneId.of(zone));
-            Integer todayShifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE shift_date=? AND status='published'",Integer.class,Date.valueOf(today));
+            Integer todayShifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE shift_date=? AND period_id=? AND cancelled_at IS NULL AND status='published'",Integer.class,Date.valueOf(today),periodId);
             int missingCheckin=(int)attendanceStatus(actor,periodId).stream().filter(row ->
               today.toString().equals(row.get("date")) &&
               ("Chưa check-in".equals(row.get("status")) || "Vắng".equals(row.get("status")))).count();
@@ -151,7 +168,7 @@ public class ReportService {
           JOIN shifts s ON s.id=a.shift_id
           LEFT JOIN attendance_records r ON r.shift_id=s.id AND r.user_id=u.id
           WHERE a.status='confirmed' AND s.status='published' AND u.status='active'
-            AND s.shift_date BETWEEN ? AND ? AND (?=1 OR u.id=?)
+            AND s.shift_date BETWEEN ? AND ? AND (?=1 OR u.id=?) AND s.period_id=?
           ORDER BY s.shift_date DESC,s.start_time,u.full_name
           """, rs -> {
             String name=rs.getString("full_name");String userId=rs.getString("user_id");
@@ -180,7 +197,7 @@ public class ReportService {
               row.put("shiftName",shiftName);row.put("date",date.toString());row.put("status",state);row.put("lateMinutes",late);
               result.add(row);
             }
-          },Date.valueOf(p.start()),Date.valueOf(p.end()),admin?1:0,actor);
+          },Date.valueOf(p.start()),Date.valueOf(p.end()),admin?1:0,actor,periodId);
         return result;
     }
     public List<Map<String,Object>> shortages(String actor,String periodId){
@@ -189,7 +206,7 @@ public class ReportService {
         return db.query("""
          SELECT s.id,s.name,s.shift_date,s.total_required,
            (SELECT COUNT(*) FROM assignments a WHERE a.shift_id=s.id AND a.status='confirmed') AS assigned,
-           s.note FROM shifts s WHERE s.status='published' AND s.shift_date BETWEEN ? AND ?
+           s.note FROM shifts s WHERE s.status='published' AND s.shift_date BETWEEN ? AND ? AND s.period_id=? AND s.cancelled_at IS NULL
            AND (SELECT COUNT(*) FROM assignments a WHERE a.shift_id=s.id AND a.status='confirmed') < s.total_required
          ORDER BY s.shift_date,s.start_time
         """,(rs,n)->{
@@ -197,7 +214,7 @@ public class ReportService {
             row.put("shiftId",rs.getString(1));row.put("name",rs.getString(2));row.put("date",rs.getDate(3).toString());
             row.put("required",rs.getInt(4));row.put("assigned",rs.getInt(5));
             row.put("reason",rs.getString(6)==null?"Chưa ghi lý do":rs.getString(6));return row;
-        },Date.valueOf(p.start()),Date.valueOf(p.end()));
+        },Date.valueOf(p.start()),Date.valueOf(p.end()),periodId);
     }
     public byte[] csv(List<UserHours> people) {
         StringBuilder sb=new StringBuilder("\ufeffMã NV,Họ tên,Mục tiêu (h),Đã xếp công bố (h),Giờ thực tế (h),Giờ duyệt (h),Chênh lệch (h),Tỷ lệ (%),Trạng thái\r\n");

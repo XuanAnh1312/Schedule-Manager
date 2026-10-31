@@ -1,7 +1,7 @@
 /* Issue #8: SQL Server attendance/report portal. Completely separate from demo localStorage. */
 (() => {
   'use strict';
-  const API = 'http://localhost:8081';
+  const API = location.port === '8081' || location.port === '8082' ? '' : 'http://localhost:8081';
   const TZ = 'Asia/Ho_Chi_Minh';
   const $ = id => document.getElementById(id);
   let token = sessionStorage.getItem('attendance_jwt') || '';

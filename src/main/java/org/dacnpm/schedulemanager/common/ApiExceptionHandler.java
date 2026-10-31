@@ -16,12 +16,18 @@ import java.util.Map;
  * định dạng lỗi chung.
  */
 @RestControllerAdvice(basePackages = {
+        "org.dacnpm.schedulemanager.common",
         "org.dacnpm.schedulemanager.api.requests",
         "org.dacnpm.schedulemanager.api.leave",
         "org.dacnpm.schedulemanager.api.openshifts",
         "org.dacnpm.schedulemanager.api.notifications"
 })
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class)
+    public ResponseEntity<Map<String,Object>> concurrentUpdate(org.springframework.dao.ConcurrencyFailureException error) {
+        return ResponseEntity.status(409).body(Map.of("code","RETRY_REQUIRED","error","Dữ liệu đang được cập nhật. Vui lòng tải lại và thử lại."));
+    }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, Object>> handle(ApiException ex) {

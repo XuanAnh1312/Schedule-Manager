@@ -73,7 +73,7 @@ public class DeadlineReminderJob {
             List<String> pending = usersWithoutSubmission(periodId);
             if (pending.isEmpty()) continue;
             String eventId = EventTypes.PERIOD_DEADLINE_REMINDER + ":" + periodId + ":" + hours + "h:"
-                    + deadline.toInstant().getEpochSecond();
+                    + deadline.toLocalDateTime().toInstant(java.time.ZoneOffset.UTC).getEpochSecond();
             DomainEvent event = new DomainEvent(eventId, EventTypes.PERIOD_DEADLINE_REMINDER, "period", periodId,
                     0, null, pending,
                     "Sắp hết hạn đăng ký thời gian rảnh",

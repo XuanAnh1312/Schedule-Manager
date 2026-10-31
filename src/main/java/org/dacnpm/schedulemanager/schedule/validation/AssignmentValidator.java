@@ -162,6 +162,17 @@ public class AssignmentValidator {
             }
         }
         UserAvailability availability = ctx.availability(employee.id());
+        if(availability!=null)for(var entry:availability.unavailableByDate().entrySet()) {
+            for(TimeRange range:entry.getValue()) {
+                var start=entry.getKey().atStartOfDay().plusMinutes(range.startMinute());
+                var end=entry.getKey().atStartOfDay().plusMinutes(range.endMinute());
+                if(start.isBefore(shift.endAt()) && shift.startAt().isBefore(end)) {
+                    out.add(violation(ViolationCode.UNAVAILABLE_INTERVAL,employee,shift,"unavailable",null,null,
+                        employee.label()+" không thể làm trong khoảng đã đăng ký không thể làm hoặc nghỉ đã duyệt."));
+                    return;
+                }
+            }
+        }
         if (availability == null || !availability.submitted()) {
             out.add(violation(ViolationCode.NOT_AVAILABLE_TIME, employee, shift, "availability", null, null,
                     employee.label() + " chưa gửi đăng ký thời gian rảnh cho kỳ này."));

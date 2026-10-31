@@ -63,6 +63,8 @@ public class SecurityConfig {
             .cors(org.springframework.security.config.Customizer.withDefaults())
             // Disable CSRF — stateless JWT API, no session cookies.
             .csrf(AbstractHttpConfigurer::disable)
+            // The attendance panel is embedded by the workspace on the same origin.
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
 
             // Stateless: never create or use HttpSession.
             .sessionManagement(session ->
@@ -86,6 +88,7 @@ public class SecurityConfig {
 
             // Endpoint authorization rules.
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/", "/index.html", "/workspace.html", "/attendance.html", "/js/**", "/css/**").permitAll()
                 // Public: auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()

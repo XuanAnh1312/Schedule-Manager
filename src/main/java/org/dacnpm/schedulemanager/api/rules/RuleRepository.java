@@ -191,6 +191,19 @@ public class RuleRepository {
                 .stream().findFirst();
     }
 
+    public Optional<org.dacnpm.schedulemanager.api.rules.RuleModels.ScopeContext> scopeContext(String userId) {
+        return jdbc.query("SELECT id,branch_id,employee_type_id,group_id FROM users WHERE id=?",
+            (rs,n) -> new org.dacnpm.schedulemanager.api.rules.RuleModels.ScopeContext(rs.getString(1),
+                rs.getString(2),rs.getString(3),rs.getString(4),null),userId).stream().findFirst();
+    }
+
+    public boolean scopeExists(RuleScopeType scope, String id) {
+        String table = switch(scope) { case BRANCH -> "locations"; case GROUP -> "work_groups";
+            case EMPLOYEE_TYPE -> "employee_types"; default -> throw new IllegalArgumentException("Invalid scope"); };
+        Integer count=jdbc.queryForObject("SELECT COUNT(*) FROM "+table+" WHERE id=?",Integer.class,id);
+        return count!=null && count>0;
+    }
+
     public List<EmployeeRow> findActiveEmployees() {
         return jdbc.query("""
                 SELECT id, employee_code, full_name, role, status FROM users

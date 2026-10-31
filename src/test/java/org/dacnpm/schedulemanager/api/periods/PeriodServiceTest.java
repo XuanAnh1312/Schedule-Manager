@@ -210,6 +210,72 @@ class PeriodServiceTest {
         verify(audit).record(eq("period.auto_locked"), any(), any(), isNull(), any(), any(), isNull());
     }
 
+    /* ── AC-04: deadline enforcement ─────────────────────────────────────── */
+
+    /**
+     * AC-04 / AC-05: Kỳ đang mở và đã qua hạn — mọi lần cập nhật đều bị từ chối vì server kiểm tra
+     * thời điểm thật, không tin thời điểm client gửi (kể cả form đã mở từ trước hạn).
+     */
+    @Test
+    void update_openPeriod_withExpiredDeadline_isRejected() {
+        // Đồng hồ server: 29/10/2026 10:00; deadline kỳ đã qua: 28/10/2026 23:59
+        PeriodRecord openExpired = withDeadline(period(PeriodStatus.OPEN, true, true),
+                LocalDateTime.of(2026, 10, 28, 23, 59));
+        when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(openExpired));
+
+        // Người dùng đã mở form trước khi hạn, nhưng gửi lúc server đã qua hạn
+        PeriodRequest lateSubmit = new PeriodRequest(openExpired.name(), openExpired.cycle(),
+                openExpired.startDate(), openExpired.endDate(), null,
+                LocalDateTime.of(2026, 10, 28, 23, 59), // deadline cũ
+                true, true, openExpired.requiredDaysOfWeek(),
+                List.of(), List.of(), List.of(), openExpired.version());
+
+        ApiException ex = assertThrows(ApiException.class, () -> service.update(ADMIN, "p1", lateSubmit));
+        // Kỳ đang mở với autoLock=true và deadline đã qua → phải báo lỗi (không cho phép sửa deadline đã cũ)
+        assertEquals("DEADLINE_IN_PAST", ex.getCode());
+        verify(repository, never()).update(any(), anyInt());
+    }
+
+    /**
+     * AC-04: autoLock=false — kỳ KHÔNG tự khóa khi qua hạn, nhưng vẫn có thể update tên/deadline
+     * mà không bị chặn bởi requireDeadlineStillAhead (vì autoLock=false bỏ qua kiểm tra hạn).
+     */
+    @Test
+    void update_openPeriod_autoLockFalse_allowsUpdateEvenAfterDeadline() {
+        // Kỳ đang mở, autoLock=false, deadline đã qua
+        PeriodRecord openNoAutoLock = withDeadline(period(PeriodStatus.OPEN, false, true),
+                LocalDateTime.of(2026, 10, 28, 23, 59));
+        when(repository.findByIdForUpdate("p1")).thenReturn(Optional.of(openNoAutoLock));
+        when(repository.update(any(), anyInt())).thenReturn(true);
+        when(repository.findById("p1")).thenReturn(Optional.of(openNoAutoLock));
+
+        // Chỉ sửa tên — được phép khi autoLock=false và deadline đã qua
+        PeriodRequest renameOnly = new PeriodRequest("Tên mới", openNoAutoLock.cycle(),
+                openNoAutoLock.startDate(), openNoAutoLock.endDate(), null,
+                openNoAutoLock.deadlineUtc() == null ? null
+                        : openNoAutoLock.deadlineUtc().plusHours(7), // đổi về local VN để validate
+                false, true, openNoAutoLock.requiredDaysOfWeek(),
+                List.of(), List.of(), List.of(), openNoAutoLock.version());
+
+        // Không ném ngoại lệ — autoLock=false bỏ qua kiểm tra deadline quá hạn
+        service.update(ADMIN, "p1", renameOnly);
+        verify(repository).update(any(), eq(openNoAutoLock.version()));
+    }
+
+    /**
+     * AC-04: autoLock job — kỳ với autoLock=false sẽ KHÔNG bị đưa vào danh sách tự khóa
+     * (DB query lockExpired chỉ chọn kỳ có auto_lock=true; test này xác nhận service không tự khóa
+     * kỳ nào khi repository trả danh sách trống).
+     */
+    @Test
+    void autoLock_doesNotLockPeriodsWithAutoLockFalse() {
+        // Repository trả rỗng vì không có kỳ nào có auto_lock=true quá hạn
+        when(repository.lockExpired(any())).thenReturn(List.of());
+
+        assertEquals(0, service.autoLockExpired());
+        verify(audit, never()).record(any(), any(), any(), any(), any(), any(), any());
+    }
+
     /* ── Hỗ trợ ──────────────────────────────────────────────────────────── */
 
     private static PeriodRequest request(LocalDateTime deadline) {

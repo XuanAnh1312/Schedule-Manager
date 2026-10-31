@@ -37,7 +37,16 @@ public record ShiftRequest(
         Set<String> preferredUserIds,
         Set<String> skillIds,
         Set<String> certificateIds,
-        Set<String> positionIds) {
+        Set<String> positionIds,
+        String periodId) {
+
+    public ShiftRequest(String name,LocalDate date,LocalTime startTime,LocalTime endTime,Integer breakMinutes,
+            String locationId,String mode,Integer totalRequired,Integer minRequired,Integer maxAllowed,String note,
+            Map<String,Integer> levelRequirements,Set<String> mandatoryUserIds,Set<String> preferredUserIds,
+            Set<String> skillIds,Set<String> certificateIds,Set<String> positionIds) {
+        this(name,date,startTime,endTime,breakMinutes,locationId,mode,totalRequired,minRequired,maxAllowed,note,
+            levelRequirements,mandatoryUserIds,preferredUserIds,skillIds,certificateIds,positionIds,null);
+    }
 
     public ShiftRequest {
         breakMinutes = breakMinutes == null ? 0 : breakMinutes;
@@ -59,6 +68,6 @@ public record ShiftRequest(
     public ShiftRequest withDate(LocalDate newDate) {
         return new ShiftRequest(name, newDate, startTime, endTime, breakMinutes, locationId, mode, totalRequired,
                 minRequired, maxAllowed, note, levelRequirements, mandatoryUserIds, preferredUserIds, skillIds,
-                certificateIds, positionIds);
+                certificateIds, positionIds,periodId);
     }
 }

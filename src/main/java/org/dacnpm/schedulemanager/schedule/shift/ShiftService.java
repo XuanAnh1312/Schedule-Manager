@@ -241,6 +241,8 @@ public class ShiftService {
     /** Lỗi cấu hình và id danh mục/Level/nhân viên không tồn tại. */
     private void checkConfig(ShiftRequest r) {
         List<String> errors = ShiftConfigRules.check(r);
+        if(r!=null && r.periodId()!=null && !shifts.validPeriod(r.periodId(),r.date()))
+            errors.add("Kỳ không tồn tại, đã lưu trữ hoặc ngày ca không thuộc kỳ đã chọn.");
         if (!errors.isEmpty()) {
             throw new ShiftRejectedException(errors, List.of(), List.of());
         }
@@ -278,7 +280,7 @@ public class ShiftService {
         if (users.isEmpty()) {
             return;
         }
-        String periodId = shifts.periodIdFor(r.date()).orElseThrow(() -> new ShiftRejectedException(
+        String periodId = r.periodId()!=null?r.periodId():shifts.periodIdFor(r.date()).orElseThrow(() -> new ShiftRejectedException(
                 List.of("Ngày " + r.date() + " không thuộc kỳ nào nên chưa kiểm tra được điều kiện của nhân viên chỉ định."),
                 List.of(), List.of()));
         ScheduleData d = data.load(periodId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));

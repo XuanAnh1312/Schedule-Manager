@@ -78,7 +78,12 @@ public class OfficialScheduleService {
     public ValidationResult validate(String userId, String shiftId, String replacingUserId,
                                      Set<String> ignoreAssignmentIds, String requiredLevelId) {
         ShiftDetail shift = activeShift(shiftId);
-        ScheduleContext ctx = load(shift).context(ignoreAssignmentIds == null ? Set.of() : ignoreAssignmentIds);
+        ScheduleData snapshot=load(shift);
+        Set<String> ignored=new java.util.HashSet<>(ignoreAssignmentIds==null?Set.of():ignoreAssignmentIds);
+        if(replacingUserId!=null)snapshot.savedAssignments().stream()
+            .filter(a->a.active()&&a.shiftId().equals(shiftId)&&a.userId().equals(replacingUserId))
+            .forEach(a->ignored.add(a.id()));
+        ScheduleContext ctx = snapshot.context(ignored);
         String level = requiredLevelId != null ? requiredLevelId : levelOf(ctx, replacingUserId, shiftId);
         return validator.validate(ctx, new AssignmentCandidate(userId, shiftId, level));
     }
@@ -106,7 +111,8 @@ public class OfficialScheduleService {
         int version = official.find(id).map(OfficialAssignment::version).orElse(1);
         shifts.writeHistory("manual_assign", "Thêm phân công vào lịch chính thức",
                 id + ": " + userId + " vào ca " + shiftId + " (kỳ " + periodId + ")"
-                        + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId, null, null, reason);
+                        + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId, null,
+                ShiftRepository.auditJson(java.util.Map.of("assignmentId",id,"shiftId",shiftId,"userId",userId,"version",version)), reason);
         events.publish(ScheduleEvent.of(ScheduleEvent.ASSIGNMENT_ADDED, "assignment", id, version, actorId,
                 List.of(userId), "Bạn được phân thêm ca", label(shift) + (reason == null ? "" : ". Lý do: " + reason),
                 "my-schedule"));
@@ -129,7 +135,8 @@ public class OfficialScheduleService {
         String newId = official.addOrReactivate(current.shiftId(), newUserId, actorId, reason, null);
         shifts.writeHistory("manual_reassign", "Thay người trên lịch chính thức",
                 current.shiftId() + ": " + expectedUserId + " → " + newUserId
-                        + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId, null, null, reason);
+                        + (exceptionId == null ? "." : ", ngoại lệ " + exceptionId + "."), actorId,
+                ShiftRepository.auditJson(current),ShiftRepository.auditJson(java.util.Map.of("assignmentId",newId,"shiftId",current.shiftId(),"userId",newUserId)), reason);
         events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
                 actorId, List.of(expectedUserId, newUserId), "Lịch làm việc thay đổi",
                 label(shift) + ": " + expectedUserId + " được thay bằng " + newUserId + ".", "my-schedule"));
@@ -155,7 +162,8 @@ public class OfficialScheduleService {
                 ? List.of("Ca " + shift.shift().name() + " còn " + remaining + "/" + minimum + " người tối thiểu.")
                 : List.of();
         shifts.writeHistory("manual_unassign", "Hủy phân công trên lịch chính thức",
-                current.id() + ": " + expectedUserId + " khỏi ca " + current.shiftId() + ".", actorId, null, null,
+                current.id() + ": " + expectedUserId + " khỏi ca " + current.shiftId() + ".", actorId,
+                ShiftRepository.auditJson(current),ShiftRepository.auditJson(java.util.Map.of("assignmentId",current.id(),"status","cancelled","version",current.version()+1)),
                 reason.trim());
         events.publish(ScheduleEvent.of(ScheduleEvent.SCHEDULE_CHANGED, "assignment", current.id(), current.version() + 1,
                 actorId, List.of(expectedUserId), "Ca của bạn đã bị hủy", label(shift) + ". Lý do: " + reason.trim(),
@@ -211,14 +219,14 @@ public class OfficialScheduleService {
     }
 
     private String lockPeriodOf(ShiftDetail shift) {
-        String periodId = shifts.periodIdFor(shift.shift().date())
+        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
                 .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
         plans.lockPeriod(periodId);
         return periodId;
     }
 
     private ScheduleData load(ShiftDetail shift) {
-        String periodId = shifts.periodIdFor(shift.shift().date())
+        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
                 .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
         return data.load(periodId).orElseThrow(() -> PlanException.notFound("Không tìm thấy kỳ " + periodId + "."));
     }

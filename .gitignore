@@ -3,3 +3,6 @@
 .env.*
 !.env.example
 *.log
+.review-moc-a/
+.local-test/
+node_modules/

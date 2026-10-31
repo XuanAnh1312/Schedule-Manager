@@ -233,9 +233,9 @@ public class AttendanceService {
         String after=asJson(Map.of("clockIn",iso(start),"clockOut",iso(end),"breakMinutes",br));
         try {
             db.update("""
-               INSERT INTO attendance_adjustment_requests(id,user_id,shift_id,record_id,proposed_in_at,proposed_out_at,proposed_break_minutes,reason,before_json,after_json)
-               VALUES(?,?,?,?,?,?,?,?,?,?)
-               """,id,actor,shiftId,existing==null?null:existing.get("id"),start,end,br,payload.reason().trim(),existing==null?null:asJson(existing),after);
+               INSERT INTO attendance_adjustment_requests(id,user_id,shift_id,record_id,proposed_in_at,proposed_out_at,proposed_break_minutes,reason,before_json,after_json,base_record_version)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)
+               """,id,actor,shiftId,existing==null?null:existing.get("id"),start,end,br,payload.reason().trim(),existing==null?null:asJson(existing),after,existing==null?null:existing.get("version"));
         } catch(DataIntegrityViolationException ex) {
             throw error(HttpStatus.CONFLICT,"Yêu cầu trùng hoặc dữ liệu vi phạm ràng buộc");
         }
@@ -292,7 +292,7 @@ public class AttendanceService {
         if(review==null || review.approve()==null || review.reason()==null || review.reason().trim().length()<5)
             throw error(HttpStatus.BAD_REQUEST,"Cần ghi lý do duyệt/từ chối (ít nhất 5 ký tự)");
         Map<String,Object> q=one("""
-             SELECT id,user_id,shift_id,record_id,proposed_in_at,proposed_out_at,proposed_break_minutes,status,reason
+             SELECT id,user_id,shift_id,record_id,proposed_in_at,proposed_out_at,proposed_break_minutes,status,reason,base_record_version
              FROM attendance_adjustment_requests WITH (UPDLOCK,HOLDLOCK) WHERE id=?
              """,requestId);
         if(q==null) throw error(HttpStatus.NOT_FOUND,"Không tìm thấy yêu cầu");
@@ -312,6 +312,8 @@ public class AttendanceService {
                     recordId,owner,q.get("shift_id"),parse((String)q.get("proposed_in_at")),parse((String)q.get("proposed_out_at")),q.get("proposed_break_minutes"));
             } else {
                 if(before==null || before.get("clock_out_at")==null) throw error(HttpStatus.CONFLICT,"Công gốc đã thay đổi");
+                if(q.get("base_record_version")==null || !q.get("base_record_version").equals(before.get("version")))
+                    throw error(HttpStatus.CONFLICT,"Công gốc đã đổi sau khi gửi yêu cầu. Hãy gửi lại yêu cầu mới.");
                 int version=(Integer)before.get("version");
                 int changed=db.update("""
                     UPDATE attendance_records SET clock_in_at=?,clock_out_at=?,break_minutes=?,status='approved',version=version+1,updated_at=SYSUTCDATETIME()

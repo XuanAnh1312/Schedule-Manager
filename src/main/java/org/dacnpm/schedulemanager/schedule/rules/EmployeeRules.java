@@ -34,7 +34,15 @@ public record EmployeeRules(
         String maxHoursFormula,
         Integer weightBalanceHours,
         Integer weightBalanceShifts,
-        List<MissingParameter> missing) {
+        List<MissingParameter> missing,
+        Double warningHours) {
+
+    public EmployeeRules(double maxHoursPerDay,double maxHoursPerWeek,Double maxHoursPerPeriod,
+            double minRestHours,Integer maxConsecutiveDays,Double targetHours,String maxHoursFormula,
+            Integer weightBalanceHours,Integer weightBalanceShifts,List<MissingParameter> missing) {
+        this(maxHoursPerDay,maxHoursPerWeek,maxHoursPerPeriod,minRestHours,maxConsecutiveDays,targetHours,
+            maxHoursFormula,weightBalanceHours,weightBalanceShifts,missing,null);
+    }
 
     /** Tham số bắt buộc còn thiếu: mã tham số, tên hiển thị và lý do. */
     public record MissingParameter(String key, String label, String reason) {

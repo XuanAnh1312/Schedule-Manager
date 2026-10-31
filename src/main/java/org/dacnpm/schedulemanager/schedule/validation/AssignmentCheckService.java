@@ -259,13 +259,13 @@ public class AssignmentCheckService {
     }
 
     private ScheduleData loadFor(ShiftDetail shift) {
-        String periodId = shifts.periodIdFor(shift.shift().date())
+        String periodId = shift.shift().periodId()!=null?shift.shift().periodId():shifts.periodIdFor(shift.shift().date())
                 .orElseThrow(() -> new IllegalArgumentException("Ngày " + shift.shift().date() + " không thuộc kỳ nào."));
         return data.load(periodId).orElseThrow(() -> new IllegalArgumentException("Không tìm thấy kỳ " + periodId + "."));
     }
 
     private void requireSamePeriod(ScheduleData d, ShiftDetail shift) {
-        if (!d.period().contains(shift.shift().date())) {
+        if (!d.period().contains(shift.shift().date()) || (shift.shift().periodId()!=null&&!d.period().id().equals(shift.shift().periodId()))) {
             throw new IllegalArgumentException("Các ca phải thuộc cùng một kỳ (" + d.period().name() + ").");
         }
     }

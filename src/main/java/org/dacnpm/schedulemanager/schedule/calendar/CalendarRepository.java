@@ -36,6 +36,10 @@ public class CalendarRepository {
         this.jdbc = jdbc;
     }
 
+    public java.util.Set<String> groupMembers(String groupId) {
+        return new java.util.HashSet<>(jdbc.queryForList("SELECT id FROM users WHERE group_id=?",String.class,groupId));
+    }
+
     public Optional<Period> period(String periodId) {
         return jdbc.query("SELECT id, name, start_date, end_date FROM periods WHERE id = ?",
                 (rs, n) -> new Period(rs.getString("id"), rs.getString("name"),

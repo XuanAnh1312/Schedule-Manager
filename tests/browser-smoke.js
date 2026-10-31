@@ -30,8 +30,8 @@ function waitFor(predicate, message, timeout = 10000) {
 function reloadApp() {
   return new Promise((resolve, reject) => {
     frame.onload = resolve;
-    frame.onerror = () => reject(new Error('Không tải được index.html trong iframe.'));
-    frame.src = `../index.html?smoke=${Date.now()}`;
+    frame.onerror = () => reject(new Error('Không tải được demo.html trong iframe.'));
+    frame.src = `../demo.html?smoke=${Date.now()}`;
   });
 }
 

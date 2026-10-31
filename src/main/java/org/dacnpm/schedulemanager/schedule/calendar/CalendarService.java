@@ -52,7 +52,11 @@ public class CalendarService {
      * @param planId   xem phương án chồng lên lịch chính thức
      */
     public record Query(String view, LocalDate date, LocalDate from, LocalDate to, String periodId, String locationId,
-                        String userId, String levelId, String status, String planId) {
+                        String userId, String levelId, String status, String planId, String groupId) {
+        public Query(String view,LocalDate date,LocalDate from,LocalDate to,String periodId,String locationId,
+                String userId,String levelId,String status,String planId) {
+            this(view,date,from,to,periodId,locationId,userId,levelId,status,planId,null);
+        }
     }
 
     public record Assignee(String userId, String fullName, String levelId, String assignmentId, Integer version) {
@@ -119,8 +123,10 @@ public class CalendarService {
             }
         }
 
+        Set<String> groupMembers = q.groupId()==null || q.groupId().isBlank() ? null : repository.groupMembers(q.groupId());
         List<CalendarShift> result = new ArrayList<>();
         for (ShiftDetail detail : shifts.search(from, to, blankToNull(q.locationId()), false)) {
+            if(q.periodId()!=null&&!q.periodId().isBlank()&&detail.shift().periodId()!=null&&!q.periodId().equals(detail.shift().periodId()))continue;
             List<Assignee> assignees = byShift.getOrDefault(detail.id(), List.of());
             ShiftInfo info = ShiftConfigRules.toShiftInfo(detail.id(), detail.shift());
             int filled = assignees.size();
@@ -129,7 +135,7 @@ public class CalendarService {
             CalendarShift entry = new CalendarShift(detail.id(), info.name(), info.date(), info.startTime(),
                     info.endTime(), info.locationId(), detail.status(), coverage, info.totalRequired(), info.minimum(),
                     filled, detail.emergency(), planShifts.contains(detail.id()) ? q.planId() : "official", assignees);
-            if (matches(entry, info, q)) {
+            if (matches(entry, info, q) && (groupMembers==null || assignees.stream().anyMatch(a->groupMembers.contains(a.userId())))) {
                 result.add(entry);
             }
         }

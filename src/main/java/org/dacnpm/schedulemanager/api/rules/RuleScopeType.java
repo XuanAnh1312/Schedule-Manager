@@ -11,9 +11,9 @@ import java.util.Optional;
  */
 public enum RuleScopeType {
     COMPANY("company", 1, true),
-    BRANCH("branch", 2, false),
-    EMPLOYEE_TYPE("employee_type", 3, false),
-    GROUP("group", 4, false),
+    BRANCH("branch", 2, true),
+    EMPLOYEE_TYPE("employee_type", 3, true),
+    GROUP("group", 4, true),
     USER("user", 5, true);
 
     private final String dbValue;

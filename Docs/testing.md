@@ -1,5 +1,16 @@
 # Kiểm thử
 
+## Bản tích hợp mốc A
+
+Ứng dụng chính hiện dùng `workspace.html` và API cùng origin. Xem [hướng dẫn kiểm thử và kết quả tích hợp](moc-a-completion.md).
+
+- `mvn test`: unit/controller và kiểm tra wiring.
+- `IntegratedMocAIT`: kiểm tra SQL Server thật, bật có chủ đích trên database test riêng.
+- `tests/moc-a-http.mjs`: luồng API thật, đồng thời và thông báo.
+- `tests/moc-a-browser.mjs`: Admin/Employee, form, phiên đăng nhập và responsive trên Chromium.
+
+Nội dung bên dưới mô tả bộ smoke của **demo cũ**, hiện tải `demo.html`. Kết quả demo không thay thế nghiệm thu API/SQL/E2E của bản tích hợp.
+
 ## Kiểm thử trình duyệt tự động
 
 Ứng dụng có smoke-test trình duyệt không cần cài thêm thư viện tại `tests/browser-smoke.html`.

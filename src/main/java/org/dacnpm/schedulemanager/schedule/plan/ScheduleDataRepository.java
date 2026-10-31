@@ -58,7 +58,14 @@ public class ScheduleDataRepository {
             Map<String, UserAvailability> availability,
             List<Assignment> savedAssignments,
             Map<String, Set<LocalDate>> blockedDates,
-            EffectiveRules effectiveRules) {
+            EffectiveRules effectiveRules,
+            Map<String,String> shiftPeriodIds) {
+
+        public ScheduleData(Period period,ScheduleRules rules,List<Employee> employees,List<ShiftInfo> shifts,
+                List<String> publishedShiftIds,Map<String,UserAvailability> availability,List<Assignment> savedAssignments,
+                Map<String,Set<LocalDate>> blockedDates,EffectiveRules effectiveRules) {
+            this(period,rules,employees,shifts,publishedShiftIds,availability,savedAssignments,blockedDates,effectiveRules,Map.of());
+        }
 
         /** Chưa có quy tắc hiệu lực riêng: suy ra từ schedule_rules. */
         public ScheduleData(Period period, ScheduleRules rules, List<Employee> employees, List<ShiftInfo> shifts,
@@ -74,6 +81,7 @@ public class ScheduleDataRepository {
         }
 
         public ScheduleData {
+            shiftPeriodIds=shiftPeriodIds==null?Map.of():Map.copyOf(shiftPeriodIds);
             employees = employees == null ? List.of() : List.copyOf(employees);
             shifts = shifts == null ? List.of() : List.copyOf(shifts);
             publishedShiftIds = publishedShiftIds == null ? List.of() : List.copyOf(publishedShiftIds);
@@ -93,9 +101,13 @@ public class ScheduleDataRepository {
         public List<String> plannableShiftIds() {
             Set<String> published = Set.copyOf(publishedShiftIds);
             return shifts.stream()
-                    .filter(s -> period.contains(s.date()) && !published.contains(s.id()))
+                    .filter(s -> period.contains(s.date()) && belongs(s.id()) && !published.contains(s.id()))
                     .map(ShiftInfo::id)
                     .toList();
+        }
+
+        public boolean belongs(String shiftId) {
+            return !shiftPeriodIds.containsKey(shiftId)||period.id().equals(shiftPeriodIds.get(shiftId));
         }
     }
 
@@ -124,16 +136,20 @@ public class ScheduleDataRepository {
 
         List<ShiftInfo> shifts = new ArrayList<>();
         List<String> published = new ArrayList<>();
+        Map<String,String> shiftPeriods=new HashMap<>();
         for (ShiftDetail detail : shiftRepository.search(from, to, null, false)) {
+            shiftPeriods.put(detail.id(),detail.shift().periodId()==null?"":detail.shift().periodId());
             shifts.add(ShiftConfigRules.toShiftInfo(detail.id(), detail.shift()));
-            if ("published".equals(detail.status()) && period.contains(detail.shift().date())) {
+            if ("published".equals(detail.status()) && period.contains(detail.shift().date())&&period.id().equals(detail.shift().periodId())) {
                 published.add(detail.id());
             }
         }
         List<Employee> employees = employees();
+        Set<String> applicable=new HashSet<>(jdbc.queryForList("SELECT user_id FROM period_applicable_users WHERE period_id=?",String.class,periodId));
+        if(!applicable.isEmpty())employees=employees.stream().filter(e->applicable.contains(e.id())).toList();
         return Optional.of(new ScheduleData(period, rules, employees, shifts, published,
                 availability(periodId), assignments(from, to), blockedDates(from, to.plusDays(1)),
-                rulesSource.load(period, rules, employees)));
+                rulesSource.load(period, rules, employees),shiftPeriods));
     }
 
     /**
@@ -154,7 +170,8 @@ public class ScheduleDataRepository {
     }
 
     private static int streakPadding(ScheduleRules rules) {
-        return rules.maxConsecutiveDays() == null ? 0 : rules.maxConsecutiveDays() + 1;
+        // Scoped effective values may differ from the legacy company row (maximum configurable value: 31).
+        return Math.max(32, rules.maxConsecutiveDays() == null ? 0 : rules.maxConsecutiveDays() + 1);
     }
 
     private ScheduleRules rules() {
@@ -177,7 +194,7 @@ public class ScheduleDataRepository {
                 .orElseThrow(() -> new IllegalStateException("Chưa cấu hình quy tắc phân lịch (schedule_rules)."));
 
         Map<String, Set<String>> substitutions = new HashMap<>();
-        jdbc.query("SELECT higher_level_id, lower_level_id FROM level_substitutions WHERE rules_id = ?",
+        jdbc.query("SELECT higher_level_id, lower_level_id FROM level_substitutions WHERE rules_id = ? AND EXISTS (SELECT 1 FROM rule_settings WHERE param_key='level_substitutions' AND status='active')",
                 rs -> {
                     substitutions.computeIfAbsent(rs.getString("higher_level_id"), k -> new HashSet<>())
                             .add(rs.getString("lower_level_id"));
@@ -201,7 +218,7 @@ public class ScheduleDataRepository {
                     .put(rs.getString("certificate_id"), rs.getObject("valid_until", LocalDate.class));
         });
         return jdbc.query("""
-                        SELECT id, full_name, status, level_id, target_rate, contract_max_hours_per_week
+                        SELECT id, full_name, status, level_id, target_rate, contract_max_hours_per_week,branch_id,employee_type_id,group_id
                         FROM users
                         WHERE role = 'user'
                         ORDER BY id
@@ -211,35 +228,51 @@ public class ScheduleDataRepository {
                     return new Employee(id, rs.getString("full_name"), "active".equals(rs.getString("status")),
                             rs.getString("level_id"), toDouble(rs.getBigDecimal("target_rate")),
                             toDouble(rs.getBigDecimal("contract_max_hours_per_week")), locations.get(id), skills.get(id),
-                            certificates.get(id), positions.get(id));
+                            certificates.get(id), positions.get(id),rs.getString("branch_id"),rs.getString("employee_type_id"),rs.getString("group_id"));
                 });
     }
 
     private Map<String, UserAvailability> availability(String periodId) {
         Map<String, Boolean> submitted = new HashMap<>();
         Map<String, Map<LocalDate, List<TimeRange>>> slots = new HashMap<>();
+        Map<String, Map<LocalDate, List<TimeRange>>> blocked = new HashMap<>();
         jdbc.query("""
-                SELECT r.user_id, r.status, e.available_date, s.start_time, s.end_time
+                SELECT r.user_id, r.period_id AS registration_period_id, r.status, e.available_date, s.start_time, s.end_time, s.slot_type
                 FROM availability_registrations r
+                JOIN periods context_period ON context_period.id = ?
                 LEFT JOIN availability_entries e ON e.registration_id = r.id
                 LEFT JOIN availability_slots s ON s.entry_id = e.id
-                WHERE r.period_id = ?
+                WHERE r.period_id = context_period.id OR (r.status='submitted'
+                    AND e.available_date IN (DATEADD(day,-1,context_period.start_date),DATEADD(day,1,context_period.end_date)))
                 """, rs -> {
             String userId = rs.getString("user_id");
-            submitted.put(userId, "submitted".equals(rs.getString("status")));
+            if(periodId.equals(rs.getString("registration_period_id")))submitted.put(userId, "submitted".equals(rs.getString("status")));
             LocalDate date = rs.getObject("available_date", LocalDate.class);
             if (date == null) {
                 return;
             }
             LocalTime start = rs.getObject("start_time", LocalTime.class);
             LocalTime end = rs.getObject("end_time", LocalTime.class);
-            // Ngày đăng ký rảnh không có khung giờ cụ thể được hiểu là rảnh cả ngày.
-            TimeRange range = start == null || end == null ? WHOLE_DAY : TimeRange.of(start, end);
-            slots.computeIfAbsent(userId, k -> new HashMap<>()).computeIfAbsent(date, k -> new ArrayList<>()).add(range);
+            if (start == null || end == null) return;
+            TimeRange range = TimeRange.of(start, end);
+            Map<String, Map<LocalDate, List<TimeRange>>> target = "unavailable".equals(rs.getString("slot_type"))
+                    ? blocked : slots;
+            target.computeIfAbsent(userId, k -> new HashMap<>()).computeIfAbsent(date, k -> new ArrayList<>()).add(range);
         }, periodId);
+        jdbc.query("""
+            SELECT l.user_id,l.start_date,l.end_date,p.start_date AS period_start,p.end_date AS period_end
+            FROM leave_requests l JOIN periods p ON p.id=?
+            WHERE l.status='approved' AND l.start_date<=DATEADD(day,1,p.end_date) AND l.end_date>=DATEADD(day,-1,p.start_date)
+            """,(org.springframework.jdbc.core.RowCallbackHandler)rs->{
+                String user=rs.getString("user_id");
+                LocalDate start=rs.getObject("start_date",LocalDate.class),end=rs.getObject("end_date",LocalDate.class);
+                LocalDate min=rs.getObject("period_start",LocalDate.class).minusDays(1),max=rs.getObject("period_end",LocalDate.class).plusDays(1);
+                for(LocalDate date=start.isBefore(min)?min:start;!date.isAfter(end)&&!date.isAfter(max);date=date.plusDays(1))
+                    blocked.computeIfAbsent(user,k->new HashMap<>()).computeIfAbsent(date,k->new ArrayList<>()).add(WHOLE_DAY);
+            },periodId);
         Map<String, UserAvailability> result = new HashMap<>();
-        submitted.forEach((userId, isSubmitted) ->
-                result.put(userId, new UserAvailability(userId, isSubmitted, slots.get(userId))));
+        Set<String> users=new HashSet<>(submitted.keySet());users.addAll(blocked.keySet());
+        users.forEach(userId -> result.put(userId, UserAvailability.subtract(userId, submitted.getOrDefault(userId,false), slots.get(userId), blocked.get(userId))));
         return result;
     }
 

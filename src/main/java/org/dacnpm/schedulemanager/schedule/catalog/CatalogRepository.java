@@ -19,7 +19,8 @@ public class CatalogRepository {
 
     /** Tên bảng -> tiền tố id. Chỉ các bảng này được truy cập qua đường dẫn API. */
     static final Map<String, String> TABLES = Map.of(
-            "locations", "loc_", "positions", "pos_", "skills", "skl_", "certificates", "crt_");
+            "locations", "loc_", "positions", "pos_", "skills", "skl_", "certificates", "crt_",
+            "work_groups", "grp_", "employee_types", "type_");
 
     public record Item(String id, String name) {
     }

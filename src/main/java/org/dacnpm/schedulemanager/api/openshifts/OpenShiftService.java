@@ -150,6 +150,7 @@ public class OpenShiftService {
 
     @Transactional
     public ClaimView claim(CurrentUser me, String openShiftId, String note) {
+        repository.lock(openShiftId);
         if (me.admin()) throw ApiException.forbidden("Admin không đăng ký nhận ca.");
         OpenShiftView os = load(openShiftId, me.id());
         requireClaimable(os);
@@ -189,6 +190,7 @@ public class OpenShiftService {
 
     @Transactional
     public ClaimView withdraw(CurrentUser me, String openShiftId) {
+        repository.lock(openShiftId);
         ClaimView c = repository.findClaimOf(openShiftId, me.id())
                 .orElseThrow(() -> ApiException.notFound("đăng ký"));
         if ("withdrawn".equals(c.status())) return c;
@@ -203,6 +205,7 @@ public class OpenShiftService {
 
     @Transactional
     public ClaimView approveClaim(CurrentUser me, String openShiftId, String claimId, Decision d) {
+        repository.lock(openShiftId);
         me.requireAdmin();
         ClaimView claim = loadClaim(openShiftId, claimId);
         if ("approved".equals(claim.status())) return claim; // duyệt lặp
@@ -253,6 +256,7 @@ public class OpenShiftService {
 
     @Transactional
     public ClaimView rejectClaim(CurrentUser me, String openShiftId, String claimId, Decision d) {
+        repository.lock(openShiftId);
         me.requireAdmin();
         ClaimView claim = loadClaim(openShiftId, claimId);
         if ("rejected".equals(claim.status())) return claim;
@@ -281,6 +285,7 @@ public class OpenShiftService {
     @Transactional
     public OpenShiftView close(CurrentUser me, String openShiftId, boolean cancel, Decision d) {
         me.requireAdmin();
+        repository.lock(openShiftId);
         OpenShiftView os = load(openShiftId, me.id());
         if (!"open".equals(os.status())) {
             throw ApiException.conflict("INVALID_STATE", "Ca trống không còn mở.");

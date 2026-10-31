@@ -31,7 +31,6 @@ import java.util.Set;
  * <br>Chưa có: trần giờ theo mục tiêu × % (AC-01, Tường/Tuấn), kỹ năng/chứng chỉ (mốc B).
  */
 @Profile("sqlserver")
-@Component
 public class InterimJdbcScheduleAdapter implements AssignmentValidationService, AssignmentMutationService {
 
     private static final RowMapper<AssignmentInfo> ASSIGNMENT_MAPPER = (rs, i) -> new AssignmentInfo(

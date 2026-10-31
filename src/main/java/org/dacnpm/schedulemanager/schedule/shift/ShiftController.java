@@ -53,8 +53,10 @@ public class ShiftController {
     public List<ShiftDetail> search(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
                                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                     @RequestParam(required = false) String locationId,
+                                    @RequestParam(required = false) String periodId,
                                     @RequestParam(defaultValue = "false") boolean includeCancelled) {
-        return service.search(from, to, locationId, includeCancelled);
+        return service.search(from, to, locationId, includeCancelled).stream()
+            .filter(s->periodId==null||periodId.isBlank()||periodId.equals(s.shift().periodId())).toList();
     }
 
     @GetMapping("/{id}")

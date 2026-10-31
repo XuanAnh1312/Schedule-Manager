@@ -73,7 +73,8 @@ public class ReportService {
     private static final Set<String> WORKFLOW_STATUSES = Set.of("not_scheduled", "draft", "published");
 
     /** Bộ lọc dùng chung cho mọi báo cáo; giá trị rỗng là không lọc. */
-    public record Filters(String userId, String levelId, String locationId) {
+    public record Filters(String userId, String levelId, String locationId, String branchId, String employeeTypeId, String groupId) {
+        public Filters(String userId, String levelId, String locationId) { this(userId,levelId,locationId,null,null,null); }
         Map<String, String> asMap() {
             Map<String, String> m = new LinkedHashMap<>();
             if (present(userId)) {
@@ -85,6 +86,9 @@ public class ReportService {
             if (present(locationId)) {
                 m.put("locationId", locationId);
             }
+            if (present(branchId)) m.put("branchId",branchId);
+            if (present(employeeTypeId)) m.put("employeeTypeId",employeeTypeId);
+            if (present(groupId)) m.put("groupId",groupId);
             return m;
         }
     }
@@ -174,7 +178,7 @@ public class ReportService {
                     target == null ? null : round(target),
                     target == null || target <= 0 ? null : round(hours / target * 100), round(peak),
                     rules.maxHoursPerWeek(), rules.maxHoursPerPeriod(), rules.maxHoursFormula(),
-                    limitStatus(peak, rules.maxHoursPerWeek(), hours, rules.maxHoursPerPeriod()), roundedWeeks));
+                    configuredLimitStatus(peak, rules.maxHoursPerWeek(), hours, rules.maxHoursPerPeriod(),rules.warningHours()), roundedWeeks));
         }
         rows.sort(Comparator.comparing(EmployeeHours::fullName, Comparator.nullsLast(String::compareTo))
                 .thenComparing(EmployeeHours::userId));
@@ -271,7 +275,9 @@ public class ReportService {
 
         Map<String, ShiftDetail> details = new LinkedHashMap<>();
         Map<String, ShiftInfo> inPeriod = new LinkedHashMap<>();
-        for (ShiftDetail detail : shifts.search(period.startDate(), period.endDate(), null, false)) {
+        for (ShiftDetail detail : shifts.search(period.startDate().minusDays(1), period.endDate(), null, false)) {
+            if(!d.belongs(detail.id()))continue;
+            if (hoursInPeriod(ShiftConfigRules.toShiftInfo(detail.id(), detail.shift()), period) <= 0) continue;
             details.put(detail.id(), detail);
             inPeriod.put(detail.id(), ShiftConfigRules.toShiftInfo(detail.id(), detail.shift()));
         }
@@ -358,6 +364,12 @@ public class ReportService {
         return near ? "near_limit" : "ok";
     }
 
+    static String configuredLimitStatus(double peakWeek,double maxWeek,double hours,Double maxPeriod,Double warningHours) {
+        String status=limitStatus(peakWeek,maxWeek,hours,maxPeriod);
+        if("over_limit".equals(status)||"at_limit".equals(status))return status;
+        return warningHours!=null && hours>=warningHours ? "near_limit" : "ok";
+    }
+
     private static List<String> reasons(ShiftOutcome outcome) {
         if (outcome == null) {
             return List.of();
@@ -377,7 +389,10 @@ public class ReportService {
 
     private static boolean matchesEmployee(Employee e, Filters f) {
         return f == null || ((!present(f.userId()) || f.userId().equals(e.id()))
-                && (!present(f.levelId()) || f.levelId().equals(e.levelId())));
+                && (!present(f.levelId()) || f.levelId().equals(e.levelId()))
+                && (!present(f.branchId()) || f.branchId().equals(e.branchId()))
+                && (!present(f.employeeTypeId()) || f.employeeTypeId().equals(e.employeeTypeId()))
+                && (!present(f.groupId()) || f.groupId().equals(e.groupId())));
     }
 
     private static boolean matchesLocation(ShiftInfo shift, Filters f) {

@@ -37,8 +37,11 @@ public class ReportController {
                              @RequestParam(required = false) String planId,
                              @RequestParam(required = false) String userId,
                              @RequestParam(required = false) String levelId,
-                             @RequestParam(required = false) String locationId) {
-        return service.hours(periodId, source, planId, new Filters(userId, levelId, locationId));
+                             @RequestParam(required = false) String locationId,
+                             @RequestParam(required = false) String branchId,
+                             @RequestParam(required = false) String employeeTypeId,
+                             @RequestParam(required = false) String groupId) {
+        return service.hours(periodId, source, planId, new Filters(userId, levelId, locationId,branchId,employeeTypeId,groupId));
     }
 
     @GetMapping("/assignments")
@@ -47,8 +50,11 @@ public class ReportController {
                                          @RequestParam(required = false) String planId,
                                          @RequestParam(required = false) String userId,
                                          @RequestParam(required = false) String levelId,
-                                         @RequestParam(required = false) String locationId) {
-        return service.assignments(periodId, source, planId, new Filters(userId, levelId, locationId));
+                                         @RequestParam(required = false) String locationId,
+                                         @RequestParam(required = false) String branchId,
+                                         @RequestParam(required = false) String employeeTypeId,
+                                         @RequestParam(required = false) String groupId) {
+        return service.assignments(periodId, source, planId, new Filters(userId, levelId, locationId,branchId,employeeTypeId,groupId));
     }
 
     @GetMapping("/shifts")

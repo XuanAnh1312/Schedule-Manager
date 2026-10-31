@@ -22,6 +22,7 @@ public enum ViolationCode {
     LOCATION(false),
     MISSING_PARAMETER(false),
     SHIFT_CANCELLED(false),
+    UNAVAILABLE_INTERVAL(false),
     UNAVAILABLE(true),
     NOT_AVAILABLE_TIME(true);
 

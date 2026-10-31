@@ -53,6 +53,29 @@ public class ShiftRequestRepository {
         return jdbc.query(SELECT + " WHERE r.id = ?", MAPPER, id).stream().findFirst();
     }
 
+    public void captureScheduleSnapshot(String id) {
+        jdbc.update("""
+            UPDATE r SET source_assignment_version=a.version,source_shift_version=s.version,
+                target_assignment_version=ta.version,target_shift_version=ts.version
+            FROM shift_requests r JOIN assignments a ON a.id=r.source_assignment_id
+            JOIN shifts s ON s.id=r.source_shift_id
+            LEFT JOIN assignments ta ON ta.id=r.target_assignment_id
+            LEFT JOIN shifts ts ON ts.id=r.target_shift_id WHERE r.id=?
+            """,id);
+    }
+
+    public Optional<Boolean> scheduleUnchanged(String id) {
+        return jdbc.query("""
+            SELECT CASE WHEN r.source_assignment_version=a.version AND r.source_shift_version=s.version
+                AND (r.target_assignment_id IS NULL OR (r.target_assignment_version=ta.version AND r.target_shift_version=ts.version))
+                THEN 1 ELSE 0 END AS unchanged
+            FROM shift_requests r JOIN assignments a ON a.id=r.source_assignment_id
+            JOIN shifts s ON s.id=r.source_shift_id
+            LEFT JOIN assignments ta ON ta.id=r.target_assignment_id
+            LEFT JOIN shifts ts ON ts.id=r.target_shift_id WHERE r.id=?
+            """,(rs,n)->rs.getInt("unchanged")==1,id).stream().findFirst();
+    }
+
     /**
      * @param involvedUserId lọc yêu cầu mà người này là người gửi hoặc người nhận; null = tất cả (admin)
      * @param status         lọc trạng thái; null = tất cả

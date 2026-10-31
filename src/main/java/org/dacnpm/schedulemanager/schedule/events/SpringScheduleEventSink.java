@@ -1,41 +1,29 @@
 package org.dacnpm.schedulemanager.schedule.events;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.context.annotation.Profile;
+import org.dacnpm.schedulemanager.domain.events.DomainEvent;
+import org.dacnpm.schedulemanager.domain.events.DomainEventPublisher;
 
 /**
- * Bản mặc định khi chưa có module thông báo: đưa sự kiện qua cơ chế sự kiện của Spring; listener chỉ chạy sau khi giao
- * dịch commit ({@link TransactionPhase#AFTER_COMMIT}), giao dịch rollback thì sự kiện bị bỏ.
+ * Lưu sự kiện lịch vào outbox trong cùng giao dịch nghiệp vụ; dispatcher chỉ nhìn thấy sự kiện đã commit.
  */
 @Component
+@Profile("sqlserver")
 public class SpringScheduleEventSink implements ScheduleEventSink {
 
-    private final ApplicationEventPublisher publisher;
+    private final DomainEventPublisher publisher;
 
-    public SpringScheduleEventSink(ApplicationEventPublisher publisher) {
+    public SpringScheduleEventSink(DomainEventPublisher publisher) {
         this.publisher = publisher;
     }
 
     @Override
     public void publish(ScheduleEvent event) {
         if (!event.recipients().isEmpty()) {
-            publisher.publishEvent(event);
+            publisher.publish(new DomainEvent(event.eventId(), event.type(), event.entityType(), event.entityId(),
+                    event.entityVersion(), event.actorId(), event.recipients(), event.title(), event.body(), event.linkRoute()));
         }
     }
 
-    /** Ghi log sự kiện đã commit; module thông báo thay bằng outbox của mình. */
-    @Component
-    static class AfterCommitLog {
-
-        private static final Logger LOG = LoggerFactory.getLogger(AfterCommitLog.class);
-
-        @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-        public void onCommitted(ScheduleEvent event) {
-            LOG.info("Sự kiện lịch {} ({} người nhận): {}", event.eventId(), event.recipients().size(), event.title());
-        }
-    }
 }

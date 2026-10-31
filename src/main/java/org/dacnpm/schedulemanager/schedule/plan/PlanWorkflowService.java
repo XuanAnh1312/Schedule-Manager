@@ -99,7 +99,8 @@ public class PlanWorkflowService {
             throw conflict();
         }
         history.writeHistory("plan_submit", "Gửi duyệt phương án " + plan.name(), summary(planId, r), actorId,
-                null, null, null);
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status",plan.status(),"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status","pending_approval","version",expectedVersion+1)), null);
         return view(planId);
     }
 
@@ -114,7 +115,8 @@ public class PlanWorkflowService {
             throw conflict();
         }
         history.writeHistory("plan_approve", "Duyệt phương án " + plan.name(), summary(planId, r), actorId,
-                null, null, trimOrNull(note));
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status",plan.status(),"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status","approved","version",expectedVersion+1)), trimOrNull(note));
         return view(planId);
     }
 
@@ -130,7 +132,9 @@ public class PlanWorkflowService {
         if (!plans.review(planId, expectedVersion, PlanRepository.DRAFT, actorId, reason.trim())) {
             throw conflict();
         }
-        history.writeHistory("plan_reject", "Trả phương án về nháp " + plan.name(), planId, actorId, null, null,
+        history.writeHistory("plan_reject", "Trả phương án về nháp " + plan.name(), planId, actorId,
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status",plan.status(),"version",expectedVersion)),
+                ShiftRepository.auditJson(java.util.Map.of("planId",planId,"status","draft","version",expectedVersion+1)),
                 reason.trim());
         return view(planId);
     }
@@ -211,7 +215,8 @@ public class PlanWorkflowService {
         history.writeHistory("plan_publish", "Công bố phương án " + plan.name(),
                 planId + ": " + plan.shiftIds().size() + " ca, thêm " + added + ", bỏ " + removed + ", giữ "
                         + (roster.size() - added) + (superseded.isEmpty() ? "." : ", thay bản " + String.join(", ", superseded) + "."),
-                actorId, null, null, null);
+                actorId, ShiftRepository.auditJson(java.util.Map.of("status",plan.status(),"version",expectedVersion,"assignments",current)),
+                ShiftRepository.auditJson(java.util.Map.of("status","published","version",newVersion,"assignments",roster)), null);
         return new PublishReport(planId, newVersion, plan.shiftIds(), added, removed, roster.size() - added, superseded,
                 List.copyOf(recipients), view(planId));
     }

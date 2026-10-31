@@ -26,7 +26,17 @@ public record Employee(
         Set<String> locationIds,
         Set<String> skills,
         Map<String, LocalDate> certificateValidUntil,
-        Set<String> positionIds) {
+        Set<String> positionIds,
+        String branchId,
+        String employeeTypeId,
+        String groupId) {
+
+    public Employee(String id, String fullName, boolean active, String levelId, Double targetRate,
+            Double contractMaxHoursPerWeek, Set<String> locationIds, Set<String> skills,
+            Map<String,LocalDate> certificateValidUntil, Set<String> positionIds) {
+        this(id, fullName, active, levelId, targetRate, contractMaxHoursPerWeek, locationIds, skills,
+                certificateValidUntil, positionIds, null, null, null);
+    }
 
     /** Giữ tương thích với nơi gọi cũ chưa có chức vụ. */
     public Employee(String id, String fullName, boolean active, String levelId, Double targetRate,

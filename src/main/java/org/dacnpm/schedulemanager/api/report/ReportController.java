@@ -7,7 +7,7 @@ import java.security.Principal;
 import java.util.*;
 
 @Profile("sqlserver")
-@RestController
+@RestController("attendanceReportController")
 @RequestMapping("/api/reports")
 public class ReportController {
     private final ReportService service;

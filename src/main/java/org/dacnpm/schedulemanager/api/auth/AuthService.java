@@ -1,5 +1,6 @@
 package org.dacnpm.schedulemanager.api.auth;
 
+import org.dacnpm.schedulemanager.common.ApiException;
 import org.dacnpm.schedulemanager.domain.user.UserRepository;
 import org.dacnpm.schedulemanager.security.JwtUtil;
 import org.springframework.context.annotation.Profile;
@@ -49,7 +50,7 @@ public class AuthService {
      * (user not found, user inactive, password mismatch) to prevent
      * username enumeration attacks.
      *
-     * @param username  the username supplied by the client
+     * @param username    the username supplied by the client
      * @param rawPassword the plaintext password supplied by the client
      * @return a signed JWT token, or empty if authentication fails
      */
@@ -58,5 +59,33 @@ public class AuthService {
                 .filter(user -> "active".equals(user.status()))
                 .filter(user -> passwordEncoder.matches(rawPassword, user.passwordHash()))
                 .map(user -> jwtUtil.issue(user.id(), user.username(), user.role()));
+    }
+
+    /**
+     * Changes the password for an authenticated user.
+     * Actor ID is taken from the JWT (never from client body — AC-11).
+     *
+     * @param actorId     the authenticated user's ID from JWT
+     * @param currentPass the user's current plaintext password for verification
+     * @param newPass     the new plaintext password (min 8 chars)
+     * @throws ApiException 400 if newPass is too short, 401 if currentPass is wrong
+     */
+    public void changePassword(String actorId, String currentPass, String newPass) {
+        if (newPass == null || newPass.length() < 8) {
+            throw ApiException.badRequest("INVALID_PASSWORD", "Mật khẩu mới cần ít nhất 8 ký tự.");
+        }
+        var user = userRepository.findById(actorId)
+                .orElseThrow(() -> new ApiException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED,
+                        "UNAUTHORIZED", "Tài khoản không tồn tại."));
+        if (!"active".equals(user.status())) {
+            throw new ApiException(org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "ACCOUNT_LOCKED", "Tài khoản đã bị khóa.");
+        }
+        if (!passwordEncoder.matches(currentPass, user.passwordHash())) {
+            throw new ApiException(org.springframework.http.HttpStatus.UNAUTHORIZED,
+                    "WRONG_PASSWORD", "Mật khẩu hiện tại không đúng.");
+        }
+        userRepository.updatePassword(actorId, passwordEncoder.encode(newPass));
     }
 }

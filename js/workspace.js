@@ -2,7 +2,7 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const state = {token:sessionStorage.getItem('attendance_jwt') || '', me:null, periods:[], employees:[], route:'periods', periodId:'', planId:'', filters:{}};
+  const state = {token:sessionStorage.getItem('auth_jwt') || '', me:null, periods:[], employees:[], route:'periods', periodId:'', planId:'', filters:{}};
   let renderSequence = 0;
   const labels = {draft:'Nháp',open:'Đang mở',locked:'Đã khóa',archived:'Đã lưu trữ',pending_approval:'Chờ duyệt',approved:'Đã duyệt',published:'Đã công bố',superseded:'Đã thay thế',cancelled:'Đã hủy',pending:'Chờ xử lý',pending_peer:'Chờ đồng nghiệp',rejected:'Từ chối',peer_declined:'Đồng nghiệp từ chối',full:'Đủ người',understaffed:'Thiếu người',below_target:'Chưa đạt nhu cầu',submitted:'Đã gửi',completed:'Đã kết thúc'};
   const text = value => value == null ? '—' : labels[value] || String(value);
@@ -234,9 +234,9 @@
     catch(e){notice(e.message,true);}finally{if(seq===renderSequence)$('content').setAttribute('aria-busy','false');}
   }
   async function boot(){state.me=await api('/api/attendance/me');if(admin())state.employees=await api('/api/workspace/employees');$('identity').textContent=state.me.full_name||state.me.fullName||'';$('login').hidden=true;$('workspace').hidden=false;state.route=admin()?'periods':'calendar';await render();}
-  function logout(){state.token='';state.me=null;state.employees=[];state.periods=[];state.periodId='';state.planId='';state.rulePreview=null;state.unread=0;state.notificationPage=0;renderSequence++;sessionStorage.removeItem('attendance_jwt');$('content').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;if($('editor').open)$('editor').close();}
+  function logout(){state.token='';state.me=null;state.employees=[];state.periods=[];state.periodId='';state.planId='';state.rulePreview=null;state.unread=0;state.notificationPage=0;renderSequence++;sessionStorage.removeItem('auth_jwt');$('content').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;if($('editor').open)$('editor').close();}
   $('logout').onclick=async()=>{try{await api('/api/auth/logout','POST');}finally{logout();}};
   $('refresh').onclick=render;
-  $('login-form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;$('login-error').textContent='';try{const form=new FormData(e.target),result=await api('/api/auth/login','POST',{username:form.get('username'),password:form.get('password')});state.token=result.token;sessionStorage.setItem('attendance_jwt',state.token);e.target.reset();await boot();}catch(error){$('login-error').textContent=error.message;}finally{b.disabled=false;}};
+  $('login-form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;$('login-error').textContent='';try{const form=new FormData(e.target),result=await api('/api/auth/login','POST',{username:form.get('username'),password:form.get('password')});state.token=result.token;sessionStorage.setItem('auth_jwt',state.token);e.target.reset();await boot();}catch(error){$('login-error').textContent=error.message;}finally{b.disabled=false;}};
   if(state.token)boot().catch(error=>{logout();$('login-error').textContent=error.message;});
 })();

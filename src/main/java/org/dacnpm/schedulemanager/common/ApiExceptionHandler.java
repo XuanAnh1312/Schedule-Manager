@@ -17,6 +17,7 @@ import java.util.Map;
  */
 @RestControllerAdvice(basePackages = {
         "org.dacnpm.schedulemanager.common",
+        "org.dacnpm.schedulemanager.api.auth",
         "org.dacnpm.schedulemanager.api.requests",
         "org.dacnpm.schedulemanager.api.leave",
         "org.dacnpm.schedulemanager.api.openshifts",

@@ -27,6 +27,8 @@ public class IdentityGuard implements WebMvcConfigurer {
                 if(!valid){response.setStatus(401);response.setContentType("application/json;charset=UTF-8");response.getWriter().write("{\"code\":\"SESSION_INVALID\",\"message\":\"Tài khoản hoặc quyền đã thay đổi. Vui lòng đăng nhập lại.\"}");}
                 return valid;
             }
-        }).addPathPatterns("/api/**").excludePathPatterns("/api/auth/login","/api/auth/logout","/api/health","/api/health/database");
+        }).addPathPatterns("/api/**").excludePathPatterns(
+            "/api/auth/login","/api/auth/logout",
+            "/api/health","/api/health/database");
     }
 }

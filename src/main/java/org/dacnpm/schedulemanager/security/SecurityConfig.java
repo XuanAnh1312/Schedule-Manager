@@ -101,6 +101,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/schedule/**").hasRole("ADMIN")
                 // Self-service checks: any signed-in user, always for their own account
                 .requestMatchers("/api/my/**").authenticated()
+                // Current user profile: any authenticated user
+                .requestMatchers(HttpMethod.GET, "/api/me").authenticated()
+                // Change password: any authenticated user (actor from JWT)
+                .requestMatchers(HttpMethod.POST, "/api/auth/change-password").authenticated()
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )

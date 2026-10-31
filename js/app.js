@@ -46,32 +46,47 @@ const App = (() => {
   let _confirmOpener = null;
 
   /* ── Bootstrap ─────────────────────────────────────────── */
-  function init() {
+  async function init() {
     if (_initialized) return;
     _initialized = true;
 
-    // 1. Seed demo data nếu chưa có
+    // 1. Seed demo data (State/localStorage) — còn dùng cho admin.js/user.js chưa migrate.
+    //    Không dùng để xác thực; sẽ loại bỏ khi các module chuyển hết sang API.
     seedDemoData();
-    // 2. Load state
     State.load();
-    // 3. Restore only a valid, active account from the saved session
-    const saved = State.get.currentUser();
-    const user = saved ? State.get.userById(saved.id) : null;
-    if (user && user.status === 'active') {
-      const sessionUser = {
-        id: user.id,
-        username: user.username,
-        role: user.role,
-        fullName: user.fullName,
-      };
-      State.mut.setCurrentUser(sessionUser);
-      _showApp(sessionUser);
+
+    // 2. Khôi phục session từ JWT trong sessionStorage — không tin State/localStorage (AC-10)
+    const token = sessionStorage.getItem('auth_jwt');
+    if (token) {
+      try {
+        const resp = await fetch('/api/me', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
+          cache: 'no-store',
+        });
+        if (resp.ok) {
+          const me = await resp.json();
+          const sessionUser = {
+            id: me.id,
+            username: me.username,
+            role: me.role,
+            fullName: me.fullName || me.username,
+          };
+          _showApp(sessionUser);
+        } else {
+          // Token hết hạn hoặc tài khoản bị khóa/xóa
+          sessionStorage.removeItem('auth_jwt');
+          _showLogin();
+        }
+      } catch {
+        // Mạng lỗi: vẫn hiện login để tránh vòng lặp
+        sessionStorage.removeItem('auth_jwt');
+        _showLogin();
+      }
     } else {
-      if (saved) State.mut.clearCurrentUser();
       _showLogin();
     }
 
-    // 4. Bind form and global events once
+    // 3. Bind form and global events once
     _bindLoginForm();
     _bindGlobalEvents();
   }
@@ -83,6 +98,7 @@ const App = (() => {
   }
 
   function _showApp(user) {
+    _setSessionUser(user);
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('app-shell').classList.remove('hidden');
     _buildSidebar(user);
@@ -102,24 +118,61 @@ const App = (() => {
     };
   }
 
-  function _doLogin() {
+  async function _doLogin() {
     const un = document.getElementById('login-username')?.value?.trim();
     const pw = document.getElementById('login-password')?.value;
     _setLoginFieldError('login-username', '');
     _setLoginFieldError('login-password', '');
-    document.getElementById('login-general-err').textContent  = '';
+    document.getElementById('login-general-err').textContent = '';
 
     if (!un) { _setLoginFieldError('login-username', 'Vui lòng nhập tên đăng nhập.'); return; }
     if (!pw) { _setLoginFieldError('login-password', 'Vui lòng nhập mật khẩu.'); return; }
 
-    const users = State.get.users();
-    const user  = users.find(u => u.username === un && u.password === pw);
+    // Disable submit button during request
+    const submitBtn = document.querySelector('#login-form button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
 
-    if (!user) { document.getElementById('login-general-err').textContent = 'Tên đăng nhập hoặc mật khẩu không đúng.'; return; }
-    if (user.status !== 'active') { document.getElementById('login-general-err').textContent = 'Tài khoản đã bị khóa. Vui lòng liên hệ Admin.'; return; }
+    try {
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ username: un, password: pw }),
+      });
+      const data = await resp.json();
 
-    State.mut.setCurrentUser({ id: user.id, username: user.username, role: user.role, fullName: user.fullName });
-    _showApp(State.get.currentUser());
+      if (!resp.ok) {
+        document.getElementById('login-general-err').textContent =
+          data.error || 'Tên đăng nhập hoặc mật khẩu không đúng.';
+        return;
+      }
+
+      // Lưu JWT vào sessionStorage (không localStorage — AC-10)
+      sessionStorage.setItem('auth_jwt', data.token);
+
+      // Lấy thông tin user hiện tại từ /api/me
+      const meResp = await fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + data.token, 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if (!meResp.ok) {
+        sessionStorage.removeItem('auth_jwt');
+        document.getElementById('login-general-err').textContent = 'Không thể tải thông tin tài khoản.';
+        return;
+      }
+      const me = await meResp.json();
+      const sessionUser = {
+        id: me.id,
+        username: me.username,
+        role: me.role,
+        fullName: me.fullName || me.username,
+      };
+      _showApp(sessionUser);
+    } catch {
+      document.getElementById('login-general-err').textContent =
+        'Không thể kết nối hệ thống. Kiểm tra kết nối rồi thử lại.';
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
   }
 
   function _setLoginFieldError(inputId, message) {
@@ -130,8 +183,22 @@ const App = (() => {
   }
 
   function logout() {
-    confirm('Xác nhận đăng xuất?', '', () => {
-      State.mut.clearCurrentUser();
+    confirm('Xác nhận đăng xuất?', '', async () => {
+      // Gọi server-side logout (stateless JWT: chỉ xác nhận, không thu hồi token)
+      const token = sessionStorage.getItem('auth_jwt');
+      if (token) {
+        try {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' },
+          });
+        } catch {
+          // Bỏ qua lỗi mạng khi logout — token đã bị xóa phía client là đủ
+        }
+      }
+      // Xóa JWT khỏi sessionStorage (AC-10)
+      sessionStorage.removeItem('auth_jwt');
+      // Không cần xóa State/localStorage vì State chỉ còn làm cache module demo
       _currentRoute = null;
       _showLogin();
     }, { type: 'info' });
@@ -163,12 +230,11 @@ const App = (() => {
     // Sidebar user info
     const infoEl = document.getElementById('sidebar-user-info');
     if (infoEl) {
-      const level = user.role === 'user' ? State.get.levelById(State.get.userById(user.id)?.levelId) : null;
       infoEl.innerHTML = `
         <div class="sidebar-avatar">${escHtml(user.fullName[0].toUpperCase())}</div>
         <div>
           <div class="sidebar-user-name">${escHtml(user.fullName)}</div>
-          <div class="sidebar-user-role">${user.role === 'admin' ? 'Quản trị viên' : (level ? level.name : 'Nhân viên')}</div>
+          <div class="sidebar-user-role">${user.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</div>
         </div>`;
     }
   }
@@ -186,45 +252,20 @@ const App = (() => {
       roleEl.className    = `user-role-badge ${user.role}`;
     }
 
-    // Role switcher (demo)
-    _buildRoleSwitcher(user);
+    // Ẩn role-tabs (chỉ dùng cho demo — AC-02)
+    const roleTabs = document.getElementById('role-tabs');
+    if (roleTabs) roleTabs.style.display = 'none';
 
     // Điểm mở rộng: chuông thông báo + số việc chờ trên menu (module của Bảo)
     if (typeof HrViews !== 'undefined') HrViews.mountShell(user);
-
   }
 
-  function _buildRoleSwitcher(user) {
-    const wrap = document.getElementById('role-tabs');
-    if (!wrap) return;
-    const allUsers = State.get.users();
-    const admins   = allUsers.filter(u => u.role === 'admin' && u.status === 'active');
-    const staff    = allUsers.filter(u => u.role === 'user'  && u.status === 'active').slice(0, 4);
-
-    let html = '';
-    admins.forEach(u => {
-      html += `<button class="role-tab ${user.id === u.id ? 'active' : ''}" onclick="App.switchDemoUser('${u.id}')" title="${escHtml(u.fullName)}">
-        Admin
-      </button>`;
-    });
-    staff.forEach(u => {
-      html += `<button class="role-tab ${user.id === u.id ? 'active' : ''}" onclick="App.switchDemoUser('${u.id}')" title="${escHtml(u.fullName)}">
-        ${escHtml(u.fullName.split(' ').pop())}
-      </button>`;
-    });
-    wrap.innerHTML = html;
-  }
-
+  /**
+   * @deprecated switchDemoUser chỉ dùng cho demo localStorage.
+   * Đăng nhập thật qua API /api/auth/login — không hỗ trợ chuyển tài khoản không qua xác thực.
+   */
   function switchDemoUser(userId) {
-    const user = State.get.userById(userId);
-    if (!user) return;
-    State.mut.setCurrentUser({ id: user.id, username: user.username, role: user.role, fullName: user.fullName });
-    // Rebuild UI
-    _buildSidebar(State.get.currentUser());
-    _buildTopbar(State.get.currentUser());
-    const defaultRoute = user.role === 'admin' ? 'dashboard' : 'overview';
-    navigate(defaultRoute);
-    toast(`Đã chuyển sang tài khoản: ${user.fullName}`, 'info');
+    console.warn('switchDemoUser đã bị vô hiệu hóa. Vui lòng đăng nhập qua form.');
   }
 
   function closeUserMenu(restoreFocus = false) {
@@ -269,8 +310,14 @@ const App = (() => {
   }
 
   /* ── Router ────────────────────────────────────────────── */
+  // _currentSessionUser lưu user từ /api/me sau khi login thành công
+  let _currentSessionUser = null;
+
+  function _setSessionUser(user) { _currentSessionUser = user; }
+
   function navigate(routeId) {
-    const user   = State.get.currentUser();
+    // Ưu tiên _currentSessionUser (API-backed); fallback về State cho các module demo chưa migrate
+    const user = _currentSessionUser || State.get.currentUser();
     if (!user) { _showLogin(); return; }
     const routes = user.role === 'admin' ? ADMIN_ROUTES : USER_ROUTES;
     const route  = routes.find(r => r.id === routeId);
@@ -311,8 +358,6 @@ const App = (() => {
       main.focus();
     }
 
-    // Update role switcher active
-    _buildRoleSwitcher(user);
     // A route change also dismisses the mobile navigation.
     setMobileNavigation(false);
     closeUserMenu();
@@ -663,19 +708,21 @@ const App = (() => {
     openModal, closeModal,
     confirm, toast,
     resetDemo, refreshTableKeyboardAccess: _syncTableKeyboardAccess,
+    /** Trả về user đang đăng nhập từ phiên API (hoặc null nếu chưa đăng nhập). */
+    getCurrentUser: () => _currentSessionUser,
+    /** Token JWT hiện tại từ sessionStorage. */
+    getToken: () => sessionStorage.getItem('auth_jwt'),
   };
 })();
 
 /* ═══════════════════════════════════════════════════════════
    GLOBAL HELPERS (called from inline HTML)
 ═══════════════════════════════════════════════════════════ */
-function quickLogin(username, password) {
-  const unEl = document.getElementById('login-username');
-  const pwEl = document.getElementById('login-password');
-  if (unEl) unEl.value = username;
-  if (pwEl) pwEl.value = password;
-  document.getElementById('login-form')?.dispatchEvent(new Event('submit'));
-}
+/**
+ * @deprecated quickLogin đã bị xóa. Dùng form đăng nhập với xác thực API thật.
+ * Không hỗ trợ điền mật khẩu demo từ HTML (AC-02).
+ */
+// quickLogin removed — no plaintext passwords in client code
 
 function togglePasswordVisibility(inputId, btn) {
   const input = document.getElementById(inputId);

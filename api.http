@@ -10,3 +10,129 @@ Content-Type: application/json
 ### 2. Lấy danh sách Level
 GET http://localhost:8081/api/levels
 Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ1c3JfYWRtaW5fMDAxIiwidXNlcm5hbWUiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc5MjE2Mzk4NywiZXhwIjoxNzkyMjUwMzg3fQ.G_ig6Am9J5t_hgn6XCpl3kijcNwz9_HqvUtg5oFrsDsJ8hd8gRv6Rxps8-j_9rsM8CcrpS4WF0d8vuZN6HAe0w
+
+### ── Issue #5: Kỳ đăng ký, thời gian rảnh, quy tắc ──────────────────────────
+# Dán token lấy từ request 1 (không commit token thật). Nhân viên đăng nhập bằng tài khoản role "user".
+@base = http://localhost:8081
+@token = <dán-token-vào-đây>
+@periodId = <id-kỳ-trả-về-khi-tạo>
+
+### 3. Tạo kỳ (admin) — giờ nhập theo Asia/Ho_Chi_Minh, luôn ở trạng thái draft
+POST {{base}}/api/periods
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Kỳ tháng 11/2026",
+  "cycle": "monthly",
+  "startDate": "2026-11-01",
+  "endDate": "2026-11-30",
+  "openAt": "2026-10-20T08:00",
+  "deadline": "2026-11-05T23:59",
+  "autoLock": true,
+  "allowReopenByAdmin": true,
+  "requiredDaysOfWeek": [1, 2, 3, 4, 5, 6],
+  "exemptDates": [],
+  "closedDates": [],
+  "applicableUserIds": []
+}
+
+### 4. Danh sách kỳ (admin: tất cả; nhân viên: kỳ đã công bố áp dụng cho mình)
+GET {{base}}/api/periods
+Authorization: Bearer {{token}}
+
+### 5. Công bố kỳ: draft → open
+POST {{base}}/api/periods/{{periodId}}/open
+Authorization: Bearer {{token}}
+
+### 6. Đóng thủ công: open → locked
+POST {{base}}/api/periods/{{periodId}}/lock
+Authorization: Bearer {{token}}
+
+### 7. Mở lại: locked → open (bắt buộc confirm, lý do, hạn mới nếu kỳ tự khóa)
+POST {{base}}/api/periods/{{periodId}}/reopen
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "confirm": true, "reason": "Bổ sung nhân viên mới", "newDeadline": "2026-11-08T23:59" }
+
+### 8. Lưu trữ: locked → archived
+POST {{base}}/api/periods/{{periodId}}/archive
+Authorization: Bearer {{token}}
+
+### 9. Nhân viên: xem đăng ký của mình (editable tính theo giờ server)
+GET {{base}}/api/availability/my?periodId={{periodId}}
+Authorization: Bearer {{token}}
+
+### 10. Nhân viên: lưu nháp (409 nếu kỳ đã đóng)
+PUT {{base}}/api/availability/my?periodId={{periodId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "entries": [
+    { "date": "2026-11-02", "slots": [ { "start": "07:00", "end": "12:00" },
+                                       { "start": "13:00", "end": "17:00", "type": "unavailable" } ] },
+    { "date": "2026-11-03", "slots": [ { "start": "00:00", "end": "23:59" } ] }
+  ]
+}
+
+### 11. Nhân viên: gửi đăng ký (backend kiểm tra lại hạn lúc gửi)
+POST {{base}}/api/availability/my/submit?periodId={{periodId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "entries": [ { "date": "2026-11-02", "slots": [ { "start": "07:00", "end": "15:00" } ] } ] }
+
+### 12. Admin: ai đã gửi / nháp / chưa đăng ký
+GET {{base}}/api/availability/progress?periodId={{periodId}}
+Authorization: Bearer {{token}}
+
+### 13. Admin: tổng hợp khả năng đáp ứng theo ngày
+GET {{base}}/api/availability/summary?periodId={{periodId}}
+Authorization: Bearer {{token}}
+
+### 14. Danh mục tham số quy tắc
+GET {{base}}/api/rules/catalog
+Authorization: Bearer {{token}}
+
+### 15. Giá trị đề xuất từ mẫu V5 (chưa có hiệu lực)
+GET {{base}}/api/rules/templates
+Authorization: Bearer {{token}}
+
+### 16. Xem trước thay đổi quy tắc (chưa lưu gì)
+POST {{base}}/api/rules/changes
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "reason": "Cấu hình ban đầu",
+  "items": [
+    { "paramKey": "target_hours", "value": "60" },
+    { "paramKey": "max_hours_mode", "value": "percent" },
+    { "paramKey": "max_hours_percent", "value": "125" },
+    { "paramKey": "max_hours_per_day", "value": "12" },
+    { "paramKey": "max_hours_per_week", "value": "48" },
+    { "paramKey": "min_rest_hours", "value": "8" },
+    { "paramKey": "max_consecutive_days", "value": "6" }
+  ]
+}
+
+### 17. Áp dụng bản xem trước (thay <changeId> bằng id trả về ở request 16)
+POST {{base}}/api/rules/changes/<changeId>/apply
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "confirm": true }
+
+### 18. Quy tắc có hiệu lực của nhân viên (giá trị, nguồn, giờ tối đa suy ra, checklist thiếu)
+GET {{base}}/api/rules/effective?userId=nv001
+Authorization: Bearer {{token}}
+
+### 19. Kiểm tra đủ cấu hình trước khi xếp lịch cho kỳ
+GET {{base}}/api/rules/readiness?periodId={{periodId}}
+Authorization: Bearer {{token}}
+
+### 20. Lịch sử thay đổi quy tắc
+GET {{base}}/api/rules/changes
+Authorization: Bearer {{token}}

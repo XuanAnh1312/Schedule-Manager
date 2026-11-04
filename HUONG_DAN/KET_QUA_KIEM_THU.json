@@ -1,0 +1,117 @@
+{
+    "generatedAt":  "2026-11-04T11:15:42.9932515Z",
+    "baseCommit":  "445574205d5737863be1a463d67eb59ec6e2ec19",
+    "jarSha256":  "DD753BC0B3466F09B6E02D07EE8136290B9070A39F4C1C4C7DEF09BC8395997F",
+    "sourceManifest":  "BANG_BAM_MA_NGUON.json",
+    "automatedResult":  "PASS",
+    "java":  {
+                 "errors":  0,
+                 "tests":  355,
+                 "failures":  0,
+                 "skipped":  0,
+                 "log":  ".local-test/moc-a-current-tests.log",
+                 "result":  "PASS"
+             },
+    "http":  {
+                 "scenarioGroups":  20,
+                 "result":  "PASS",
+                 "proof":  [
+                               "Tạo nhân viên và đăng nhập JWT thật",
+                               "Mở kỳ và lưu đăng ký vào SQL Server qua API",
+                               "Preview/xác nhận rules và tự tính 60 × 125% = 75",
+                               "Chấm công ca đang diễn ra qua JWT thật; chặn check-in trùng",
+                               "Dry-run không công bố lịch; backend chặn đăng ký sau khóa",
+                               "Nháp → duyệt → công bố; không archive kỳ khi còn nháp",
+                               "Đổi chéo ca chính thức và duyệt lặp không đổi lần hai",
+                               "Nghỉ được duyệt gỡ phân công chính thức",
+                               "Hai request duyệt đồng thời tranh chỗ cuối: chỉ một request thành công",
+                               "Báo cáo lịch và báo cáo công cùng tổng giờ",
+                               "API chặn vượt quyền và đọc báo cáo người khác",
+                               "Công bố / đổi ca sinh thông báo thật qua outbox",
+                               "Tài khoản bị khóa không tiếp tục dùng được token cũ",
+                               "Archive và tạo phương án đồng thời: một thao tác thắng, không lưu trữ kỳ có phương án nháp (3 lượt)",
+                               "Hồ sơ liên hệ/tổ chức bền vững; phân trang, version và chống giả userId/branchId",
+                               "Đổi mật khẩu thật, kiểm tra mật khẩu cũ và không đổi tài khoản do client chỉ định",
+                               "CRUD Level, lưu trữ nhân viên, vô hiệu hóa tài khoản và audit before/after không lộ mật khẩu",
+                               "Duyệt yêu cầu cạnh tranh sửa lịch: chỉ một giao dịch thắng, không ghi đè lịch mới",
+                               "Không đánh dấu đọc được thông báo của người khác",
+                               "Check-out, duyệt công, sửa/duyệt điều chỉnh và khóa kỳ; dữ liệu không lẫn giữa các kỳ"
+                           ],
+                 "at":  "2026-11-04T11:09:38.114Z"
+             },
+    "browser":  {
+                    "at":  "2026-11-04T11:10:30.179Z",
+                    "cssZoom":  1.25,
+                    "deviceScaleFactor":  1.25,
+                    "proof":  [
+                                  "Admin: 13 màn hình + modal tại 320px",
+                                  "Admin: 13 màn hình + modal tại 360px",
+                                  "Admin: 13 màn hình + modal tại 390px",
+                                  "Admin: 13 màn hình + modal tại 768px",
+                                  "Admin: 13 màn hình + modal tại 1024px",
+                                  "Admin: 13 màn hình + modal tại 1280px",
+                                  "UI quy tắc: xem trước tác động rồi xác nhận áp dụng",
+                                  "Chấm công dùng chung JWT, không đăng nhập lần hai",
+                                  "Chấm công sau đăng nhập: đủ 6 viewport",
+                                  "Tạo/mở kỳ qua UI và tải lại vẫn đọc dữ liệu từ backend",
+                                  "Nhân viên gửi availability qua UI; đăng nhập lại/tải lại đọc được dữ liệu SQL",
+                                  "Employee: 7 màn hình tại 320px",
+                                  "Employee: 7 màn hình tại 360px",
+                                  "Employee: 7 màn hình tại 390px",
+                                  "Employee: 7 màn hình tại 768px",
+                                  "Employee: 7 màn hình tại 1024px",
+                                  "Employee: 7 màn hình tại 1280px",
+                                  "DPR 1.25 và zoom 125%: navigation/form/modal không tràn",
+                                  "AC-10: hồ sơ/kỳ/rules/lịch/yêu cầu/nghỉ/ca trống/công/báo cáo giữ nguyên sau refresh, logout/login và trình duyệt độc lập",
+                                  "Keyboard: mở modal bằng nút và đóng bằng Escape"
+                              ],
+                    "cssViewports":  [
+                                         320,
+                                         360,
+                                         390,
+                                         768,
+                                         1024,
+                                         1280
+                                     ],
+                    "result":  "PASS",
+                    "runtimeErrors":  [
+
+                                      ]
+                },
+    "frontendHost":  {
+                         "result":  "PASS",
+                         "proof":  [
+                                       "Public asset allowlist; repository, secrets and demo files return 404; API health and auth statuses are preserved",
+                                       "Frontend 8083 -\u003e backend 8082: real login, shared JWT attendance iframe and 390px viewport"
+                                   ],
+                         "at":  "2026-11-04T11:10:35.386Z"
+                     },
+    "backupRestore":  {
+                          "at":  "2026-11-04T11:13:48.6122422Z",
+                          "sourceDatabase":  "ScheduleManager_MocA_Test_20261104_180724_405",
+                          "tableCounts":  {
+                                              "assignments":  6,
+                                              "domain_events":  16,
+                                              "notifications":  22,
+                                              "flyway_schema_history":  18,
+                                              "users":  4,
+                                              "attendance_records":  1,
+                                              "periods":  6,
+                                              "shifts":  7,
+                                              "history":  74
+                                          },
+                          "restoredDatabase":  "ScheduleManager_MocA_Test_Restore_20261104_181339_137",
+                          "verifyOnly":  "PASS",
+                          "checkDb":  "PASS"
+                      },
+    "manualAcceptance":  {
+                             "windowsSystemDpiObserved":  96,
+                             "note":  "Browser DPR/zoom does not replace actual Windows Display Scale acceptance.",
+                             "criterion":  "AC-09",
+                             "windowsDisplayScaleNon100":  "PENDING"
+                         },
+    "milestoneAComplete":  false,
+    "reviewFilesDeleted":  false,
+    "completionPercent":  93,
+    "completionBasis":  "13/14 acceptance criteria closed, rounded; actual Windows Display Scale remains pending"
+}

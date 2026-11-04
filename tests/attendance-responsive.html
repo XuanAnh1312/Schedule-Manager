@@ -1,0 +1,20 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>Issue 8 responsive checks</title>
+<style>body{font:16px system-ui;margin:16px;background:#f1f5fb}iframe{display:block;border:2px solid #888;height:680px;background:white}button{margin:8px;padding:10px}#out{white-space:pre-wrap}</style></head><body>
+<h1>Responsive smoke · chấm công</h1><p>Khởi động HTTP server; chạy kiểm thử ở origin riêng, không thay localStorage của ứng dụng demo.</p>
+<button id="start">Kiểm tra 320, 360, 390, 768, 1024, 1280 px</button>
+<pre id="out" role="status"></pre><iframe title="Kiểm tra cổng chấm công" src="../attendance.html" id="frame" width="320"></iframe>
+<script>
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+document.getElementById('start').onclick=async()=>{
+const frame=document.getElementById('frame'),out=document.getElementById('out');out.textContent='';
+for(const width of [320,360,390,768,1024,1280]){
+frame.width=width;await wait(350);
+const doc=frame.contentDocument,html=doc.documentElement;
+const overflow=html.scrollWidth>html.clientWidth+1;
+const login=!!doc.querySelector('#login-form input[name="username"]');
+const labels=[...doc.querySelectorAll('#login-form input')].every(input=>input.closest('label'));
+out.textContent+=`${width}px: ${!overflow&&login&&labels?'PASS':'FAIL'}; overflow=${overflow}; login=${login}; labels=${labels}\n`;
+}
+out.textContent+='\nKiểm tra thủ công tiếp: browser zoom 200%, Windows Scale 125%/150%, keyboard Tab/Escape và modal.\n';
+};
+</script></body></html>

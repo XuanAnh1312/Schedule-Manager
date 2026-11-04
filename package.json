@@ -1,0 +1,10 @@
+{
+  "name": "schedule-manager-browser-tests",
+  "private": true,
+  "scripts": {
+    "test:http": "node tests/moc-a-http.mjs",
+    "test:browser": "node tests/moc-a-browser.mjs",
+    "browser:install": "playwright install chromium"
+  },
+  "devDependencies": {"playwright": "1.64.1"}
+}

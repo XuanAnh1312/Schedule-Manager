@@ -1,0 +1,1045 @@
+﻿{
+    "at":  "2026-11-04T11:10:38.7689995Z",
+    "jarSha256":  "DD753BC0B3466F09B6E02D07EE8136290B9070A39F4C1C4C7DEF09BC8395997F",
+    "baseCommit":  "445574205d5737863be1a463d67eb59ec6e2ec19",
+    "sourceFiles":  [
+                        {
+                            "sha256":  "8C483462EC2F77075138FE6CCF2D70C08B513292D3D1A4DFC24CF99D09F02CC0",
+                            "path":  "css\\attendance.css"
+                        },
+                        {
+                            "sha256":  "1D2C863F7FDE072340662F79250D0274E62DEEAD9AEEC888B4EDA9BADC761DFE",
+                            "path":  "css\\hr-module.css"
+                        },
+                        {
+                            "sha256":  "8B5E32131813125AC0651880135E763503D89A95F4EBD1F07C6D70B1057A70E9",
+                            "path":  "css\\styles.css"
+                        },
+                        {
+                            "sha256":  "10CD3749612E3AC5D20A18014F25616118C30CC82FBA14260CB1BC6BA5EA5A84",
+                            "path":  "css\\workspace.css"
+                        },
+                        {
+                            "sha256":  "16BBC980E68A74F88DF651B94CA4129F089B951433F262E47D042C1EFDE9F1DC",
+                            "path":  "HUONG_DAN\\CHAY_BACKEND.bat"
+                        },
+                        {
+                            "sha256":  "E2C4FB10B4A169F9539B2744A88B2038370CA7AA09BDAE7495B9565BEF9137F4",
+                            "path":  "HUONG_DAN\\CHAY_FRONTEND.bat"
+                        },
+                        {
+                            "sha256":  "07ECDEDA22F2D7205546EA5A00D76671D68080F0AAEB5A241E9479B6F9A03856",
+                            "path":  "HUONG_DAN\\frontend-server.mjs"
+                        },
+                        {
+                            "sha256":  "B748EB257BBF3C9B49C8E9FB7CBDDD0298243A15CCD92DC54F6476464016DA8D",
+                            "path":  "js\\admin.js"
+                        },
+                        {
+                            "sha256":  "AD202F5C1741F90055448884DB6D5F38978D6ABEBAA5C0BC4603D5E51F8DFB54",
+                            "path":  "js\\admin2.js"
+                        },
+                        {
+                            "sha256":  "02F1DE68CCF45B0E5078727CFC6268C2B9B0045BCCA60F0AAD13C384749FF804",
+                            "path":  "js\\admin3.js"
+                        },
+                        {
+                            "sha256":  "86F450352D9F59522D5D7BFA5D52072626F2E1D1B977BE577452C72BDE8DE573",
+                            "path":  "js\\app.js"
+                        },
+                        {
+                            "sha256":  "BFEC7D5493C0A01FEA80673C9A0FF4F25CCCDB106506F5C063A3247875313619",
+                            "path":  "js\\attendance-entry.js"
+                        },
+                        {
+                            "sha256":  "8BB42ABD8520DF463A3BD07BF47BE2C4C591FE1CD0711CE72819060B29C17177",
+                            "path":  "js\\attendance-portal.js"
+                        },
+                        {
+                            "sha256":  "6DCEAD82BE9536C099D3DAFE88519F0EC6121ABD6FC26776A11B063D229155F4",
+                            "path":  "js\\bootstrap.js"
+                        },
+                        {
+                            "sha256":  "A835EE9EC4715227582D248E1257D1724BC1133E0A8429B6DDD748BCD116E961",
+                            "path":  "js\\hr-store.js"
+                        },
+                        {
+                            "sha256":  "3C69C819E8CB9071D1333D71977E98C87B7F30CD99DE86E220238CC5DC30EF6D",
+                            "path":  "js\\hr-views.js"
+                        },
+                        {
+                            "sha256":  "6372DAEB08398944965F7F7B306B6C84E7B7B9F64BE97FC1BB72461CAAD2FD37",
+                            "path":  "js\\scheduler.js"
+                        },
+                        {
+                            "sha256":  "616ED669A2CE204437ECBC0F97657FF0AE4458830E46933965FE9C17BAECCB7E",
+                            "path":  "js\\state.js"
+                        },
+                        {
+                            "sha256":  "5E53250B85619AF8C3116EFBD590A7A9C08F7528E4E264C1EC414E3C1A84EA07",
+                            "path":  "js\\storage.js"
+                        },
+                        {
+                            "sha256":  "5836768C06F811BFB572F8180124DC2221FD9EB65AAC94D22B4B391A33E36BEA",
+                            "path":  "js\\user.js"
+                        },
+                        {
+                            "sha256":  "7278E670993DA3963A7ADD8809333128F2C8E23AAE92F207710AC0DD8EB8FA36",
+                            "path":  "js\\validation.js"
+                        },
+                        {
+                            "sha256":  "296F6E2BD0554FC60210A2FDD9A5A0FA79A03C82A16F5719BF0224CE2EC74FFB",
+                            "path":  "js\\workspace.js"
+                        },
+                        {
+                            "sha256":  "4E460483D67687C703C2D32F6225BC0681553C540A306A492B98528F1A2D33B4",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\attendance\\AttendanceController.java"
+                        },
+                        {
+                            "sha256":  "8DCBF56A91370352B6E94192D391437E88E7A569E4C8DDB9D7A058879D1D92E8",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\attendance\\AttendanceErrorAdvice.java"
+                        },
+                        {
+                            "sha256":  "0F38E62676A22EF52072A0DB7497634149DAFA097025811F6D2FFCBEF92BA0EA",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\attendance\\AttendanceMath.java"
+                        },
+                        {
+                            "sha256":  "4E9367FD22A9B3BE386C88535F498E0952111D9510B4B8D4727C685F74D5251B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\attendance\\AttendanceService.java"
+                        },
+                        {
+                            "sha256":  "F1487C22910A2422BA235AEFBC309830E257DC3CFA42DD587DFB70E66194BC0F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\AuthController.java"
+                        },
+                        {
+                            "sha256":  "96BA36A4E2361E7581FDA959334381933AF01708CBCFEC59E8E32C09BABE0070",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\AuthService.java"
+                        },
+                        {
+                            "sha256":  "D581651650CCAA5E5DAB0FEEDB588D4F4BFC2685308C8E8B2AA27F060EC581D9",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\ChangePasswordRequest.java"
+                        },
+                        {
+                            "sha256":  "297B5C541E9BC19DC45CFFE7542CF532A9F1624F05B88B7BB9E57AF18EA5CBF7",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\LoginRequest.java"
+                        },
+                        {
+                            "sha256":  "088EC92BAACD2DAB7FDE25763F4064DCCA74819BB9A7F02FE2C09C0BB1FD3791",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\LoginResponse.java"
+                        },
+                        {
+                            "sha256":  "C30E0AA932FDAC48FBECF8A85B5776209BDCE4B79E946E1979B0B7286E39A056",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\availability\\AvailabilityController.java"
+                        },
+                        {
+                            "sha256":  "0D2F58F2D3DC83D8C5D1C11814C45C0DE171A5D6A9DE859339163518F360FDFE",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\availability\\AvailabilityModels.java"
+                        },
+                        {
+                            "sha256":  "4F783D12910A488AE1C9988444E2449951BA58A069D1C0E1622D6E1278903E82",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\availability\\AvailabilityRepository.java"
+                        },
+                        {
+                            "sha256":  "C509A759399EF643689F7234D673EED2227FDF6E294FF9990973191A3B6B561C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\availability\\AvailabilityService.java"
+                        },
+                        {
+                            "sha256":  "7BB43C8E67F31FE2E455A748396CC5AF2218E34EEC355EBF15EB14E2558E6325",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\health\\DatabaseHealthController.java"
+                        },
+                        {
+                            "sha256":  "813DE288612B6AB907B34EC61F40C7423B9081481C7420672E64FC811A0BEB48",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\health\\HealthController.java"
+                        },
+                        {
+                            "sha256":  "8CE303498518F27D54548C61B63DB7B49F58479717B72AF94DB23114E3655C92",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveController.java"
+                        },
+                        {
+                            "sha256":  "E6B8D9DBD9F536ED139582A8621BE2017DA3E74D66C028F730B334373C8916EB",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveImpact.java"
+                        },
+                        {
+                            "sha256":  "BED22AB35148A08911921840F3BE9DE00183D3C853CEA36491F6839D64EE928C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveRepository.java"
+                        },
+                        {
+                            "sha256":  "592FB7825647118CA3C58C640504F4AE890B2A8C33B3304E890A65072C6553CE",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveService.java"
+                        },
+                        {
+                            "sha256":  "9A2F657B9412745F8AD6611927A9E4877F7AF73ED92B5430109D1DCDF2A14E33",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveType.java"
+                        },
+                        {
+                            "sha256":  "3F499AB778A4B60AC303717E4DBAF2D99F34647B3C38DBB2905B2C99BB9F617F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveView.java"
+                        },
+                        {
+                            "sha256":  "C07F063CFC48C5C859AA11703E57EDF4FC895A97B56C700EC5AD81F60C472DF9",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\levels\\LevelController.java"
+                        },
+                        {
+                            "sha256":  "8317D0BCD0DA75316181C2CCD93B11562BA03300B4E5A3F82BD77F37E4CC8C7B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\levels\\LevelRepository.java"
+                        },
+                        {
+                            "sha256":  "7DE3FDC25D49E02425234175531AF03E787FED0775026283A53C2A5FBDFFFE01",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\levels\\LevelResponse.java"
+                        },
+                        {
+                            "sha256":  "F65E00C6CDAFF07004C272C2586C707480B9CFADDD9DF6635F358E15C4CBEFF6",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\DeadlineReminderJob.java"
+                        },
+                        {
+                            "sha256":  "BDF8CA0A9F7D015D9F6E49333011F8DD7C770D97FA01A02170122881DB3C885A",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationController.java"
+                        },
+                        {
+                            "sha256":  "1AFB8BD700368B0B72E43D0D9D8EABC741088C5547535B0BD48EB1D53BB0EF2C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationPage.java"
+                        },
+                        {
+                            "sha256":  "D11DB475758CA4DE2DAD59BEEF9CEF32F9DEAC34B18F0079B05FD87A9F30A57A",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationRepository.java"
+                        },
+                        {
+                            "sha256":  "39EC618FF752480D3CF7D845B91DD1667AAC8AEE057805A2AD9B22E2C4F9501C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationService.java"
+                        },
+                        {
+                            "sha256":  "0E93B4AE609CED1091071528895B406452B3D0803EBC18AC1D144063EB9CFC57",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationSettings.java"
+                        },
+                        {
+                            "sha256":  "CEB96656531CCC9CC02A55AD0CC3F28AFDE9526C2FD096F0CB4995E292A50E76",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationSettingsRepository.java"
+                        },
+                        {
+                            "sha256":  "BED6083361FABC97867B749CB623A719EC866FC4F5854103CE037E3A46264216",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationView.java"
+                        },
+                        {
+                            "sha256":  "9B7827527673C7B20BB872A615472E508F66C447F874F971AF441F651F474865",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\ClaimView.java"
+                        },
+                        {
+                            "sha256":  "6665688E66707E2C84D2E8199FBDF31B6DF462B6A2E08162C995AC0365C78AC7",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\OpenShiftController.java"
+                        },
+                        {
+                            "sha256":  "CE940A04B7C9C22C3A2C8F93443480D48CA4B76366C827840C5E66ADACBB688D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\OpenShiftRepository.java"
+                        },
+                        {
+                            "sha256":  "33ACB86CA2176EFDF04832CF9D48ECF5C25F75FA851C39F9B26BB75CC0EFE975",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\OpenShiftService.java"
+                        },
+                        {
+                            "sha256":  "E685D65D621B8AB8A6A4DC15839F56D9F973A0464A31087301E9C6B4CC7FABAA",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\OpenShiftView.java"
+                        },
+                        {
+                            "sha256":  "5FA0F0F13D2389753659145FCA43E2E3E950B2DEBBA3539917A98BE7CCAD834F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodActionRequest.java"
+                        },
+                        {
+                            "sha256":  "9A924C863D6514B775FFF791CD33736696EC57F5C0E08F7B6FF0E2F0449B4A02",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodAutoLockJob.java"
+                        },
+                        {
+                            "sha256":  "E5CB968AE96A415EDECD8A0BE94F9FAF903D04935AEDFE92A914F9E7D430F827",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodController.java"
+                        },
+                        {
+                            "sha256":  "1288DD6DDE887E5236E209542D171A65199276B89A1630B7B793DD8618A7791D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodRecord.java"
+                        },
+                        {
+                            "sha256":  "9979569EB127AC77EF3F51D54A410386AAE6E613E2F5C46DDC8CAE2B756FB0FB",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodRepository.java"
+                        },
+                        {
+                            "sha256":  "F93C7A157C3EB4EADBBF7FF5541843AB29F69140B7CD9C3AAA54554FD8B8A304",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodRequest.java"
+                        },
+                        {
+                            "sha256":  "42106515D945DF19466E54EEFF971AC55D75F60F69661913C1B192D572BCE9EB",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodService.java"
+                        },
+                        {
+                            "sha256":  "48F1471B5CA69939A32B929DCD0221E299BB480949FEBB9978A241599E29C9CC",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodStatus.java"
+                        },
+                        {
+                            "sha256":  "96D31379907E72E24111E9086A010C6119518717E107B4897B704028077D6464",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodView.java"
+                        },
+                        {
+                            "sha256":  "7B9CB8B770DCB8DCB4F2345A6A8AD21E0C328C9C04193E6108A7045B95D27B1A",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\RegistrationWindow.java"
+                        },
+                        {
+                            "sha256":  "DA51DEAA06DCAF847D87F43D83938F58BC20C13B965A6BD7D8F48600DE7521F5",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\SchedulePlanGate.java"
+                        },
+                        {
+                            "sha256":  "FF094C752AC9DBC5850E992C51354D4C49671DAA403135DA176A8AD7383B66DF",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\report\\ReportController.java"
+                        },
+                        {
+                            "sha256":  "60B004693C1A295A65D82C14410556E58B4BF79E7429A8F257DF6F82D84CDBAD",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\report\\ReportService.java"
+                        },
+                        {
+                            "sha256":  "02F8617D8ECE669867A9E1B3FEF8BD00411D47D2798C3EB8931383392F358D92",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\PendingSummaryController.java"
+                        },
+                        {
+                            "sha256":  "479B96074873C6CD17D30F8E1C11D67D48BF755B9485014F9DB8F04E2F346AFB",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestController.java"
+                        },
+                        {
+                            "sha256":  "D3F2AF2229A60DCD2F24453C8DCBFE07A02ED55A86D3BEF9D12B1BFC8435233C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestRepository.java"
+                        },
+                        {
+                            "sha256":  "B881F0F47442B299126182756307ECD6F2C70D83001F4A91A2C33040B36158E3",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestService.java"
+                        },
+                        {
+                            "sha256":  "D90A8F1D3C480F62800ACD0ED2C4D4FB4B869E5993AE36940CB7CC9D9FDD8F44",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestStatus.java"
+                        },
+                        {
+                            "sha256":  "94273B696F6576ADF5F81663E3E5551E2F5E9200184DCC28A8E2603E0278C848",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestView.java"
+                        },
+                        {
+                            "sha256":  "A6BA3E6C5BD2421F76DB2BB6A0D224578408030DCCE026519D6735AE00463F1C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftSummary.java"
+                        },
+                        {
+                            "sha256":  "0846E8091317D8B54BBA25F42FC92B344C6E855EB347F038B015338E0544BE35",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\EffectiveRuleResolver.java"
+                        },
+                        {
+                            "sha256":  "A4860A8C9C14833BC10259934518FBB20D933C7BA00E09766E39C34C02468560",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleController.java"
+                        },
+                        {
+                            "sha256":  "BB67889E09CC64909C17431DAAF191270D2B3140DC163695BD92C5F3F1CB4D6C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleModels.java"
+                        },
+                        {
+                            "sha256":  "66F59E868322ACEA3B3D9E3844AF626C20584FC84B12FEAE8F8399EBE8EF6A96",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleParameter.java"
+                        },
+                        {
+                            "sha256":  "C93B6D046D7F107B820834E8E275A062F2CB25E8A16F0D2271D5494A8B223802",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleRepository.java"
+                        },
+                        {
+                            "sha256":  "9785E98088DE307692D5879B260B8F593BF0D5227E88A5B886A51D093B37BC08",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleScopeType.java"
+                        },
+                        {
+                            "sha256":  "E1FA75B4F0E5187022BB4A890B183D8DB23E4C2B62707C3E0587E12204549AC4",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleService.java"
+                        },
+                        {
+                            "sha256":  "27F5D9795FEA0BEF40E541C92949F8DF972B3D6C4E0E9DC8FFC50AB1DB9B53D7",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\ApiException.java"
+                        },
+                        {
+                            "sha256":  "70AEDC0C2A56FAFCEBFA56387EBA4701CB29A5ADC24ECAC15885801D1F994C7E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\ApiExceptionHandler.java"
+                        },
+                        {
+                            "sha256":  "F60ECD4D3A679E7EB94D36458A4DB25A21D8E7EDC0F4EAB67AEA8F525CCD3283",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\AuditTrail.java"
+                        },
+                        {
+                            "sha256":  "7A9FBD575AD28792244BDFF30B53B2DA027C0884A88A375643F4B679FB2B2E84",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\BusinessTime.java"
+                        },
+                        {
+                            "sha256":  "92934CDAEEE79FBB54ACB73BEB660954BAC6EE03E2D2BCE326DBEF169E5F172F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\CurrentUser.java"
+                        },
+                        {
+                            "sha256":  "FE6F55E6BDFC2E226F85BD6277DBC5841688CC058F4D77B8E8B17D2F3A17AA45",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\FoundationController.java"
+                        },
+                        {
+                            "sha256":  "6A8113570C391AB8164972A8B01301C1C02FC88086FE854A8099B84770B1D122",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\IdentityGuard.java"
+                        },
+                        {
+                            "sha256":  "D501E59862E9BF87089DC3DBD89EDF743B85B7F1A74DAB6EAEB45451927C72A4",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\Ids.java"
+                        },
+                        {
+                            "sha256":  "A063CF70F66BE96568B480C77673815EDD937A7EC8E3A1A0EC98BEF2E1290090",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\SchedulingSetupExceptionHandler.java"
+                        },
+                        {
+                            "sha256":  "66E5E94299F9332D39CB382629F419D3956BFE21B56CEAD0AFEC0A0064A1E7B8",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\TimeConfig.java"
+                        },
+                        {
+                            "sha256":  "04884D047C09356309BEBF4BCB171735802A348B0751C439BF1145288FA849F0",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\UserDirectory.java"
+                        },
+                        {
+                            "sha256":  "894605099407A7223E63657668FECE18FD283341E1DC2566CFCA604ACE38F305",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\WorkspaceController.java"
+                        },
+                        {
+                            "sha256":  "986076509851D0F2C694AE2EC9C4F4A12A2153A398263353370E4127B2B0C5D6",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\WorkspaceDirectory.java"
+                        },
+                        {
+                            "sha256":  "D59806A542ACDD9674B6EEF744DCCD90BB61E46AFEDB75F03A9A5E9112F225FD",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\common\\WorkspaceResources.java"
+                        },
+                        {
+                            "sha256":  "CA641B4D05F104E38C2B49337C871A12A5FC5F3D8CA73C455CA057A78C149A71",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\DomainEvent.java"
+                        },
+                        {
+                            "sha256":  "79AD4C6E7C6E5890D34F6904240513E96CE13CD19086F5A97E50A49DD6CEDDAF",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\DomainEventPublisher.java"
+                        },
+                        {
+                            "sha256":  "53053081F20310B2B1E595333D7A94BB9B0F6D65FF0A59F08A02F3F42B3AD5A2",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\EventTypes.java"
+                        },
+                        {
+                            "sha256":  "DF7A934ACF9BB4476D79E7FA9E115AFC1D024CA200F4FFDA3C1E2B9609061459",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\OutboxDispatcher.java"
+                        },
+                        {
+                            "sha256":  "1E83DA08E861754E6730DF16DB35CA4B79FB5D9ECCCC9EC98E5D57421537E4AC",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\SchedulingConfig.java"
+                        },
+                        {
+                            "sha256":  "3C229A2558AF2ADAD72984A50BF3B91978C4B838178AF4D6EFD7D83E246E817C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\AssignmentInfo.java"
+                        },
+                        {
+                            "sha256":  "07B9DF945C209256A940B8BE8BF99F6940138C78EF51910B60D2A9318040C73B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\AssignmentMutationService.java"
+                        },
+                        {
+                            "sha256":  "5D81FA9C92999CD441FB75FDA03BB34247E5E8E9BB6011B45873EAFD407C672C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\AssignmentValidationService.java"
+                        },
+                        {
+                            "sha256":  "1918AC38D4CFFEBAAF44415D355A3BED9F41985512F46980FD3642D867DFC98D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\InterimJdbcScheduleAdapter.java"
+                        },
+                        {
+                            "sha256":  "CE7F357941AE97720DFFDFDB1FF7C3F35030226AF54C480F074744FFB56AA039",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\OfficialJdbcScheduleAdapter.java"
+                        },
+                        {
+                            "sha256":  "FC15424589181A5E2F8D7D02CC30D23B2B430A1A040C60E2BC61CD5A2F27B99C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\ShiftInfo.java"
+                        },
+                        {
+                            "sha256":  "3CC8F3A7A2D774B66FA743D6CF3954696E5EB260142C837131371DCDCA9DEBB8",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\Violation.java"
+                        },
+                        {
+                            "sha256":  "8FE9EEA3026E30696FFA1CF47A2DE2B0DF8B6D1602E0A8ABD9D565BC15322A7E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\user\\UserRecord.java"
+                        },
+                        {
+                            "sha256":  "CEB4EF270C9BB4FAF869B6B1ADD7190404AE603FD6AC798B0E0331E8DCD140D9",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\domain\\user\\UserRepository.java"
+                        },
+                        {
+                            "sha256":  "DC3B9D8E80B5B886E59C26286F0D1E36DC1C0DBF18A91FF5413FF90A0CD0F9EF",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\ManageSchedule.java"
+                        },
+                        {
+                            "sha256":  "08041527C208A661F86462B05115D9EF16B92E184B24B3699BB44545CD17CD07",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\calendar\\CalendarController.java"
+                        },
+                        {
+                            "sha256":  "537D98999C958FAB12B6618CF1FE5573CCC17A4D9B5355EB46E81C3234B3F234",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\calendar\\CalendarRepository.java"
+                        },
+                        {
+                            "sha256":  "27B7588B46EB567235800668153FA414A82BD17822883FA9503C915FB7B2DB55",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\calendar\\CalendarService.java"
+                        },
+                        {
+                            "sha256":  "60130794C34C722D6B200348D890801F17BA175FACE74FAC70732CF377A20461",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\catalog\\CatalogController.java"
+                        },
+                        {
+                            "sha256":  "DEADCA00B0C84DF1470066DF26170ED74BA9B2E4D668ABB92DDC95DA8BEC37EF",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\catalog\\CatalogRepository.java"
+                        },
+                        {
+                            "sha256":  "93BCB3020C94F2AA9CF75ADEAEB7B31F26FF5AC258DA02A89025A21B3B6B52A0",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\engine\\EngineResult.java"
+                        },
+                        {
+                            "sha256":  "FAF6F3F07AF7EBAE385D82888E766A28ED13F8529B6A3FE415711F6EBC91D6F2",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\engine\\ScheduleEngine.java"
+                        },
+                        {
+                            "sha256":  "3576ECBBE0A0CD53E9BCA9BDEA25A05C4B2CD58B55D98D603DB4B6150F4568C9",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\events\\ScheduleEvent.java"
+                        },
+                        {
+                            "sha256":  "01EF74BB2F2796E853788DD7630A5BD08D97EFD77E739713C5045F569267ACFC",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\events\\ScheduleEventSink.java"
+                        },
+                        {
+                            "sha256":  "A5285BCD6C58CC21920442FD20C5DFCC4EDA610B653F98B2965414A8D985BB35",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\events\\SpringScheduleEventSink.java"
+                        },
+                        {
+                            "sha256":  "27408AA8B1E414880B420C471E423AB6FFE06FD41F8A6EC5C005E88E5FD9228E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\exception\\ExceptionRepository.java"
+                        },
+                        {
+                            "sha256":  "0E03B5F0F03828BAA105B62324D6502285A2D7D86FC2E9A2EC98D3B67FEFA730",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\exception\\ExceptionService.java"
+                        },
+                        {
+                            "sha256":  "465FC288552D0FF8E281786B3A43017DE89B74DDD97E1234778C622FB5ADB273",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\Assignment.java"
+                        },
+                        {
+                            "sha256":  "DFECA0521F865BE68252405C5914B270FB49C37326451A3C7D02365416D427B5",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\Employee.java"
+                        },
+                        {
+                            "sha256":  "665D39105B83C4F6AC027674ADFA6EE77B76812B957955E680F62B6E152C6981",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\Period.java"
+                        },
+                        {
+                            "sha256":  "A27BCC724203E9401E968AC563392A6A67BBCBB7990014B6F3AFCEBD61703D76",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\ScheduleContext.java"
+                        },
+                        {
+                            "sha256":  "9CF025980CDF7D6019FC78D413BFDF1E8703A842B4B5DCD4DD895451BD4616C5",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\ScheduleRules.java"
+                        },
+                        {
+                            "sha256":  "CBEA5A3FEF5D0FD0559563EB24B8729F40E115CCCD912E2ABE4CE455C49DCA78",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\ShiftInfo.java"
+                        },
+                        {
+                            "sha256":  "C506785D69CD04187F6E764741D1A97AAE9A9167E801DC8343BB314E20714C40",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\TimeRange.java"
+                        },
+                        {
+                            "sha256":  "FB866CEE2875CFA5924304DE711A455280B74648F3F59452A84B916B04DF345B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\UserAvailability.java"
+                        },
+                        {
+                            "sha256":  "5634FED89A0D6A0F8F7A78734346D100D376970091E9D6B1BAA2685FDDF8FD98",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\official\\OfficialScheduleController.java"
+                        },
+                        {
+                            "sha256":  "21FED5D40CA106D9553B62D6222550405ED4490CEF49267540B955FC0115BB18",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\official\\OfficialScheduleRepository.java"
+                        },
+                        {
+                            "sha256":  "E52D6184E80675A4BDB21F280BE35F84984D1C1FBF5A2C9338F5C53059BD45F3",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\official\\OfficialScheduleService.java"
+                        },
+                        {
+                            "sha256":  "5F739E2EBB112E41BC37235E75E5AC403C62D4BFBB26BD79A485462CF21537CF",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PeriodPlanGate.java"
+                        },
+                        {
+                            "sha256":  "715091454245E423B42ECF073E6DA90CAB1E1D428EC9DF58AB3DE236EB9EC57E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanController.java"
+                        },
+                        {
+                            "sha256":  "98F85E600A91ADF05F2A0A52F157C5EE86F381CF7AB70EB3A7907F090D5B3B1D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanEditService.java"
+                        },
+                        {
+                            "sha256":  "95A3B6E1A489793F9C99B8AF5AAF529E73CA2A9C8714FA37242E3CD3A5214EEE",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanException.java"
+                        },
+                        {
+                            "sha256":  "7DAE1A4ACD3A4F94584A66C1B8D43F43F468EA9537823C3654CFF34AEFB7BA8D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanRepository.java"
+                        },
+                        {
+                            "sha256":  "7DD85273B25D98B736012091B2F34359C39B961115D53FCB8B543AB075167588",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanService.java"
+                        },
+                        {
+                            "sha256":  "49E930B580C7AF9BAE7B062FF8E3F879F08057BD3002B734056FC16EB245E51E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanWorkflowController.java"
+                        },
+                        {
+                            "sha256":  "FE7C03C3AB2E4B2B75C276F2EC12A5266C337BBE054FC8BE4232655010E3DA93",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanWorkflowService.java"
+                        },
+                        {
+                            "sha256":  "AC5F76BB77A5258EED1A9EBA02B225B00D5FD5ED7DE0ACE0C68D79DC81EF958C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\RosterChecker.java"
+                        },
+                        {
+                            "sha256":  "97AA267D2A2C91F157AD161EAE6F66830EDA2E90BBF46D6B38F9C41D969D964D",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\ScheduleDataRepository.java"
+                        },
+                        {
+                            "sha256":  "23015C702E066A33A948C558B029B66E89D88E8A2ED69B6B2B79F88B332CBA67",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\report\\ReportController.java"
+                        },
+                        {
+                            "sha256":  "AD7C59A36C9F63B3C16177F241364DD066402DA583EBD20CE89084F30F1BF388",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\report\\ReportModels.java"
+                        },
+                        {
+                            "sha256":  "CA282FAD6EF176191DDECAA73133FC388C2FC5905A5D130B188332931A4AE800",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\report\\ReportService.java"
+                        },
+                        {
+                            "sha256":  "D25CD8165C0A1358D6D1DD5E8873E1B92ADF5800C7D600C67DFF4CA904191538",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\rules\\EffectiveRules.java"
+                        },
+                        {
+                            "sha256":  "FE61F195EF0AC2E5120701C13AA96D3BBA75F95207438F70504357B38730640C",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\rules\\EffectiveRulesSource.java"
+                        },
+                        {
+                            "sha256":  "C416305D18F940F05278D3689B28D135024B703E271A9C3F267762C76B8F9715",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\rules\\EmployeeRules.java"
+                        },
+                        {
+                            "sha256":  "F1D1A1831BE3B784B981318B4D931158ED7A18F3161A51DAF1AF63414FE55B20",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\rules\\TableRulesSource.java"
+                        },
+                        {
+                            "sha256":  "528E69BB2A51D9B419DEA70AD8D690947E2FB0455F8A6B811463A9CDF402BFA6",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\ScheduleErrorAdvice.java"
+                        },
+                        {
+                            "sha256":  "4E849546EFA466EA266C37FB6B1D01659C98193DEC84561161F5707DB813C0A6",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftConfigRules.java"
+                        },
+                        {
+                            "sha256":  "AD85701ACF71D1439A7E645C840232C5F3CDDC73E29B72A011F99B9CCB9547D5",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftController.java"
+                        },
+                        {
+                            "sha256":  "8B23B13B7877A8929E51C69D8999F3939AF3B02C22C894FD39297DF4B9B5F37F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftDetail.java"
+                        },
+                        {
+                            "sha256":  "6BCA4DDE5993CCA13924DDEDDE07C3276EF634875958860EDF1FBF55E5607981",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftNotFoundException.java"
+                        },
+                        {
+                            "sha256":  "344B667D954AFADBEDC02360E10F802DB24E70724EE4DA4AFD96EF3F6F288DEE",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftRejectedException.java"
+                        },
+                        {
+                            "sha256":  "1E6A52CB9FFB042695663D0FFB548506B52839C0DD40A03CE84A9EC9297BA25B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftRepository.java"
+                        },
+                        {
+                            "sha256":  "1896546B6DB8FF3B2098C26BBC8A65EE63BAB8234C36742317D0C037F51A5B6E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftRequest.java"
+                        },
+                        {
+                            "sha256":  "84273E91EC7E52E1D52AB85279D9C6530FA1128F2B552B08178BC86AAAA1260E",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftService.java"
+                        },
+                        {
+                            "sha256":  "42CEB0B031A7221D1EC59C58BD38FC5B3C71B04EF3FDE172B8DBA5F18EDF9979",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftVersionConflictException.java"
+                        },
+                        {
+                            "sha256":  "EF6FBD3057359A8D4CF81C9ED3F0EF68B832ED51B308D8272F7C03A91FDC8B7B",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\AssignmentCandidate.java"
+                        },
+                        {
+                            "sha256":  "0F77791AC50FDF7477BC2E467C4CE805772C51C9C10206D6FCA376EAC7CDBEC1",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\AssignmentCheckController.java"
+                        },
+                        {
+                            "sha256":  "C4CE1A6484ED7FA1E80CA7CB94F48230E1279533AC43769E4F096D4C6BAF12DC",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\AssignmentCheckService.java"
+                        },
+                        {
+                            "sha256":  "8D55CD56D604BB25EFF6C5062AB01F6976E7D2096D5AF34FBFBDE529B0CCD5BA",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\AssignmentValidator.java"
+                        },
+                        {
+                            "sha256":  "A0B19FBC3C03A1F33B65CD0F9D96A9CF9A7E8E105809810F3068DD70327AB0DE",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\SelfCheckController.java"
+                        },
+                        {
+                            "sha256":  "016F1E901FB689EB897609A40153E46CC8538603284C684146A5AE9CA0133C6F",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\ValidationResult.java"
+                        },
+                        {
+                            "sha256":  "2F41DB5C9800DD27FFA0437FFA389ED47DA771A78A70247D1C54B046F1CCE656",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\Violation.java"
+                        },
+                        {
+                            "sha256":  "E8DAB69B3F09264A003FEA56EA24E3880230F18A7DA438ED4394F2D1652DA690",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\ViolationCode.java"
+                        },
+                        {
+                            "sha256":  "6E4F78C3C5A96982A9B2AE7CE15C87674B0B16A60494D0619686BBCE53C052C3",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\WorkTime.java"
+                        },
+                        {
+                            "sha256":  "FCC8D1F473976E7BCB3EAF13B6D18483DDEB14FF1B75EE319D7D9686E0EA4FA1",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\security\\AttendanceCorsConfig.java"
+                        },
+                        {
+                            "sha256":  "402B027C1D02D5DA3B0A7469B8824A06AA5907393914EC37C1C557A8B3AFE0B0",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\security\\JwtAuthenticationFilter.java"
+                        },
+                        {
+                            "sha256":  "D7F1FE61CDA67B9D5BAEB02F3D0FE2BF6876E751B5A9E7A8013BDC584FC4AF78",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\security\\JwtUtil.java"
+                        },
+                        {
+                            "sha256":  "513D550F86ABA13624DB2316A5C6757734ADE7DBF00BBD14FB715478A136EDD3",
+                            "path":  "src\\main\\java\\org\\dacnpm\\schedulemanager\\security\\SecurityConfig.java"
+                        },
+                        {
+                            "sha256":  "16C7861DC88DEE1B7021E6D074C212017DDC610207AA23564F375F402DF494DB",
+                            "path":  "src\\main\\resources\\application.properties"
+                        },
+                        {
+                            "sha256":  "8A08D82393BE85AA9A4E62EB426EBCDAACC14B2E924BD9B79B56A21D13FC7A73",
+                            "path":  "src\\main\\resources\\application-sqlserver.properties"
+                        },
+                        {
+                            "sha256":  "68E61905BE1F72DEE19E9B7274B414849DBA2DF005E0CDEEE6E24DA1390D6614",
+                            "path":  "src\\main\\resources\\db\\migration\\V1__create_levels_and_users.sql"
+                        },
+                        {
+                            "sha256":  "F884A18E62E90F825A1172C59AC5E894D1D3AFBA4ED96661A5DC68282470F485",
+                            "path":  "src\\main\\resources\\db\\migration\\V10__shift_break_and_version.sql"
+                        },
+                        {
+                            "sha256":  "C36DD01218B64DB11EFBB125A92E07217A55E83D4035A8E3C1E5FF4F38D8E02C",
+                            "path":  "src\\main\\resources\\db\\migration\\V11__schedule_plan_statuses.sql"
+                        },
+                        {
+                            "sha256":  "B3D5BB1E2DD9C59EBA3F39533AB334B9F703DDB5967E1268A845571EDEA4ECF6",
+                            "path":  "src\\main\\resources\\db\\migration\\V12__schedule_workflow_and_exceptions.sql"
+                        },
+                        {
+                            "sha256":  "37D365CF1F9A5E5008B0DEEB61929026B5666B55F7BC0261B1EED98D1132A623",
+                            "path":  "src\\main\\resources\\db\\migration\\V13__requests_leave_notifications.sql"
+                        },
+                        {
+                            "sha256":  "2C848A826D19872FACEF4949C39A8F55F21F87A3DAB599263C166653164B120F",
+                            "path":  "src\\main\\resources\\db\\migration\\V14__attendance_reports.sql"
+                        },
+                        {
+                            "sha256":  "EC5259CB4C15B7F89B2D4CB4B5A767C833E506A7C05205445FC6AF41753AF05F",
+                            "path":  "src\\main\\resources\\db\\migration\\V15__integration_scopes_and_attendance_version.sql"
+                        },
+                        {
+                            "sha256":  "6C5F881F850A51D1EDF6C63A9C6B828D531CB94C59271214FFA73F4DFB9561B6",
+                            "path":  "src\\main\\resources\\db\\migration\\V16__bind_shifts_to_periods.sql"
+                        },
+                        {
+                            "sha256":  "550657D2894F567CC0B784391C3D8E3CEA5620868BA44E4A18FFDC31FBF4556C",
+                            "path":  "src\\main\\resources\\db\\migration\\V17__request_schedule_snapshots.sql"
+                        },
+                        {
+                            "sha256":  "F74057EC400896BDBDB7818EC4A5900A3F13D57E6A5F46A35FFD56FF7F941AA2",
+                            "path":  "src\\main\\resources\\db\\migration\\V18__employee_organization.sql"
+                        },
+                        {
+                            "sha256":  "19F091B345AD7F26212D86AD2D3BD29C525D9153F45C4BA8C1654D2EC9986F69",
+                            "path":  "src\\main\\resources\\db\\migration\\V2__seed_initial_levels.sql"
+                        },
+                        {
+                            "sha256":  "C1E837762785F357C785C6D6B374BAF442167E1CAAC7EEE53842F8CCE837FDF8",
+                            "path":  "src\\main\\resources\\db\\migration\\V3__seed_admin_user.sql"
+                        },
+                        {
+                            "sha256":  "071FBFB0C881A226DDC631DC9429CD13BF201DD617753AC04D177E72AACC2A2F",
+                            "path":  "src\\main\\resources\\db\\migration\\V4__fix_admin_password_hash.sql"
+                        },
+                        {
+                            "sha256":  "1C350C71D3C44D9D1D0D417F4EF9F53933CB4F976357A82213AEE918932EC383",
+                            "path":  "src\\main\\resources\\db\\migration\\V5__create_schedule_domain.sql"
+                        },
+                        {
+                            "sha256":  "C03EA496E62D6FD407C4EA76D5B72984CBA20E9BC7EC3EC222EF1B20FB456577",
+                            "path":  "src\\main\\resources\\db\\migration\\V6__schedule_rules_targets_and_plans.sql"
+                        },
+                        {
+                            "sha256":  "A21BBCB1833D137AF6E280E62F501E54637D273985E31E12A56DCC8986266933",
+                            "path":  "src\\main\\resources\\db\\migration\\V7__period_lifecycle_availability_rules.sql"
+                        },
+                        {
+                            "sha256":  "87B0A93577514636A4BC1B0948362251E13248F910D5E728B161AC4EFAAE17C3",
+                            "path":  "src\\main\\resources\\db\\migration\\V8__shift_management.sql"
+                        },
+                        {
+                            "sha256":  "FCE0169AF33A602EB0EE49EB8607758ED542976A1926EA795BE3D02111820C57",
+                            "path":  "src\\main\\resources\\db\\migration\\V9__blocked_dates_and_contract_limit.sql"
+                        },
+                        {
+                            "sha256":  "4C9A7B9C9E4E7B1155DF3A09EFCE78980E12CEF92A91BD4905158C4FE5082159",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\AuthControllerTest.java"
+                        },
+                        {
+                            "sha256":  "E1C422A6802643E1B1AF0FEB62EE215CE75B81932B5A8A3A4AD6405608AAC4C1",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\auth\\AuthServiceTest.java"
+                        },
+                        {
+                            "sha256":  "5381F57908ADA91B5F8E9009C7F18DE6059F0D7ABEB913F6E0C0FCE80F0223B8",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\availability\\AvailabilityServiceTest.java"
+                        },
+                        {
+                            "sha256":  "8B70894EBC08D10ABB519ACD7B332CA6CBB17413061BCB290D24BA62796B713B",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\health\\HealthControllerTest.java"
+                        },
+                        {
+                            "sha256":  "314D91FA20B83A2C65C4925FD320F0FFED04540CB88DF680C7F554961A09D90B",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\leave\\LeaveServiceTest.java"
+                        },
+                        {
+                            "sha256":  "55B7D704CCA47AE32D905DE6B3C94B2209864FCEF4AB03DC2B1D9F2ADF912885",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\levels\\LevelControllerTest.java"
+                        },
+                        {
+                            "sha256":  "B15F42651C8BA741FD8318378957AC41D085E67C26A812CF0885A196B3A8E2A9",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\notifications\\NotificationServiceTest.java"
+                        },
+                        {
+                            "sha256":  "189C219FFDCA8D2B6E535DB6549FB180949C78ED8E7E65FFBE4E770F6AE35DE4",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\openshifts\\OpenShiftServiceTest.java"
+                        },
+                        {
+                            "sha256":  "A1C793BD49CD5B23F955D2E76EFF24841D2D136A39B8F75B242A4F048C6AF1C5",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodControllerTest.java"
+                        },
+                        {
+                            "sha256":  "CDA57C936B283542749255CC25ADC3CF3B35628CC97719378F0B508D99576556",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\PeriodServiceTest.java"
+                        },
+                        {
+                            "sha256":  "9F5CBAF1CD830478C6743220894C61CCDAB38D337CE296375C44349B8A1B2145",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\periods\\RegistrationWindowTest.java"
+                        },
+                        {
+                            "sha256":  "A734191DD8B0174390C293B0C80363A5CD44F2430FBB1A3470006D4ADAAA7F5B",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\report\\ReportServiceTest.java"
+                        },
+                        {
+                            "sha256":  "E88EC52A84466F99ECC4BAFB0EF5416F074E68BC041914DF5677D59779FE7FFD",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\requests\\ShiftRequestServiceTest.java"
+                        },
+                        {
+                            "sha256":  "380B76EBB9152B8438557A86FA6B95DBB0359964ABF9172B1FDD590A78992021",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\EffectiveRuleResolverTest.java"
+                        },
+                        {
+                            "sha256":  "5DC45F5ECC0A17120DBCC354CEFB5ABF139D306460134A39A8FE3D6C4E1D17FD",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\api\\rules\\RuleServiceTest.java"
+                        },
+                        {
+                            "sha256":  "54D25A47799191665F7919584C46BAE35CAAEABC08B494CA0F42E6E3875345A7",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\ApplicationWiringTest.java"
+                        },
+                        {
+                            "sha256":  "44AEC7F32980FC620EAA42FA8428CBD136F0FE06D9727EEE07E35018C59C0C7E",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\domain\\events\\DomainEventTest.java"
+                        },
+                        {
+                            "sha256":  "E48F55A7FBF2DF2B04365F16E9E16ACDBA953932D00C6E8A47A85F6E33E151F5",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\domain\\schedule\\InterimJdbcScheduleAdapterTest.java"
+                        },
+                        {
+                            "sha256":  "D47A0058C281F5AB46A4AAB17F77BF3EE072AB581AA4123A946B36AC1D5A4C21",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\IntegratedMocAIT.java"
+                        },
+                        {
+                            "sha256":  "0FC757D97A72970B2004784CA3C364404BB653DCA66D61385C58C198F00BF965",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\IssueFiveFlowIT.java"
+                        },
+                        {
+                            "sha256":  "6E15497EA0EF31968720739B87F3E35D26688E03B7D5EE4966E6F53AA7B8E37E",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\AssignmentCheckServiceTest.java"
+                        },
+                        {
+                            "sha256":  "6136C3C12B6DAC1ED03A93E4AEA11DD6869F047F6AEB4554BA6F2DF0D7F4474D",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\AssignmentValidatorRulesTest.java"
+                        },
+                        {
+                            "sha256":  "05FEEC93289CDFDC20D83FBC35612253CA3C3D303EC9A9ADB4DB524B8B4C03D8",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\AvailabilityAndRulesValidationTest.java"
+                        },
+                        {
+                            "sha256":  "1735951DD4E1AF9EBAD21C1336764C453A8EBF3AE6C1812A2CC3428495DF258D",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\calendar\\CalendarServiceTest.java"
+                        },
+                        {
+                            "sha256":  "74D67464757EFED7B98E9C50FC7F6816F9A552834CE4EF34C9761B98DA931DD4",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\engine\\ScheduleEngineTest.java"
+                        },
+                        {
+                            "sha256":  "81A32B914A5EE010B4A30F287C293E23BEBDF89A8BB446B673A02EAE66107AB9",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\EmployeeTest.java"
+                        },
+                        {
+                            "sha256":  "C6876995ED0AAD08ECD23C1A04DB659D69FC8394133A10B658DCEEA670180F2D",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\model\\UserAvailabilityTest.java"
+                        },
+                        {
+                            "sha256":  "BFBFCF3597E98673688EC5C17B525C94D6C995822CF1D0750B021A868A643354",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\official\\OfficialScheduleServiceTest.java"
+                        },
+                        {
+                            "sha256":  "A17D37D0F092EC520F0B4E3093FAEFE78570B2494364429CCFCAB211984C219A",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\FakePlanRepository.java"
+                        },
+                        {
+                            "sha256":  "A061A22A9E7B03B5483D04F4FDC6DB37CBAF8436B5F5E1A83535E114B5BB4848",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanServiceTest.java"
+                        },
+                        {
+                            "sha256":  "9FFB7A931908EEC0676BD1D95F8535E7DAB62F293C74CF5BC18B4E48B6B7A6BC",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\PlanWorkflowTest.java"
+                        },
+                        {
+                            "sha256":  "DB4B291C6B619A73475A9C25A84E749297CD06209C318F76FEC7050EDCFD6345",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\plan\\ScheduleDataWindowTest.java"
+                        },
+                        {
+                            "sha256":  "A46C2896D0690EF21CB0745693A7C6A863186DF7A32928FC81354160BD7EF0E1",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\PositionValidationTest.java"
+                        },
+                        {
+                            "sha256":  "8B5B137AB378C5400772FFF1B220AE1112A0E413A4DC31FFC6490C2DC6A026E6",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\report\\ReportServiceTest.java"
+                        },
+                        {
+                            "sha256":  "31BF28AA71EDE77523A517B3CDDB0CE22588231E43425AA2307290111470422B",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\rules\\EffectiveRulesIntegrationTest.java"
+                        },
+                        {
+                            "sha256":  "7C40115E506F7371748905A24DC61CC852AE73C1C81BA54C220041338ADFED71",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\ScheduleFixtures.java"
+                        },
+                        {
+                            "sha256":  "23E145576142FFE0BD25CB5B7DE034352BA4F5CD7D6FBD4C8DE9A50251E14F29",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftConfigRulesTest.java"
+                        },
+                        {
+                            "sha256":  "C7CE66CCDD1C4FBFBAFB153C34F089BE1370784D9B68683E068D5B53B130342B",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftSchemaMigrationTest.java"
+                        },
+                        {
+                            "sha256":  "452541400AD88884B0B93127DDCA1EF14656B17FA91BE43718BCD9A14E6D9FA5",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\shift\\ShiftServiceTest.java"
+                        },
+                        {
+                            "sha256":  "FE2AFED8FC2629525B29C531A51604287C3B43580BE18A8F3621E31E85A64D62",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\support\\FakeExceptions.java"
+                        },
+                        {
+                            "sha256":  "5015ACBA91B2561400985D435D1C282A8714169DB72151A57A5D5BE9CEE2BD2D",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\support\\FakeOfficialSchedule.java"
+                        },
+                        {
+                            "sha256":  "6C042BDCFE0F050CDF5E02CE7B1117184A7440C38124B955B997910F2C16595C",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\schedule\\validation\\SelfCheckControllerTest.java"
+                        },
+                        {
+                            "sha256":  "FDF9B20F83DC7D28BD5DF87BB8C759F43A5633C720691F27585E46B70B1B7AEF",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\security\\BcryptSeedVerificationTest.java"
+                        },
+                        {
+                            "sha256":  "1DC78E68E217DE92CEFD4103E2CDA12FDDA26A1387A12DF1A710CA8C8B8C91AE",
+                            "path":  "src\\test\\java\\org\\dacnpm\\schedulemanager\\support\\MutableClock.java"
+                        },
+                        {
+                            "sha256":  "8173AC75A1D84841784BF6E20ADAE39F8719516450317DF0331E9C2C91B28288",
+                            "path":  "src\\test\\resources\\application-test.properties"
+                        },
+                        {
+                            "sha256":  "5E8020865D54471836986003EA8C08275B8A13E234FF473C8108E42BAB9CCCFC",
+                            "path":  "tests\\attendance-api.ps1"
+                        },
+                        {
+                            "sha256":  "5D103A3E9ADA878A4837746D7EBADB954EAF72E2C9C5E5B3A6F4BB3A290ACBD3",
+                            "path":  "tests\\attendance-fixture.sql"
+                        },
+                        {
+                            "sha256":  "CAEDC2574E5DB8241125951D3C55315E6D716EBD1332391CE99847D529B73F8C",
+                            "path":  "tests\\attendance-responsive.html"
+                        },
+                        {
+                            "sha256":  "71733FD5476465F291E44955A84E373FC54A80D98A69AB6DB577A81E44C55C90",
+                            "path":  "tests\\browser-smoke.html"
+                        },
+                        {
+                            "sha256":  "DFD5632D392A4D107AD6588AE3E96048FCABE0BB18A2CF34AF3C792AC77691F2",
+                            "path":  "tests\\browser-smoke.js"
+                        },
+                        {
+                            "sha256":  "5049BE972FD487439B3B49D346D59FBB157FC920D0577A8CEAC647CE4E64F3E2",
+                            "path":  "tests\\frontend-host.mjs"
+                        },
+                        {
+                            "sha256":  "4F953FA6B7B7C512C45981CFEAC92A14C8931EEF84264ED4ECDEC60AFB80B12B",
+                            "path":  "tests\\moc-a-browser.mjs"
+                        },
+                        {
+                            "sha256":  "700D39008FEC67E93368926397543AC387970A0B33F634316AF23818DF0500DB",
+                            "path":  "tests\\moc-a-http.mjs"
+                        },
+                        {
+                            "sha256":  "2F268605118944655161387511C887991ACFA6A7F7DC381366CDEF9B281FD6DA",
+                            "path":  "tests\\prepare-moc-a-db.ps1"
+                        },
+                        {
+                            "sha256":  "DDA8D47A4209D3F37912C3CB8CF881D35C34251EF608A136DA08092E4E684684",
+                            "path":  "tests\\verify-backup-restore.ps1"
+                        },
+                        {
+                            "sha256":  "0F2F786A64E7FF1F76E6C53D2384EB99C737C5841EFF4B7DC5003E68A860D283",
+                            "path":  "tests\\verify-moc-a.ps1"
+                        },
+                        {
+                            "sha256":  "F4BA0701955AF0BA8124C215F7D33AEB9E6DC02CA8BFEF19D66985BB2A45F8C2",
+                            "path":  "pom.xml"
+                        },
+                        {
+                            "sha256":  "A335429EC7AA6F9A369D2CF201B3AE921BB5D80CCD73DBB9F0CE6A9BC5041391",
+                            "path":  "workspace.html"
+                        },
+                        {
+                            "sha256":  "02D442E915940AB14C6EA072073997767F5CDD531CEFC3DA8849D748086CE69A",
+                            "path":  "attendance.html"
+                        },
+                        {
+                            "sha256":  "B0359F5F294438D04AA27FAF3601E3909B1217D62AEAF558689B3326DA366FDD",
+                            "path":  "index.html"
+                        },
+                        {
+                            "sha256":  "CC46B8BE4BB96166911ADE932BD361A5F0E7168670593A104016F46AC5CCDBD2",
+                            "path":  "package-lock.json"
+                        }
+                    ],
+    "windowsDisplayScale":  "Manual acceptance still required unless separately recorded",
+    "automatedResult":  "PASS"
+}

@@ -16,6 +16,11 @@ const ADMIN_ROUTES = [
   { id: 'auto-schedule',label: 'Phân lịch tự động',   icon: iconAuto(),     section: 'Admin', render: () => AdminAutoSchedule.render() },
   { id: 'publish',      label: 'Duyệt & công bố',     icon: iconPublishNav(), section: 'Admin', render: () => AdminPublish.render() },
   { id: 'history',      label: 'Lịch sử & báo cáo',  icon: iconHistory(),  section: 'Admin', render: () => AdminHistory.render() },
+  // Module yêu cầu / nghỉ phép / thông báo (Bảo — task v1.1 BA-01…06)
+  { id: 'approvals',    label: 'Duyệt yêu cầu',       icon: iconInbox(),    section: 'Yêu cầu', render: () => HrViews.renderApprovals() },
+  { id: 'open-shifts',  label: 'Ca trống',            icon: iconOpenShift(), section: 'Yêu cầu', render: () => HrViews.renderOpenShifts() },
+  { id: 'notifications',label: 'Thông báo',           icon: iconBell(),     section: 'Yêu cầu', render: () => HrViews.renderNotifications() },
+  { id: 'attendance-sql', label: 'Chấm công SQL & Báo cáo', icon: iconClock(), section: 'Admin', render: () => AttendanceEntry.render() },
 ];
 
 const USER_ROUTES = [
@@ -23,6 +28,12 @@ const USER_ROUTES = [
   { id: 'register',    label: 'Đăng ký thời gian rảnh',icon: iconClock(),    section: 'User', render: () => UserView.renderRegister() },
   { id: 'my-schedule', label: 'Lịch làm việc của tôi', icon: iconCalendar(), section: 'User', render: () => UserView.renderMySchedule(), afterRender: () => UserView.initMySchedule() },
   { id: 'profile',     label: 'Thông tin cá nhân',     icon: iconUser2(),    section: 'User', render: () => UserView.renderProfile() },
+  // Module yêu cầu / nghỉ phép / thông báo (Bảo — task v1.1 BA-01…06)
+  { id: 'my-requests', label: 'Đổi ca / Làm thay',     icon: iconSwap(),     section: 'Yêu cầu', render: () => HrViews.renderMyRequests() },
+  { id: 'leave',       label: 'Nghỉ phép',             icon: iconLeave(),    section: 'Yêu cầu', render: () => HrViews.renderLeave() },
+  { id: 'open-shifts', label: 'Ca trống',              icon: iconOpenShift(), section: 'Yêu cầu', render: () => HrViews.renderOpenShifts() },
+  { id: 'notifications',label: 'Thông báo',            icon: iconBell(),     section: 'Yêu cầu', render: () => HrViews.renderNotifications() },
+  { id: 'attendance-sql', label: 'Chấm công và báo cáo', icon: iconClock(), section: 'User', render: () => AttendanceEntry.render() },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -177,6 +188,9 @@ const App = (() => {
 
     // Role switcher (demo)
     _buildRoleSwitcher(user);
+
+    // Điểm mở rộng: chuông thông báo + số việc chờ trên menu (module của Bảo)
+    if (typeof HrViews !== 'undefined') HrViews.mountShell(user);
 
   }
 
@@ -692,3 +706,8 @@ function iconUser2()     { return `<svg width="18" height="18" viewBox="0 0 24 2
 window.addEventListener('app:ready', () => {
   App.init();
 }, { once: true });
+function iconBell()      { return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`; }
+function iconInbox()     { return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`; }
+function iconSwap()      { return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`; }
+function iconLeave()     { return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="15" x2="15" y2="19"/><line x1="15" y1="15" x2="9" y2="19"/></svg>`; }
+function iconOpenShift() { return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`; }

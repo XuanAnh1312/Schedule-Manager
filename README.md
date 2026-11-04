@@ -8,6 +8,8 @@ Quản lý kỳ đăng ký, thời gian rảnh, quy tắc, phân ca, duyệt/cô
 2. Chạy `mvn spring-boot:run` từ thư mục dự án.
 3. Mở **http://localhost:8081/**. Giao diện và API dùng cùng origin; không cần chạy HTTP server riêng.
 
+Trên Windows có thể dùng [CHAY_BACKEND.bat](HUONG_DAN/CHAY_BACKEND.bat) và [CHAY_FRONTEND.bat](HUONG_DAN/CHAY_FRONTEND.bat). Xem [hướng dẫn chạy chi tiết](HUONG_DAN/HUONG_DAN_CHAY_HE_THONG.md) và [báo cáo bàn giao/kế hoạch mốc B](HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md).
+
 Giao diện chính là `workspace.html`, đọc/ghi dữ liệu nghiệp vụ bằng API và chỉ lưu JWT của phiên trong sessionStorage. `demo.html` giữ giao diện localStorage cũ để tham khảo, không phải nguồn dữ liệu của ứng dụng chính.
 
 ## Kiểm thử và tích hợp

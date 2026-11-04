@@ -17,12 +17,19 @@ import java.util.Map;
  */
 @RestControllerAdvice(basePackages = {
         "org.dacnpm.schedulemanager.common",
+        "org.dacnpm.schedulemanager.api.auth",
+        "org.dacnpm.schedulemanager.api.report",
         "org.dacnpm.schedulemanager.api.requests",
         "org.dacnpm.schedulemanager.api.leave",
         "org.dacnpm.schedulemanager.api.openshifts",
         "org.dacnpm.schedulemanager.api.notifications"
 })
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String,Object>> invalidReference(org.springframework.dao.DataIntegrityViolationException error) {
+        return ResponseEntity.status(409).body(Map.of("code","DATA_CONFLICT","error","Dữ liệu trùng, tham chiếu không hợp lệ hoặc đang được sử dụng."));
+    }
 
     @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class)
     public ResponseEntity<Map<String,Object>> concurrentUpdate(org.springframework.dao.ConcurrencyFailureException error) {

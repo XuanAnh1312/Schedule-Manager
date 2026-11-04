@@ -46,8 +46,8 @@ public class CatalogController {
         if (!CatalogRepository.isKnown(type)) {
             throw new IllegalArgumentException("Danh mục không hợp lệ: " + type + ".");
         }
-        if (request.name() == null || request.name().isBlank() || request.name().trim().length() > 120) {
-            throw new IllegalArgumentException("Tên không được để trống và tối đa 120 ký tự.");
+        if (request.name() == null || request.name().isBlank() || request.name().trim().length() > 100) {
+            throw new IllegalArgumentException("Tên không được để trống và tối đa 100 ký tự.");
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(repository.create(type, request.name().trim()));
     }

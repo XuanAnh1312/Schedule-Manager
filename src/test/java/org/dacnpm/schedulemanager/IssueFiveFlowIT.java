@@ -114,7 +114,7 @@ class IssueFiveFlowIT {
     @Test
     @Order(1)
     void migrationV7_constraintsAreInPlace() {
-        assertEquals("7", jdbc.queryForObject(
+        assertEquals("18", jdbc.queryForObject(
                 "SELECT TOP 1 version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC", String.class));
         String check = jdbc.queryForObject(
                 "SELECT definition FROM sys.check_constraints WHERE name = 'ck_periods_status'", String.class);

@@ -15,6 +15,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice(basePackages = "org.dacnpm.schedulemanager.schedule")
 public class ScheduleErrorAdvice {
 
+    @ExceptionHandler(org.springframework.dao.ConcurrencyFailureException.class)
+    public ResponseEntity<Map<String,Object>> concurrentUpdate(org.springframework.dao.ConcurrencyFailureException error) {
+        return ResponseEntity.status(409).body(Map.of("code","RETRY_REQUIRED","error","Dữ liệu lịch đang được cập nhật. Vui lòng tải lại và thử lại."));
+    }
+
     @ExceptionHandler(PlanException.class)
     public ResponseEntity<Map<String, Object>> planError(PlanException e) {
         Map<String, Object> body = new LinkedHashMap<>();

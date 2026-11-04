@@ -8,6 +8,7 @@ const fixture=JSON.parse(await readFile('.local-test/browser-fixture.json','utf8
 if(!/^http:\/\/(localhost|127\.0\.0\.1):8082$/.test(fixture.base))throw new Error('Only isolated test server allowed');
 await mkdir('.local-test/screenshots',{recursive:true});
 const browser=await chromium.launch({headless:true});
+let secondBrowser;
 const failures=[],proof=[];
 const context=await browser.newContext({viewport:{width:1280,height:900}});
 context.setDefaultTimeout(15000);
@@ -18,7 +19,7 @@ async function route(page,id){await page.locator(`[data-route="${id}"]`).click()
 async function noOverflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),`Page overflow: ${label}`);}
 try {
   await login(page,fixture.adminUsername,fixture.adminPassword);
-  const routes=['periods','availability','rules','shifts','plans','calendar','requests','leave','openShifts','notifications','reports','directory'];
+  const routes=['periods','availability','rules','shifts','plans','calendar','requests','leave','openShifts','notifications','reports','directory','audit'];
   for(const width of [320,360,390,768,1024,1280]){
     await page.setViewportSize({width,height:900});
     for(const id of routes){await route(page,id);await noOverflow(page,`admin ${id} ${width}px`);}
@@ -35,10 +36,25 @@ try {
   const employeeContext=await browser.newContext({viewport:{width:390,height:844}}),employee=await employeeContext.newPage();employee.on('pageerror',e=>failures.push(e.message));await login(employee,fixture.people[0].username,fixture.people[0].password);
   assert.equal(await employee.locator('[data-route=plans]').count(),0);assert.equal(await employee.locator('[data-route=directory]').count(),0);
   await route(employee,'availability');const option=employee.locator('select[name=period] option').filter({hasText:name});await employee.locator('select[name=period]').selectOption(await option.getAttribute('value'));await employee.locator('#content[aria-busy=false]').waitFor();await employee.locator('.availability-row input[type=date]').first().fill(fixture.period.startDate);await employee.getByRole('button',{name:'Gửi đăng ký',exact:true}).click();await employee.locator('#content[aria-busy=false]').waitFor();assert.ok(!(await employee.locator('#notice').textContent()).includes('không hợp lệ'));await employee.reload();await employee.locator('#content[aria-busy=false]').waitFor();await route(employee,'availability');await employee.locator('select[name=period]').selectOption(await employee.locator('select[name=period] option').filter({hasText:name}).getAttribute('value'));await employee.locator('#content[aria-busy=false]').waitFor();assert.ok(await employee.locator('.availability-row').count()>0);proof.push('Nhân viên gửi availability qua UI; đăng nhập lại/tải lại đọc được dữ liệu SQL');
-  for(const width of [320,360,390,768,1024,1280]){await employee.setViewportSize({width,height:900});for(const id of ['calendar','requests','leave','openShifts','notifications','reports']){await route(employee,id);await noOverflow(employee,`employee ${id} ${width}px`);}proof.push(`Employee: 6 màn hình tại ${width}px`);}
+  for(const width of [320,360,390,768,1024,1280]){await employee.setViewportSize({width,height:900});for(const id of ['availability','calendar','requests','leave','openShifts','notifications','reports']){await route(employee,id);await noOverflow(employee,`employee ${id} ${width}px`);}proof.push(`Employee: 7 màn hình tại ${width}px`);}
   await page.screenshot({path:'.local-test/screenshots/admin-1280.png',fullPage:true});await employee.setViewportSize({width:390,height:844});await route(employee,'calendar');await employee.screenshot({path:'.local-test/screenshots/employee-390.png',fullPage:true});
   const scaledContext=await browser.newContext({viewport:{width:1024,height:768},deviceScaleFactor:1.25});const scaled=await scaledContext.newPage();await login(scaled,fixture.adminUsername,fixture.adminPassword);await scaled.evaluate(()=>document.documentElement.style.zoom='1.25');await noOverflow(scaled,'DPR 1.25 / zoom 125%');await scaled.getByRole('button',{name:'Tạo kỳ',exact:true}).click();await noOverflow(scaled,'scaled modal');await scaled.screenshot({path:'.local-test/screenshots/scale-125.png',fullPage:true});proof.push('DPR 1.25 và zoom 125%: navigation/form/modal không tràn');await scaledContext.close();
+  async function snapshot(p,paths){return p.evaluate(async paths=>{
+    const result={};for(const path of paths){const response=await fetch(path,{headers:{Authorization:'Bearer '+sessionStorage.getItem('attendance_jwt')}});if(!response.ok)throw Error(path+': '+response.status);result[path]=await response.json();}return result;
+  },paths);}
+  const stablePaths=['/api/workspace/employees','/api/periods','/api/rules/settings','/api/schedule/plans?periodId='+fixture.period.id,'/api/requests?scope=all','/api/leave?scope=all','/api/open-shifts','/api/attendance/records?periodId='+fixture.livePeriodId+'&userId='+fixture.people[1].id,'/api/attendance/requests?status=all','/api/reports/users?periodId='+fixture.period.id];
+  const before=await snapshot(page,stablePaths);
+  assert.ok(before[stablePaths[7]].length>0,'Attendance persistence requires non-empty real records');
+  await page.reload();await page.locator('#workspace').waitFor({state:'visible'});await page.locator('#content[aria-busy=false]').waitFor();assert.deepEqual(await snapshot(page,stablePaths),before);
+  await page.locator('#logout').click();await page.locator('#login').waitFor({state:'visible'});assert.equal(await page.evaluate(()=>sessionStorage.getItem('attendance_jwt')),null);
+  await login(page,fixture.adminUsername,fixture.adminPassword);assert.deepEqual(await snapshot(page,stablePaths),before);
+  secondBrowser=await chromium.launch({headless:true});const independent=await secondBrowser.newPage({viewport:{width:390,height:844}});
+  assert.equal(await independent.evaluate(()=>Object.keys(sessionStorage).length).catch(()=>0),0);
+  await login(independent,fixture.adminUsername,fixture.adminPassword);assert.deepEqual(await snapshot(independent,stablePaths),before);
+  proof.push('AC-10: hồ sơ/kỳ/rules/lịch/yêu cầu/nghỉ/ca trống/công/báo cáo giữ nguyên sau refresh, logout/login và trình duyệt độc lập');
+  await route(page,'directory');await page.getByRole('button',{name:'Thêm nhân viên',exact:true}).click();await page.locator('#editor[open]').waitFor();await page.keyboard.press('Escape');assert.equal(await page.locator('#editor').isVisible(),false);proof.push('Keyboard: mở modal bằng nút và đóng bằng Escape');
+  const errorResponse=await page.request.get(fixture.base+'/api/schedule/plans');assert.equal(errorResponse.status(),401);
   assert.deepEqual(failures,[],'Browser runtime errors');
   await writeFile('.local-test/browser-evidence.json',JSON.stringify({at:new Date().toISOString(),proof,runtimeErrors:failures},null,2));console.log('PASS browser flows, responsive, session reuse and runtime checks');
 } catch(error) {console.log('Runtime errors:',failures);await page.screenshot({path:'.local-test/screenshots/failure.png',fullPage:true});throw error;
-} finally {await browser.close();}
+} finally {if(secondBrowser)await secondBrowser.close();await browser.close();}

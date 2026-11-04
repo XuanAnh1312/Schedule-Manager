@@ -1,5 +1,7 @@
 # Baseline tích hợp task 3.2–3.5 (mốc A)
 
+> Cập nhật 04/11/2026: bản hoàn thiện hiện tại đã tiếp nhận V18 (tổ chức, quản lý trực tiếp, lưu trữ/version hồ sơ). Version tiếp theo là V19. Các hướng dẫn "version tiếp theo V18" bên dưới là ghi nhận tại thời điểm baseline cũ. Quyết định hiện hành và bằng chứng nằm ở [báo cáo bàn giao](../HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md).
+
 **Baseline code đã push:** `integration/moc-a-completion` — commit `6a0df73870baee7ab4ad9a16df151d9debae4c2b` (`fix v1.1 lần 1 khoảng 50%`). Tài liệu này chốt hợp đồng để các nhánh thành viên tiếp tục sửa mà không tự tạo schema/API cạnh tranh. Commit tài liệu baseline này là phần bổ sung cho commit code trên.
 
 ## 1. Flyway: version duy nhất và thứ tự phụ thuộc

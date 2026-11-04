@@ -2,6 +2,31 @@
 
 Backend Spring Boot chạy ở `http://localhost:8081`, profile `sqlserver`. Mọi endpoint trừ đăng nhập/đăng xuất và health đều cần JWT. Request mẫu có trong `api.http`.
 
+## Bổ sung nền tảng mốc A — 04/11/2026
+
+| Endpoint | Quyền | Hợp đồng |
+|---|---|---|
+| `GET /api/me` | Đã đăng nhập | Hồ sơ hiện tại từ DB, không có password/hash |
+| `POST /api/auth/change-password` | Chính tài khoản | `{currentPassword,newPassword}`; actor từ JWT, không nhận userId để chọn người khác; BCrypt tối thiểu 8 ký tự/tối đa 72 byte UTF-8 |
+| `GET /api/my/profile` | Chính tài khoản | Hồ sơ của actor; query userId không đổi danh tính |
+| `GET /api/workspace/employees` | Admin | Danh sách tham chiếu cho phân ca/form |
+| `GET /api/workspace/employees/page` | Admin | `q`, `status`, `branchId`, `page` từ 0, `size` 1…100; trả `{items,total,page,size}` |
+| `GET /api/workspace/employees/{id}` | Admin | Hồ sơ và version; không trả password/hash |
+| `POST /api/workspace/employees` | Admin | `employeeCode` tối đa 20, `username` tối đa 30, `password`, `fullName`, `levelId`, `status`; tùy chọn phone/email/joinDate/note/branchId/employeeTypeId/groupId/departmentId/managerId |
+| `PUT /api/workspace/employees/{id}` | Admin | Các trường hồ sơ như POST, không thay password. UI gửi version đã đọc; version cũ trả 409. Client cũ chưa gửi version được hỗ trợ, mutation vẫn khóa dòng trong transaction |
+| `POST /api/workspace/employees/{id}/archive` | Admin | `{version,reason}` bắt buộc; reason tối thiểu 5 ký tự; còn phân công tương lai trả 409; chuyển inactive và giữ hồ sơ/lịch sử |
+| `POST /api/workspace/levels` | Admin | `{name,description,color,order}`; color dạng `#RRGGBB`, order nguyên không âm và duy nhất |
+| `PUT /api/workspace/levels/{id}` | Admin | Sửa cùng DTO; tên/thứ tự trùng hoặc tham chiếu không hợp lệ trả 409 |
+| `DELETE /api/workspace/levels/{id}` | Admin | Chỉ xóa Level không được tham chiếu; thành công 204 |
+| `GET /api/audit` | Admin | `page`, `size` 1…100, `eventType` tùy chọn; trả items/total/page/size với actor/time/before/after/reason |
+| `/api/schedule/catalog/departments` | Admin | GET/POST/DELETE theo hợp đồng catalog chung, bảng mới V18 |
+
+Quan hệ quản lý không được tạo vòng lặp. Hồ sơ lưu trữ không được kích hoạt lại bằng PUT thường. Đổi mật khẩu có audit nhưng không ghi giá trị mật khẩu/hash. Logout xóa JWT phía client; chưa thu hồi từng token. API production kiểm tra lại trạng thái/role từ DB, nên token cũ của tài khoản khóa/lưu trữ không tiếp tục dùng được.
+
+Báo cáo và chấm công lọc/khóa bằng `period_id`; Employee không đọc được kỳ nháp/không áp dụng qua report/export. Dashboard có cùng employee filter cho giờ và counters; `unconfirmedSchedules` là **số người distinct**, không phải số assignment. Lỗi tranh khóa lịch trả 409 với `RETRY_REQUIRED`; client tải lại trạng thái trước khi thử lại.
+
+Rule `understaffed_policy` chỉ ở scope company, giá trị `warn` hoặc `block`, đi qua preview/confirm và ngày hiệu lực. Không còn dùng seed legacy để ghi đè chính sách đã xác nhận. Báo cáo bàn giao nêu quy ước an toàn cộng giờ trong cửa sổ ngày khi các kỳ chồng ngày.
+
 ## 1. Quy ước chung
 
 ### 1.1. Xác thực và quyền

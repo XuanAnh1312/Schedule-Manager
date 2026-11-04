@@ -113,6 +113,22 @@ Mỗi thành viên chịu trách nhiệm sửa lỗi và test cho module mình; 
 
 **Đầu ra/nghiệm thu:** công thực tế bền vững và có phê duyệt/lịch sử; Dashboard và phân lịch bằng nhau khi cùng ngữ cảnh; báo cáo không gộp nháp với công bố; đủ viewport và bằng chứng scale. Phụ trách AC-03, AC-07, AC-09; phối hợp AC-10, AC-14.
 
+### 3.6. Cập nhật bàn giao và việc còn lại của mốc A — 04/11/2026
+
+**Đánh giá hiện tại: khoảng 93% theo tiêu chí nghiệm thu** — 13/14 AC có bằng chứng đạt, còn AC-09 chưa đóng hoàn toàn. Đây là tỷ lệ số tiêu chí đã nghiệm thu (13 ÷ 14, làm tròn), không phải tỷ lệ dòng code hay cam kết hệ thống đã hoàn thiện 100%.
+
+Đã chạy trên bản tích hợp: **355 Java test đạt, không failure/error/skip; 20 nhóm HTTP đạt; browser Admin/Employee, responsive, refresh/logout/login và trình duyệt độc lập đạt; frontend proxy và backup/restore SQL Server đạt**. Các sửa bổ sung gồm auth/đổi mật khẩu, hồ sơ/tổ chức/Level/audit, chấm công theo `period_id`, scope báo cáo, xử lý tranh khóa 409 và script chạy Windows. Chi tiết chức năng, ưu/khuyết điểm và kế hoạch B: [báo cáo bàn giao](HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md); bằng chứng tóm tắt: [kết quả kiểm thử](HUONG_DAN/KET_QUA_KIEM_THU.json).
+
+| Mã việc còn lại | Chủ trì/phối hợp | Việc cần thực hiện | Điều kiện đóng |
+|---|---|---|---|
+| MA-R01 — hoàn tất AC-09 | Bình; cả đội hỗ trợ | Thử trên **Windows Display Scale thật 125% hoặc 150%**. Máy kiểm thử hiện có system DPI 96 (100%). Đã đạt CSS viewport 320/360/390/768/1024/1280, DPR 1.25 và zoom 125%, nhưng chúng không thay thế OS scale. Kiểm tra login/navigation/bảng/form đăng ký/lịch/modal và iframe chấm công, kể cả bàn phím. | Ghi cấu hình Windows thực tế, bản mã, ngày/người kiểm tra và kết quả/ảnh; không tràn trang, nút bị che hoặc modal vượt khung. Sửa và test lại nếu phát hiện lỗi. |
+| MA-R02 — chốt hồ sơ nghiệm thu | Anh + Bình; senior xác nhận | Sau MA-R01, cập nhật ma trận AC-01…14, báo cáo và JSON evidence; đối chiếu đúng bản mã/manifest, không lấy log cũ chứng nhận bản mới. | Đủ bằng chứng toàn bộ AC, không còn lỗi chặn vận hành; mới đánh dấu mốc A hoàn tất 100%. |
+| MA-R03 — dọn review sau nghiệm thu | Anh | **Chỉ sau khi MA-R02 đạt**, xóa các file review theo yêu cầu; giữ `task_v1.1.md`, hướng dẫn chạy, báo cáo bàn giao và evidence cần thiết. Hiện vẫn giữ review vì chưa đạt 100%. | Không xóa nhầm task, dữ liệu, fixture, backup hay mã nguồn; tài liệu tham chiếu còn dùng được. |
+
+**Giới hạn đã ghi nhận để senior tiếp tục xử lý:** engine heuristic chưa chứng minh tối ưu toàn cục; JWT logout/đổi mật khẩu chưa thu hồi từng token; V1 dùng Admin/Employee, chưa có ma trận role/scope mở rộng; workspace còn tập trung JS và chấm công dùng iframe; chưa có dashboard retry/dead-letter cho outbox. Chưa nghiệm thu load/HA hoặc triển khai HTTPS/secret manager/backup ngoài máy cho production. Những nội dung này cần được chốt theo phạm vi vận hành/mốc B, không được báo là đã triển khai đầy đủ. Khóa/lưu trữ tài khoản vẫn chặn token cũ qua kiểm tra trạng thái/quyền DB trên API production.
+
+Việc đưa bản **93% lên `main` theo yêu cầu người dùng không đồng nghĩa nghiệm thu 100%**, không đóng MA-R01…03 và không tự xóa review.
+
 ## 4. Cách triển khai song song và giảm xung đột
 
 ### 4.1. Điểm tích hợp phải chốt trước khi làm sâu

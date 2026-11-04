@@ -22,9 +22,11 @@ public class ReportService {
     private final JdbcTemplate db;
     private final AttendanceService attendance;
     private final org.dacnpm.schedulemanager.schedule.report.ReportService scheduleReports;
+    private final org.dacnpm.schedulemanager.api.periods.PeriodService periodService;
     public ReportService(JdbcTemplate db, AttendanceService attendance,
-            org.dacnpm.schedulemanager.schedule.report.ReportService scheduleReports){
-        this.db=db;this.attendance=attendance;this.scheduleReports=scheduleReports;
+            org.dacnpm.schedulemanager.schedule.report.ReportService scheduleReports,
+            org.dacnpm.schedulemanager.api.periods.PeriodService periodService){
+        this.db=db;this.attendance=attendance;this.scheduleReports=scheduleReports;this.periodService=periodService;
     }
 
     public record Period(String id,String name,LocalDate start,LocalDate end,String status,String deadline){}
@@ -36,14 +38,14 @@ public class ReportService {
         return rows.get(0);
     }
     public List<Map<String,Object>> periods(String actor) {
-        attendance.isAdmin(actor);
-        return db.query("SELECT id,name,start_date,end_date,status,deadline FROM periods ORDER BY start_date DESC",(r,n)->{
+        boolean admin=attendance.isAdmin(actor);
+        return periodService.list(new org.dacnpm.schedulemanager.common.CurrentUser(actor,admin)).stream().map(p->{
            Map<String,Object> item=new LinkedHashMap<>();
-           item.put("id",r.getString(1));item.put("name",r.getString(2));
-           item.put("startDate",r.getDate(3).toString());item.put("endDate",r.getDate(4).toString());
-           item.put("status",r.getString(5));item.put("deadline",r.getTimestamp(6)==null?null:r.getTimestamp(6).toLocalDateTime().toString());
+           item.put("id",p.id());item.put("name",p.name());
+           item.put("startDate",p.startDate().toString());item.put("endDate",p.endDate().toString());
+           item.put("status",p.status());item.put("deadline",p.deadline()==null?null:p.deadline().toString());
            return item;
-        });
+        }).toList();
     }
     public record UserHours(String userId,String name,String employeeCode,BigDecimal targetHours,
                             BigDecimal scheduledHours,BigDecimal actualHours,BigDecimal approvedHours,
@@ -63,6 +65,7 @@ public class ReportService {
     public List<UserHours> userHours(String actor,String periodId,String userId) {
         boolean admin=attendance.isAdmin(actor);
         if(!admin && userId!=null && !userId.equals(actor))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Không có quyền xem báo cáo người khác");
+        periodService.get(new org.dacnpm.schedulemanager.common.CurrentUser(actor,admin),periodId);
         Period p=period(periodId);
         String target=admin?(userId==null||userId.isBlank()?null:userId):actor;
         var canonical = scheduleReports.hours(periodId, "published", null,
@@ -119,35 +122,39 @@ public class ReportService {
         out.put("periodId",p.id());out.put("periodName",p.name());out.put("periodStatus",p.status());out.put("deadline",p.deadline());
         out.put("generatedAt",Instant.now().toString());out.put("source","sqlserver");out.put("variant","published-only");
         out.put("employeeCount",people.size());out.put("targetHours",target);out.put("scheduledHours",scheduled);
+        var activeIds=new java.util.HashSet<>(db.queryForList("SELECT id FROM users WHERE status='active'",String.class));
+        out.put("activeEmployeeCount",people.stream().filter(person->activeIds.contains(person.userId())).count());
         out.put("actualHours",actual);out.put("approvedHours",approved);out.put("differenceHours",target==null?null:scheduled.subtract(target));
         out.put("percentage",ratio(scheduled,target));out.put("progressLabel",progressLabel(scheduled,target));
         if(admin){
-            Integer shifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE period_id=? AND cancelled_at IS NULL",Integer.class,periodId);
-            Integer published=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE status='published' AND period_id=? AND cancelled_at IS NULL",Integer.class,periodId);
+            String selected=userId==null||userId.isBlank()?null:userId;
+            String assigned=" AND (? IS NULL OR EXISTS(SELECT 1 FROM assignments ax WHERE ax.shift_id=s.id AND ax.user_id=? AND ax.status='confirmed'))";
+            Integer shifts=db.queryForObject("SELECT COUNT(*) FROM shifts s WHERE period_id=? AND cancelled_at IS NULL"+assigned,Integer.class,periodId,selected,selected);
+            Integer published=db.queryForObject("SELECT COUNT(*) FROM shifts s WHERE status='published' AND period_id=? AND cancelled_at IS NULL"+assigned,Integer.class,periodId,selected,selected);
             Integer understaffed=db.queryForObject("""
               SELECT COUNT(*) FROM shifts s WHERE s.status='published' AND s.period_id=? AND s.cancelled_at IS NULL
               AND (SELECT COUNT(*) FROM assignments a WHERE a.shift_id=s.id AND a.status='confirmed') < s.total_required
-              """,Integer.class,periodId);
+              """+assigned,Integer.class,periodId,selected,selected);
             Integer pending=db.queryForObject("""
               SELECT COUNT(*) FROM attendance_adjustment_requests r JOIN shifts s ON s.id=r.shift_id
-              WHERE r.status='pending' AND s.period_id=?
-              """,Integer.class,periodId);
-            Integer working=db.queryForObject("SELECT COUNT(*) FROM attendance_records r JOIN shifts s ON s.id=r.shift_id WHERE r.clock_out_at IS NULL AND s.period_id=?",Integer.class,periodId);
+              WHERE r.status='pending' AND s.period_id=? AND (? IS NULL OR r.user_id=?)
+              """,Integer.class,periodId,selected,selected);
+            Integer working=db.queryForObject("SELECT COUNT(*) FROM attendance_records r JOIN shifts s ON s.id=r.shift_id WHERE r.clock_out_at IS NULL AND s.period_id=? AND (? IS NULL OR r.user_id=?)",Integer.class,periodId,selected,selected);
             out.put("totalShifts",shifts);out.put("publishedShifts",published);out.put("understaffedShifts",understaffed);
-            Integer pendingChanges=db.queryForObject("SELECT COUNT(*) FROM shift_requests WHERE status IN ('pending_peer','pending_approval') AND source_shift_id IN (SELECT id FROM shifts WHERE period_id=?)",Integer.class,periodId);
-            Integer pendingLeave=db.queryForObject("SELECT COUNT(*) FROM leave_requests WHERE status='pending' AND start_date<=? AND end_date>=?",Integer.class,Date.valueOf(p.end()),Date.valueOf(p.start()));
+            Integer pendingChanges=db.queryForObject("SELECT COUNT(*) FROM shift_requests WHERE status IN ('pending_peer','pending_approval') AND source_shift_id IN (SELECT id FROM shifts WHERE period_id=?) AND (? IS NULL OR requester_id=? OR target_user_id=?)",Integer.class,periodId,selected,selected,selected);
+            Integer pendingLeave=db.queryForObject("SELECT COUNT(*) FROM leave_requests WHERE status='pending' AND start_date<=? AND end_date>=? AND (? IS NULL OR user_id=?)",Integer.class,Date.valueOf(p.end()),Date.valueOf(p.start()),selected,selected);
             out.put("pendingAttendanceRequests",pending);
             out.put("pendingShiftRequests",pendingChanges);out.put("pendingLeaveRequests",pendingLeave);
             out.put("pendingRequests",pending+pendingChanges+pendingLeave);out.put("currentlyWorking",working);
-            out.put("unconfirmedSchedules",db.queryForObject("SELECT COUNT(*) FROM assignments a JOIN shifts s ON s.id=a.shift_id WHERE a.status='confirmed' AND s.status='published' AND s.period_id=? AND NOT EXISTS (SELECT 1 FROM schedule_acknowledgements k JOIN schedule_plans sp ON sp.id=k.plan_id WHERE sp.period_id=s.period_id AND sp.status='published' AND k.user_id=a.user_id AND k.confirmed_at IS NOT NULL)",Integer.class,periodId));
-            out.put("draftPlans",db.queryForObject("SELECT COUNT(*) FROM schedule_plans WHERE period_id=? AND status='draft'",Integer.class,periodId));
+            out.put("unconfirmedSchedules",db.queryForObject("SELECT COUNT(DISTINCT a.user_id) FROM assignments a JOIN shifts s ON s.id=a.shift_id WHERE a.status='confirmed' AND s.status='published' AND s.period_id=? AND (? IS NULL OR a.user_id=?) AND NOT EXISTS (SELECT 1 FROM schedule_acknowledgements k JOIN schedule_plans sp ON sp.id=k.plan_id WHERE sp.period_id=s.period_id AND sp.status='published' AND k.user_id=a.user_id AND k.confirmed_at IS NOT NULL)",Integer.class,periodId,selected,selected));
+            out.put("draftPlans",db.queryForObject("SELECT COUNT(*) FROM schedule_plans sp WHERE period_id=? AND status='draft' AND (? IS NULL OR EXISTS(SELECT 1 FROM plan_assignments pa WHERE pa.plan_id=sp.id AND pa.user_id=?))",Integer.class,periodId,selected,selected));
             out.put("unpublishedShifts",shifts-published);
             // Today's published shifts and missing punch-ins, scoped to current day in policy timezone.
             String zone=db.queryForObject("SELECT timezone_name FROM attendance_policies WHERE id='default'",String.class);
             LocalDate today=LocalDate.now(ZoneId.of(zone));
-            Integer todayShifts=db.queryForObject("SELECT COUNT(*) FROM shifts WHERE shift_date=? AND period_id=? AND cancelled_at IS NULL AND status='published'",Integer.class,Date.valueOf(today),periodId);
+            Integer todayShifts=db.queryForObject("SELECT COUNT(*) FROM shifts s WHERE shift_date=? AND period_id=? AND cancelled_at IS NULL AND status='published'"+assigned,Integer.class,Date.valueOf(today),periodId,selected,selected);
             int missingCheckin=(int)attendanceStatus(actor,periodId).stream().filter(row ->
-              today.toString().equals(row.get("date")) &&
+              today.toString().equals(row.get("date")) && (selected==null||selected.equals(row.get("userId"))) &&
               ("Chưa check-in".equals(row.get("status")) || "Vắng".equals(row.get("status")))).count();
             out.put("todayShifts",todayShifts);out.put("notCheckedInToday",missingCheckin);
         }
@@ -155,6 +162,7 @@ public class ReportService {
     }
     public List<Map<String,Object>> attendanceStatus(String actor,String periodId) {
         boolean admin=attendance.isAdmin(actor);
+        periodService.get(new org.dacnpm.schedulemanager.common.CurrentUser(actor,admin),periodId);
         Period p=period(periodId);
         String zoneName=db.queryForObject("SELECT timezone_name FROM attendance_policies WHERE id='default'",String.class);
         int grace=db.queryForObject("SELECT late_grace_minutes FROM attendance_policies WHERE id='default'",Integer.class);

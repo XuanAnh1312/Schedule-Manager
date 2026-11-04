@@ -80,12 +80,13 @@ public class AttendanceService {
     }
     private Map<String,Object> shift(String user,String shiftId) {
         Map<String,Object> row=one("""
-            SELECT s.id,s.shift_date,s.start_time,s.end_time,s.status,a.status AS assignment_status
+            SELECT s.id,s.shift_date,s.start_time,s.end_time,s.status,s.period_id,a.status AS assignment_status
             FROM shifts s JOIN assignments a ON a.shift_id=s.id AND a.user_id=?
-            WHERE s.id=?
+            WHERE s.id=? AND s.cancelled_at IS NULL
             """,user,shiftId);
         if(row==null || !"published".equals(row.get("status")) || !"confirmed".equals(row.get("assignment_status")))
             throw error(HttpStatus.CONFLICT,"Chỉ chấm công cho ca đã công bố và đã phân cho nhân viên");
+        if(row.get("period_id")==null)throw error(HttpStatus.CONFLICT,"Ca chưa được phân loại kỳ. Liên hệ quản trị viên.");
         return row;
     }
     private int setting(String key) {
@@ -107,9 +108,10 @@ public class AttendanceService {
         return new LocalDateTime[]{LocalDateTime.ofInstant(s.toInstant(),ZoneOffset.UTC),LocalDateTime.ofInstant(e.toInstant(),ZoneOffset.UTC)};
     }
     private void unlocked(String shiftId) {
+        db.queryForList("SELECT p.id FROM periods p WITH (UPDLOCK,HOLDLOCK) JOIN shifts s ON s.period_id=p.id WHERE s.id=?",shiftId);
         Integer locked=db.queryForObject("""
              SELECT COUNT(*) FROM attendance_period_locks l JOIN periods p ON p.id=l.period_id
-             JOIN shifts s ON s.shift_date BETWEEN p.start_date AND p.end_date WHERE s.id=?
+             JOIN shifts s ON s.period_id=p.id WHERE s.id=?
              """,Integer.class,shiftId);
         if(locked!=null && locked>0) throw error(HttpStatus.CONFLICT,"Kỳ chấm công đã khóa. Hãy gửi yêu cầu điều chỉnh có lý do.");
     }
@@ -166,7 +168,7 @@ public class AttendanceService {
         return query("""
            SELECT s.id,s.name,s.shift_date,s.start_time,s.end_time,s.status
            FROM shifts s JOIN assignments a ON a.shift_id=s.id
-           WHERE a.user_id=? AND a.status='confirmed' AND s.status='published'
+           WHERE a.user_id=? AND a.status='confirmed' AND s.status='published' AND s.cancelled_at IS NULL AND s.period_id IS NOT NULL
            ORDER BY s.shift_date DESC,s.start_time DESC
            """,actor);
     }
@@ -181,8 +183,7 @@ public class AttendanceService {
                (DATEDIFF(MINUTE,r.clock_in_at,r.clock_out_at)-r.break_minutes)/60.0 END AS worked_hours
            FROM attendance_records r JOIN users u ON u.id=r.user_id
            JOIN shifts s ON s.id=r.shift_id
-           WHERE r.user_id=? AND (? IS NULL OR EXISTS(
-               SELECT 1 FROM periods p WHERE p.id=? AND s.shift_date BETWEEN p.start_date AND p.end_date))
+           WHERE r.user_id=? AND (? IS NULL OR s.period_id=?)
            ORDER BY r.clock_in_at DESC
            """,target,periodId,periodId);
         for(Map<String,Object> r:rows){
@@ -249,8 +250,7 @@ public class AttendanceService {
                  r.clock_in_at,r.clock_out_at,r.break_minutes,r.status,r.version
           FROM attendance_records r JOIN users u ON u.id=r.user_id
           JOIN shifts s ON s.id=r.shift_id
-          WHERE r.status='completed' AND (? IS NULL OR EXISTS(
-              SELECT 1 FROM periods p WHERE p.id=? AND s.shift_date BETWEEN p.start_date AND p.end_date))
+          WHERE r.status='completed' AND (? IS NULL OR s.period_id=?)
           ORDER BY r.clock_out_at DESC
         """,periodId,periodId);
     }
@@ -265,6 +265,7 @@ public class AttendanceService {
         """,recordId);
         if(before==null)throw error(HttpStatus.NOT_FOUND,"Không tìm thấy lượt công");
         if(actor.equals(before.get("user_id")))throw error(HttpStatus.FORBIDDEN,"Không được tự duyệt giờ công của mình");
+        unlocked((String)before.get("shift_id"));
         if(!"completed".equals(before.get("status")))
             throw error(HttpStatus.CONFLICT,"Chỉ duyệt được lượt đã check-out và chưa duyệt");
         int count=db.update("UPDATE attendance_records SET status='approved',version=version+1,updated_at=SYSUTCDATETIME() WHERE id=? AND status='completed' AND version=?",
@@ -333,7 +334,7 @@ public class AttendanceService {
     public Map<String,Object> lockPeriod(String actor,String periodId,String reason) {
         needAdmin(actor);
         if(reason==null || reason.trim().length()<5) throw error(HttpStatus.BAD_REQUEST,"Lý do khóa kỳ cần ít nhất 5 ký tự");
-        if(one("SELECT id FROM periods WHERE id=?",periodId)==null) throw error(HttpStatus.NOT_FOUND,"Không tìm thấy kỳ");
+        if(one("SELECT id FROM periods WITH (UPDLOCK,HOLDLOCK) WHERE id=?",periodId)==null) throw error(HttpStatus.NOT_FOUND,"Không tìm thấy kỳ");
         if(one("SELECT period_id FROM attendance_period_locks WHERE period_id=?",periodId)!=null)
             throw error(HttpStatus.CONFLICT,"Kỳ công đã khóa");
         db.update("INSERT INTO attendance_period_locks(period_id,locked_by,reason) VALUES(?,?,?)",periodId,actor,reason.trim());

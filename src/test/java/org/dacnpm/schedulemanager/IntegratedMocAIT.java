@@ -74,6 +74,89 @@ class IntegratedMocAIT {
     @Autowired TransactionTemplate tx;
     @Autowired MockMvc mvc;
     @Autowired JwtUtil jwt;
+    @Autowired org.dacnpm.schedulemanager.api.rules.RuleService ruleService;
+    @Autowired PlanRepository planRepository;
+
+    @Test void dashboardExportsAndCanonicalHoursAgreeForThe808Over740Fixture() throws Exception {
+        jdbc.update("UPDATE periods SET end_date=? WHERE id=?",START.plusDays(30),PERIOD);
+        jdbc.update("UPDATE rule_settings SET value_text='370' WHERE scope_id IN (?,?) AND param_key='target_hours'",A.id(),B.id());
+        for(int day=0;day<31;day++){
+            String id="moc_report_"+day;shift(id,START.plusDays(day),"08:00","21:00",0);
+            jdbc.update("UPDATE shifts SET period_id=? WHERE id=?",PERIOD,id);
+            assign(id+"a",id,A.id());assign(id+"b",id,B.id());
+        }
+        shift("moc_report_extra",START.plusDays(30),"21:00","22:00",0);
+        jdbc.update("UPDATE shifts SET period_id=? WHERE id='moc_report_extra'",PERIOD);
+        assign("moc_report_extraa","moc_report_extra",A.id());assign("moc_report_extrab","moc_report_extra",B.id());
+        var canonical=scheduleReports.hours(PERIOD,"published",null,new org.dacnpm.schedulemanager.schedule.report.ReportService.Filters(null,null,null));
+        assertThat(canonical.totals().hours()).isEqualTo(808);
+        assertThat(canonical.totals().targetHours()).isEqualTo(740);
+        var dashboard=reports.dashboard(ADMIN.id(),PERIOD,null);
+        assertThat(((java.math.BigDecimal)dashboard.get("differenceHours")).doubleValue()).isEqualTo(68);
+        assertThat(((Number)dashboard.get("percentage")).doubleValue()).isEqualTo(109);
+        var rows=reports.userHours(ADMIN.id(),PERIOD,null);
+        assertThat(rows.stream().mapToDouble(r->r.scheduledHours().doubleValue()).sum()).isEqualTo(808);
+        assertThat(new String(reports.csv(rows),java.nio.charset.StandardCharsets.UTF_8)).contains("404");
+        try(var zip=new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(reports.xlsx(rows)))){
+            boolean found=false;java.util.zip.ZipEntry entry;
+            while((entry=zip.getNextEntry())!=null)if(entry.getName().equals("xl/worksheets/sheet1.xml")){
+                assertThat(new String(zip.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8)).contains("404").contains("370");found=true;
+            }
+            assertThat(found).isTrue();
+        }
+        jdbc.update("UPDATE rule_settings SET value_text='0' WHERE scope_id IN (?,?) AND param_key='target_hours'",A.id(),B.id());
+        assertThat(reports.dashboard(ADMIN.id(),PERIOD,null).get("percentage")).isNull();
+        assertThat(reports.dashboard(ADMIN.id(),PERIOD,null).get("progressLabel")).isEqualTo("Chưa đủ dữ liệu");
+    }
+
+    @Test void employeeProfilesAndAuditCannotBeReadOrChangedByAnotherEmployee() throws Exception {
+        String token=jwt.issue(A.id(),A.id(),"user");
+        mvc.perform(get("/api/audit").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/workspace/employees/"+B.id()).header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/my/profile").param("userId",B.id()).header("Authorization","Bearer "+token))
+            .andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.id").value(A.id()));
+    }
+
+    @Test void reportPeriodCatalogAndDirectQueriesDoNotExposeDraftOrUnrelatedPeriods() throws Exception {
+        jdbc.update("INSERT INTO periods(id,name,cycle,start_date,end_date,status) VALUES('moc_private_period',N'Kỳ riêng tư','weekly',?,?,'draft')",START,START.plusDays(6));
+        assertThat(reports.periods(A.id())).noneMatch(row->"moc_private_period".equals(row.get("id")));
+        String token=jwt.issue(A.id(),A.id(),"user");
+        mvc.perform(get("/api/reports/dashboard").param("periodId","moc_private_period").header("Authorization","Bearer "+token)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/reports/export").param("periodId","moc_private_period").header("Authorization","Bearer "+token)).andExpect(status().isNotFound());
+    }
+
+    @Test void attendanceListsApprovalsAndLocksUsePeriodIdentityInsteadOfOverlappingDates() {
+        jdbc.update("INSERT INTO periods(id,name,cycle,start_date,end_date,status) VALUES('moc_att_other',N'Kỳ công khác','weekly',?,?,'locked')",START,START.plusDays(6));
+        assign("moc_att_a",S1,A.id());
+        jdbc.update("INSERT INTO attendance_records(id,user_id,shift_id,clock_in_at,clock_out_at,status) VALUES('moc_att_record',?,?,?,?,'completed')",A.id(),S1,START.atTime(1,0),START.atTime(5,0));
+        assertThat(attendance.records(A.id(),null,"moc_att_other")).isEmpty();
+        assertThat(attendance.pendingPunchApproval(ADMIN.id(),"moc_att_other")).isEmpty();
+        assertThat(attendance.records(A.id(),null,PERIOD)).hasSize(1);
+        attendance.lockPeriod(ADMIN.id(),"moc_att_other","Khóa riêng kỳ khác");
+        attendance.approvePunch(ADMIN.id(),"moc_att_record","Duyệt đúng kỳ công");
+        assertThat(jdbc.queryForObject("SELECT status FROM attendance_records WHERE id='moc_att_record'",String.class)).isEqualTo("approved");
+    }
+
+    @Test void attendancePeriodLockBlocksOrdinaryApprovalButRetainsControlledAdjustment() {
+        assign("moc_att_a",S1,A.id());
+        jdbc.update("INSERT INTO attendance_records(id,user_id,shift_id,clock_in_at,clock_out_at,status) VALUES('moc_att_record',?,?,?,?,'completed')",A.id(),S1,START.atTime(1,0),START.atTime(5,0));
+        attendance.lockPeriod(ADMIN.id(),PERIOD,"Đóng kỳ công kiểm thử");
+        assertThatThrownBy(()->attendance.approvePunch(ADMIN.id(),"moc_att_record","Duyệt sau khóa kỳ")).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        var request=attendance.request(A.id(),new AttendanceService.Change(null,"moc_att_record",START.atTime(1,0).toInstant(ZoneOffset.UTC).toString(),START.atTime(4,0).toInstant(ZoneOffset.UTC).toString(),0,"Điều chỉnh có kiểm soát"));
+        attendance.review(ADMIN.id(),(String)request.get("id"),new AttendanceService.Review(true,"Duyệt điều chỉnh sau khóa"));
+        assertThat(jdbc.queryForObject("SELECT status FROM attendance_records WHERE id='moc_att_record'",String.class)).isEqualTo("approved");
+    }
+
+    @Test void dashboardUsesTheSameEmployeeFilterForCardsHoursAndPendingItems() {
+        assign("moc_dashboard_a",S1,A.id());assign("moc_dashboard_b",S2,B.id());
+        var one=reports.dashboard(ADMIN.id(),PERIOD,A.id());
+        assertThat(((Number)one.get("publishedShifts")).intValue()).isEqualTo(1);
+        assertThat(((Number)one.get("unconfirmedSchedules")).intValue()).isEqualTo(1);
+        assertThat(((java.math.BigDecimal)one.get("scheduledHours")).doubleValue()).isEqualTo(3.5);
+        var empty=reports.dashboard(ADMIN.id(),PERIOD,"missing-user");
+        assertThat(((Number)empty.get("publishedShifts")).intValue()).isZero();
+        assertThat(((Number)empty.get("pendingRequests")).intValue()).isZero();
+    }
 
     @BeforeEach void fixture(org.junit.jupiter.api.TestInfo test) {
         String method=test.getTestMethod().orElseThrow().getName();
@@ -102,6 +185,19 @@ class IntegratedMocAIT {
     }
     void assign(String id,String shift,String user){jdbc.update("INSERT INTO assignments(id,shift_id,user_id,status,assigned_by) VALUES(?,?,?,'confirmed',?)",id,shift,user,ADMIN.id());}
 
+    @Test void confirmedStaffingPolicyReplacesLegacySeedAndHonorsEffectiveDates() {
+        jdbc.update("UPDATE rule_settings SET status='superseded' WHERE param_key='understaffed_policy'");
+        jdbc.update("UPDATE schedule_rules SET understaffed_policy='block'");
+        assertThat(planRepository.understaffedPolicy()).isEqualTo("warn");
+        var preview=ruleService.preview(ADMIN,new org.dacnpm.schedulemanager.api.rules.RuleModels.ChangeRequest(
+            List.of(new org.dacnpm.schedulemanager.api.rules.RuleModels.ChangeItem("set","understaffed_policy","company",null,"block",null)),"Chặn công bố thiếu người"));
+        assertThat(planRepository.understaffedPolicy()).isEqualTo("warn");
+        ruleService.apply(ADMIN,preview.changeId(),new org.dacnpm.schedulemanager.api.rules.RuleModels.ApplyRequest(true));
+        assertThat(planRepository.understaffedPolicy()).isEqualTo("block");
+        jdbc.update("INSERT INTO rule_settings(id,param_key,scope_type,value_text,effective_from,change_id) VALUES('moc_future_staffing','understaffed_policy','company','warn',?,'moc_it_change')",LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh")).plusDays(1));
+        assertThat(planRepository.understaffedPolicy()).isEqualTo("block");
+    }
+
     @Test void unavailableIntervalsAreHardFailuresThroughTheActualRepository() {
         jdbc.update("INSERT INTO availability_slots(entry_id,start_time,end_time,slot_type) SELECT id,'09:00','10:00','unavailable' FROM availability_entries WHERE registration_id=? AND available_date=?","moc_it_reg"+A.id(),START);
         assertThat(validator.validate(A.id(),S1,null,Set.of(),null)).anyMatch(v->v.code().equals("UNAVAILABLE_INTERVAL")&&v.blocking());
@@ -120,6 +216,18 @@ class IntegratedMocAIT {
         assertThatThrownBy(()->plans.dryRun(PERIOD,new PlanService.PlanOptions(List.of("moc_other_shift"),false)))
             .isInstanceOf(IllegalArgumentException.class);
     }
+    @Test void overlappingPeriodsCannotBypassAnEmployeesPeriodHoursCap() {
+        jdbc.update("UPDATE rule_settings SET value_text='5' WHERE scope_id=? AND param_key='target_hours'",A.id());
+        jdbc.update("UPDATE rule_settings SET value_text='fixed' WHERE scope_id=? AND param_key='max_hours_mode'",A.id());
+        jdbc.update("INSERT INTO rule_settings(id,param_key,scope_type,scope_id,value_text,effective_from,change_id) VALUES('moc_small_cap','max_hours_fixed','user',?,'5',?,'moc_it_change')",A.id(),START.minusDays(30));
+        jdbc.update("INSERT INTO periods(id,name,cycle,start_date,end_date,status) VALUES('moc_cap_other',N'Kỳ chồng ngày','weekly',?,?,'locked')",START,START.plusDays(6));
+        shift("moc_cap_shift",START,"15:00","19:00",0);
+        jdbc.update("UPDATE shifts SET period_id='moc_cap_other' WHERE id='moc_cap_shift'");
+        assign("moc_cap_assignment","moc_cap_shift",A.id());
+        assertThat(validator.validate(A.id(),S2,null,Set.of(),null))
+            .anyMatch(v->v.code().equals("HOURS_PER_PERIOD") && v.blocking());
+    }
+
     @Test void publishIsVersionedAndProducesDurableDeduplicatedNotifications() {
         var plan=plans.create(PERIOD,"Phương án IT",new PlanService.PlanOptions(List.of(S1,S2),false),ADMIN.id());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM assignments WHERE shift_id IN (?,?)",Integer.class,S1,S2)).isZero();
@@ -243,6 +351,8 @@ class IntegratedMocAIT {
         var local=LocalDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         var from=local.minusHours(1);var to=local.plusHours(2);
         shift("moc_it_now",from.toLocalDate(),from.toLocalTime().withSecond(0).withNano(0).toString(),to.toLocalTime().withSecond(0).withNano(0).toString(),0);
+        jdbc.update("INSERT INTO periods(id,name,cycle,start_date,end_date,status) VALUES('moc_attendance_now',N'Công hôm nay','weekly',?,?,'locked')",from.toLocalDate(),to.toLocalDate());
+        jdbc.update("UPDATE shifts SET period_id='moc_attendance_now' WHERE id='moc_it_now'");
         assign("moc_it_now_as","moc_it_now",A.id());
         var record=attendance.checkIn(A.id(),"moc_it_now");
         assertThatThrownBy(()->attendance.checkIn(A.id(),"moc_it_now")).isInstanceOf(RuntimeException.class);

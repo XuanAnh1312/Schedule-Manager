@@ -4,5 +4,6 @@
 !.env.example
 *.log
 .review-moc-a/
+.moc-a-completion/
 .local-test/
 node_modules/

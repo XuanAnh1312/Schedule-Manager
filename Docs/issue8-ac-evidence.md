@@ -1,32 +1,16 @@
-# Issue #8 – Bảng bằng chứng nghiệm thu (điền khi chạy trên máy người thực hiện)
+# Bằng chứng chấm công và báo cáo — cập nhật 04/11/2026
 
-> Chưa có kết quả kiểm thử trực tiếp trên SQL Server của người dùng trong môi trường tạo gói. Đánh dấu **CHƯA XÁC MINH**, không coi test thiết kế là test đã PASS.
->
-> Issue #8 nêu AC-03, AC-07, AC-09 nhưng không cung cấp văn bản đầy đủ của từng AC; ánh xạ bên dưới theo phạm vi BI và cần đối chiếu với tài liệu AC của nhóm.
+Ma trận AC đầy đủ và kết quả của bản tích hợp: [Báo cáo bàn giao mốc A/mốc B](../HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md). Chuẩn ánh xạ là task_v1.1.md, thay cho bảng đối chiếu Issue #8 cũ.
 
-| Nhóm | Kịch bản | Cách chạy | Kết quả hiện tại | Bằng chứng cần lưu |
-|---|---|---|---|---|
-| BI-01 / AC-03 (đối chiếu) | JWT nhân viên, check-in ca published, không lặp open | QA fixture + API | CHƯA XÁC MINH | HTTP 200,409; bản ghi SQL |
-| BI-01 | Check-out, nghỉ, ca qua ngày, late/night/overtime | API + unit test | CHƯA XÁC MINH môi trường | Screenshot JSON/JUnit |
-| BI-02 / AC-07 (đối chiếu) | Request before/after, duyệt/từ chối, cạnh tranh duyệt | Hai tài khoản/2 terminal | CHƯA XÁC MINH | JSON + attendance_audit |
-| BI-02 | Khóa kỳ, điều chỉnh có kiểm soát | SQL QA + API | CHƯA XÁC MINH | 409 + audit |
-| BI-03 | Dashboard cùng định nghĩa bảng | GET dashboard/users | CHƯA XÁC MINH | So sánh theo periodId |
-| BI-04 | CSV/XLSX đúng quyền, không lộ employee khác | GET export qua token 2 vai trò | CHƯA XÁC MINH | File thử + 403 |
-| BI-05 / AC-09 (đối chiếu) | 808/740 = 109%, +68h; 0 giờ mục tiêu | `mvn test` | CHƯA XÁC MINH Maven | Test output |
-| BI-06 | 320,360,390,768,1024,1280 CSS px | `tests/attendance-responsive.html` | CHƯA XÁC MINH browser | Kết quả runner + ảnh |
-| BI-06 | Windows scale 125%, browser zoom 200%, keyboard | Thủ công | CHƯA XÁC MINH | OS scale + DevTools |
-| BI-07 | SPA login/route/calendar/modal không hồi quy | `tests/browser-smoke.html` gốc | CHƯA XÁC MINH | Smoke log |
-| BI-07 | API lỗi, 401/403, empty/loading, reload, 2 browser | Test thủ công | CHƯA XÁC MINH | HTTP response, video/ảnh |
-| AC-10, AC-14 (phối hợp) | Đồng bộ periods/assignments thật với UI demo | Nhóm phụ trách API phân lịch | CHƯA TÍCH HỢP | PR + tài liệu API |
+| Yêu cầu | Bằng chứng hiện tại |
+|---|---|
+| BI-01: check-in/out, trùng lượt, thời gian/nghỉ/ca đêm | Unit AttendanceMathTest, SQL IntegratedMocAIT, HTTP ca đang diễn ra/check-in trùng/check-out thật |
+| BI-02: đề nghị sửa, version, duyệt, khóa kỳ | SQL stale request, kỳ chồng ngày, khóa chặn approve thường và cho điều chỉnh có kiểm soát; HTTP request/review/lock |
+| AC-03: tổng giờ | SQL fixture 808/740: +68h, 109%; mẫu số 0; CSV/XLSX; cùng nguồn giờ lịch |
+| AC-07: context số liệu | SQL dashboard/canonical/employee filter, HTTP đối chiếu tổng giờ; published/plan có nhãn riêng |
+| AC-09: responsive | Browser sáu viewport và DPR/zoom đã đạt; Windows Display Scale thật khác 100% còn chờ xác nhận |
+| AC-10: backend chuẩn | Snapshot có công thật không rỗng giữ nguyên qua refresh/logout/login/trình duyệt độc lập |
+| AC-11/12: quyền và audit | API userId/branchId giả, kỳ nháp/không áp dụng, profile/audit trái quyền; audit trước/sau/lý do và outbox rollback/retry |
+| AC-14: tự tính | Rules fixed/percent qua backend; báo cáo tự tính tỷ lệ/chênh lệch, không nhập trực tiếp số suy ra |
 
-### Ghi nhận người kiểm thử
-
-- Ngày chạy: ______
-- Commit SHA: ______
-- Backend/Java: ______
-- SQL Server/Flyway: ______
-- Browser/Windows scale/deviceScaleFactor: ______
-- Kết quả `mvn test`: ______
-- API fixture/negative/security: ______
-- Bằng chứng đường dẫn: ______
-- Phân tích lỗi còn mở: ______
+Log/JSON/JUnit/ảnh và manifest ở .local-test; kết quả tóm tắt không chứa credentials ở HUONG_DAN/KET_QUA_KIEM_THU.json. Không đánh dấu mốc A 100% trước khi đóng bước Windows Scale thật.

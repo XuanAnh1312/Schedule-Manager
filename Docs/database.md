@@ -66,8 +66,8 @@ Các bảng chính có primary key, foreign key, unique/check constraint và ind
 ### Quy tắc có phạm vi và phiên bản
 
 - Mỗi giá trị trong `rule_settings` gồm tham số (`param_key`), phạm vi (`scope_type`, `scope_id`), giá trị dạng chuỗi và `effective_from`. Danh mục tham số nằm trong code (`RuleParameter`) và được trả qua `GET /api/rules/catalog`.
-- Phạm vi: `company` (`scope_id` NULL), `branch`, `employee_type`, `group`, `user`. Hiện chỉ cấu hình được `company` và `user`, vì chưa có danh mục chi nhánh/loại nhân viên/nhóm.
-- Khi nhiều giá trị cùng áp dụng, phạm vi cụ thể hơn thắng: `user > group > employee_type > branch > company`. Cùng phạm vi thì `effective_from` gần nhất mà không sau ngày đang xét sẽ thắng. **Thứ tự này là đề xuất, cần cả đội xác nhận.**
+- Phạm vi: `company` (`scope_id` NULL), `branch`, `employee_type`, `group`, `user`; các danh mục/context tổ chức đã được tích hợp.
+- Khi nhiều giá trị cùng áp dụng, phạm vi cụ thể hơn thắng: `user > group > employee_type > branch > company`. Cùng phạm vi thì `effective_from` gần nhất mà không sau ngày đang xét sẽ thắng. Xung đột cùng mức/ngày phải được xử lý, không chọn ngẫu nhiên.
 - Chỉ mục duy nhất có lọc `uq_rule_settings_active` bảo đảm mỗi tham số/phạm vi/ngày hiệu lực chỉ có một giá trị `active`.
 - V7 **không seed** giá trị quy tắc nào. Tham số bắt buộc chưa cấu hình sẽ hiện trong checklist; hệ thống không tự gán số.
 - Áp dụng quy tắc chỉ ghi `rule_changes`, `rule_settings`, `rule_revision`, `level_substitutions` và `history`. Không sửa `periods`, `shifts` hay `assignments`.
@@ -83,4 +83,10 @@ Các bảng chính có primary key, foreign key, unique/check constraint và ind
 
 Flyway tạo schema và seed Level/Admin/default schedule rules. V5 **chưa chuyển các kỳ, nhân viên thường, đăng ký rảnh, ca, phân công và lịch sử từ `localStorage`**; các bảng nghiệp vụ này sẽ rỗng đến khi có API/import seed riêng. Dữ liệu hiện có trong browser không tự đồng bộ sang SQL Server.
 
-Từ V7, kỳ đăng ký, đăng ký thời gian rảnh và quy tắc đã có API ghi vào SQL Server (xem `Docs/api.md`). Tuy vậy, SPA **chưa gọi các API này**: màn hình hiện tại vẫn đọc/ghi `localStorage` cho tới khi nối đăng nhập thật và API client chung.
+Workspace hiện tại đã gọi API cho dữ liệu nghiệp vụ; `sessionStorage` chỉ giữ JWT phiên. Không import ngầm dữ liệu localStorage của demo.
+
+## V18 — tổ chức và lưu trữ hồ sơ
+
+Thêm bảng `departments`, các cột `users.department_id`, `manager_id`, `archived_at`, `version`, khóa ngoại và ràng buộc người quản lý không là chính mình. Lưu trữ đổi trạng thái tài khoản và giữ hồ sơ/lịch sử. Migration kế tiếp là V19; không sửa migration V1–V18 đã áp dụng.
+
+Chấm công lọc/khóa theo `shifts.period_id`, không suy ra kỳ từ ngày khi nhiều kỳ chồng nhau. Diễn tập backup/restore và hướng dẫn vận hành nằm trong [HUONG_DAN](../HUONG_DAN/HUONG_DAN_CHAY_HE_THONG.md).

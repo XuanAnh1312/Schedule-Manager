@@ -38,9 +38,16 @@ public class PlanRepository {
             """;
 
     private final JdbcTemplate jdbc;
+    private final java.time.Clock clock;
 
     public PlanRepository(JdbcTemplate jdbc) {
+        this(jdbc, java.time.Clock.systemUTC());
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PlanRepository(JdbcTemplate jdbc, java.time.Clock clock) {
         this.jdbc = jdbc;
+        this.clock = clock;
     }
 
     public Optional<String> periodStatus(String periodId) {
@@ -183,9 +190,20 @@ public class PlanRepository {
     /** Chính sách thiếu người của quy tắc chung: warn (mặc định) hoặc block. */
     public String understaffedPolicy() {
         return jdbc.queryForList("""
-                        SELECT TOP 1 understaffed_policy FROM schedule_rules
-                        ORDER BY CASE WHEN id = 'rules_main' THEN 0 ELSE 1 END, id
-                        """, String.class).stream().findFirst().orElse("warn");
+                        SELECT value_text FROM rule_settings
+                        WHERE param_key = 'understaffed_policy' AND scope_type = 'company'
+                          AND status = 'active' AND effective_from = (
+                            SELECT MAX(effective_from) FROM rule_settings
+                            WHERE param_key = 'understaffed_policy' AND scope_type = 'company'
+                              AND status = 'active' AND effective_from <= ?)
+                        """, String.class, org.dacnpm.schedulemanager.common.BusinessTime.today(clock))
+                .stream().reduce((a, b) -> { throw new PlanException("RULE_CONFLICT", 409, "Cấu hình thiếu người bị trùng. Hãy sửa quy tắc trước khi công bố."); })
+                .map(value -> {
+                    if (!List.of("warn", "block").contains(value)) {
+                        throw new PlanException("INVALID_RULE", 409, "Chính sách thiếu người không hợp lệ.");
+                    }
+                    return value;
+                }).orElse("warn");
     }
 
     /**

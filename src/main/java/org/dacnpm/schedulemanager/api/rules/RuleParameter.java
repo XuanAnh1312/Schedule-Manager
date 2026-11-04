@@ -70,6 +70,10 @@ public enum RuleParameter {
             "Chỉ đổi cách hiển thị (ví dụ 109% hay 109.19%), không đổi công thức tính tỷ lệ.",
             ValueType.INTEGER, "0", "2", Kind.DISPLAY, Category.DISPLAY, false, true, false),
 
+    UNDERSTAFFED_POLICY("understaffed_policy", "Công bố ca thiếu người", null,
+            "warn = cho công bố kèm cảnh báo; block = chặn công bố khi thiếu người. Không cho phép vượt ràng buộc bắt buộc.",
+            ValueType.ENUM, null, null, Kind.SOFT, Category.BUSINESS_RULE, false, true, false, "warn", "block"),
+
     LEVEL_SUBSTITUTIONS("level_substitutions", "Level được phép thay thế", null,
             "Danh sách cặp {higherLevelId, lowerLevelId}: Level cao được làm thay vị trí cần Level thấp. "
                     + "Áp dụng toàn công ty, có hiệu lực ngay khi xác nhận.",

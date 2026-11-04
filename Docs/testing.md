@@ -25,7 +25,7 @@ Runner tạm thay dữ liệu `localStorage` có tiền tố `pls_` trong lúc c
 
 ## Tình trạng hiện tại
 
-Chưa có test runner/lệnh test được tích hợp vào Maven hoặc package manager. `pom.xml` là cấu hình Maven cho lớp Java mẫu; nó không kiểm thử luồng SPA.
+Maven chạy unit/controller/wiring; `tests/verify-moc-a.ps1` chạy hai SQL Server integration suite, HTTP, Playwright và frontend proxy trên database QA mới. `npm run test:http` và `npm run test:browser` chạy từng nhóm khi đã chuẩn bị backend/fixture QA. Xem báo cáo bàn giao để biết kết quả và bước Windows Scale còn chờ.
 
 ## Kiểm thử Issue #8: chấm công thực tế và báo cáo
 

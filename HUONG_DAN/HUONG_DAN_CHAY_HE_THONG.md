@@ -1,21 +1,21 @@
 # Hướng dẫn chạy Schedule Manager trên Windows
 
-Hai file `.bat` là script khởi chạy hai phần của dự án, không phải hai bộ mã nguồn độc lập. Giữ thư mục `HUONG_DAN` trong thư mục dự án, cạnh `pom.xml`.
+Chỉ cần mở **`CHAY_HE_THONG.bat`**. Một ứng dụng Spring Boot phục vụ cả giao diện và API tại **http://localhost:8080**, dùng database SQL Server trong `.env`. Hai file chạy FE/BE cũ đã được thay thế. Giữ thư mục `HUONG_DAN` trong thư mục dự án, cạnh `pom.xml`.
 
 ## 1. Chuẩn bị
 
 - JDK 21 trở lên và Maven trong `PATH`. Kiểm tra bằng `java -version` và `mvn -version`; Maven phải dùng JDK 21 trở lên.
 - SQL Server đang chạy, bật TCP/IP, biết đúng cổng và có database dành cho hệ thống. Môi trường kiểm thử lần bàn giao dùng SQL Server 2022.
-- Node.js 20 trở lên để chạy frontend riêng. Frontend không cần `npm install`; Playwright chỉ cần khi chạy kiểm thử.
+- Không cần Node.js/npm để sử dụng hệ thống. Node.js/Playwright chỉ cần khi chạy các công cụ nạp fixture và kiểm thử.
 - Lần build Maven đầu tiên cần mạng để tải dependencies.
 
-Mở PowerShell tại thư mục gốc:
+Nếu máy đã có `.env` và kết nối SQL Server được, **bỏ qua bước tạo file**, giữ nguyên thông tin của máy. Chỉ tạo file khi mới tải dự án và chưa có `.env`:
 
 ```powershell
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-Mở `.env` bằng trình soạn thảo và điền thông tin của máy bạn:
+Mở `.env` bằng trình soạn thảo (`notepad .env`) để cấu hình nếu đây là file mới hoặc thông tin kết nối đang sai. Các giá trị dưới đây là mẫu, **không copy đè lên mật khẩu SQL/JWT đang dùng được**:
 
 ```properties
 DB_HOST=localhost
@@ -30,37 +30,39 @@ JWT_EXPIRATION_MS=86400000
 
 Có thể tạo JWT secret bằng PowerShell: `[Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48))` trên PowerShell 7, hoặc dùng trình quản lý mật khẩu tạo chuỗi ngẫu nhiên. Không đưa `.env`, database backup hoặc fixture chứa mật khẩu vào Git. Tài khoản DB cần quyền tạo/sửa schema khi Flyway chạy; khi triển khai thật nên tách tài khoản migration và tài khoản runtime.
 
-## 2. Chạy backend
+## 2. Chạy toàn bộ hệ thống
 
-Nhấp đúp `CHAY_BACKEND.bat`, hoặc chạy:
+Nhấp đúp `CHAY_HE_THONG.bat`, hoặc chạy:
 
 ```powershell
-.\HUONG_DAN\CHAY_BACKEND.bat
+.\HUONG_DAN\CHAY_HE_THONG.bat
 ```
 
-Script build JAR vào `target`, sau đó chạy API ở **http://localhost:8081**. Script dừng nếu thiếu Java/Maven/`.env` hoặc build thất bại. Bước build trong script bỏ qua test để khởi động; quy trình kiểm thử riêng ở mục 6 mới là bằng chứng chất lượng.
+Script kiểm tra `.env`, Java và cổng; đóng gói JAR vào `target` khi chưa có build hoặc mã nguồn thay đổi. Lần sau dùng lại JAR nếu fingerprint nguồn và hash JAR vẫn khớp. Maven ưu tiên cache offline, chỉ tải mạng khi thiếu dependency. Build lúc khởi động bỏ qua test; kiểm thử chất lượng chạy riêng ở mục 6.
 
-Nếu đã có đủ Maven cache, dùng `.\HUONG_DAN\CHAY_BACKEND.bat --offline` để build không cần mạng.
+Script đọc cấu hình hiện có, không ghi đè `.env`, không reset hoặc nạp lại database. Frontend gọi API cùng origin và mọi mutation nghiệp vụ được ghi vào SQL Server. Node proxy cũ không nằm trong luồng chạy chính.
 
-Chờ backend khởi động xong rồi mở **http://localhost:8081/api/health**; kết quả phải có `status: UP`. Endpoint `/api/health/database` kiểm tra kết nối SQL Server. Flyway tự áp dụng migration V1–V18 theo thứ tự, không tự xóa dữ liệu.
+Chỉ khi `/api/health` và `/api/health/database` đều `UP`, script mới báo **SAN SANG** và tự mở **http://localhost:8080**. Giữ cửa sổ đang chạy. Nếu mở lại `.bat` khi đúng phiên này còn hoạt động, script dùng lại phiên đó; không tạo thêm server. Cổng bị ứng dụng khác chiếm sẽ được báo lỗi, không tự tắt tiến trình khác. Nếu mã nguồn đã thay đổi, dừng phiên cũ bằng Ctrl+C rồi mở lại.
 
 **Database cũ:** nếu đã chạy migration riêng của từng nhánh có V6/V7 khác nhau, cần backup và đối chiếu `flyway_schema_history` trước. Không sửa checksum, xóa history hay dùng `repair` để bỏ qua lỗi. V18 bổ sung tổ chức/hồ sơ; không thay nội dung migration đã chạy trước đó. Hướng dẫn tích hợp tại `Docs/integration-baseline-moc-a.md`.
 
-## 3. Chạy frontend riêng
+## 3. Sử dụng và xem log
 
-Giữ cửa sổ backend đang chạy, mở cửa sổ thứ hai:
+Một địa chỉ duy nhất cho cả hai vai trò:
 
-```powershell
-.\HUONG_DAN\CHAY_FRONTEND.bat
+```text
+http://localhost:8080
 ```
 
-Mở **http://localhost:8080**. Frontend host chỉ phục vụ những HTML/CSS/JS công khai được cho phép; `/api/*` chuyển tiếp tới backend 8081. Nhờ vậy đăng nhập, chấm công trong iframe và tải báo cáo dùng cùng origin; không cần sửa base URL hay bật CORS rộng.
+Đăng nhập Admin để quản lý hoặc đăng nhập bằng tài khoản nhân viên được cấp. Khi tạo/sửa qua giao diện, dữ liệu đi qua backend, kiểm tra quyền và lưu vào database thật `ScheduleManager` theo cấu hình local hiện tại. Đăng xuất/đăng nhập lại hoặc trình duyệt khác vẫn đọc cùng dữ liệu; browser storage không phải nguồn nghiệp vụ.
 
-Cũng có thể mở trực tiếp **http://localhost:8081** vì backend đã đóng gói giao diện. Cách này dùng cùng tính năng và cùng database. Chọn một địa chỉ cho phiên làm việc: JWT lưu trong `sessionStorage` của địa chỉ/tab đang dùng, nên đổi cổng hoặc mở tab mới có thể cần đăng nhập lại.
+Log nằm trong `.local-run/build.log`, `.local-run/application.log`, `.local-run/application-error.log`. Nếu lỗi, cửa sổ `.bat` giữ thông báo để đọc. JWT lưu trong `sessionStorage`, nên mở tab mới hoặc đổi cổng có thể cần đăng nhập lại.
 
 Không chạy `file://workspace.html`, không dùng `demo.html` để nghiệm thu, và không phục vụ toàn bộ repository bằng HTTP server thông thường. `demo.html` và các file giao diện cũ là bản tham khảo dùng dữ liệu local.
 
 ## 4. Đăng nhập và thao tác ban đầu
+
+Tài khoản nhân viên do Admin cấp khi thêm hồ sơ; không có tự đăng ký. Nhân viên được tự đổi mật khẩu sau khi đăng nhập. Năm tài khoản thử và cách nạp chủ động: [Tài khoản nhân viên test](TAI_KHOAN_NHAN_VIEN_TEST.md).
 
 Database mới có tài khoản seed `admin`, mật khẩu ban đầu `Admin@123` từ migration V4. Đây là tài khoản khởi tạo cho môi trường phát triển. Sau khi đăng nhập, chọn **Đổi mật khẩu** và đặt mật khẩu riêng trước khi cho người khác dùng. Mật khẩu mới tối thiểu 8 ký tự, tối đa 72 byte UTF-8 do BCrypt.
 
@@ -80,24 +82,26 @@ Logout xóa JWT phía client. JWT có hạn dùng; bản hiện tại chưa có 
 ## 5. Đổi cổng, dừng và xử lý lỗi
 
 ```powershell
-$env:BACKEND_PORT='8091'
-.\HUONG_DAN\CHAY_BACKEND.bat
-# Ở cửa sổ frontend:
-$env:FRONTEND_PORT='8090'
-$env:BACKEND_URL='http://127.0.0.1:8091'
-.\HUONG_DAN\CHAY_FRONTEND.bat
+$env:APP_PORT='8090'
+.\HUONG_DAN\CHAY_HE_THONG.bat
+# Tùy chọn:
+.\HUONG_DAN\CHAY_HE_THONG.bat --offline
+.\HUONG_DAN\CHAY_HE_THONG.bat --rebuild
+.\HUONG_DAN\CHAY_HE_THONG.bat --no-browser
+.\HUONG_DAN\CHAY_HE_THONG.bat --stop
 ```
 
-Frontend host chỉ nhận backend HTTP trên máy cục bộ và chỉ lắng nghe loopback. Đây là cấu hình phát triển; triển khai truy cập từ xa cần reverse proxy HTTPS, cấu hình mạng và quản lý secret phù hợp.
+Ứng dụng lắng nghe loopback trên máy cục bộ. Cách chạy này cập nhật SQL Server thật và dùng quyền/API thật; triển khai truy cập từ xa cần cấu hình HTTPS, mạng và quản lý secret phù hợp.
 
-Nhấn **Ctrl+C** ở từng cửa sổ để dừng; dữ liệu vẫn ở SQL Server. Nếu cổng bận, kiểm tra tiến trình đang dùng cổng trước khi đổi cổng hoặc dừng tiến trình đó.
+Nhấn **Ctrl+C ở cửa sổ hệ thống**, hoặc chạy `CHAY_HE_THONG.bat --stop`, để dừng đúng tiến trình Java mà launcher đã tạo; dữ liệu đã lưu vẫn ở SQL Server. Lệnh stop kiểm tra PID/thời điểm tạo để không tắt nhầm tiến trình khác. Không cần chạy thêm FE/BE hay mở thêm cửa sổ dịch vụ. Khi sửa `.env`, dừng rồi chạy lại để ứng dụng nạp cấu hình mới; không cần build lại JAR nếu mã nguồn chưa đổi.
 
 | Hiện tượng | Cách xử lý |
 |---|---|
 | Maven không chạy hoặc báo release 21 | Kiểm tra `JAVA_HOME`, `PATH`, `mvn -version` và phiên bản JDK |
 | Build không tải được thư viện | Kiểm tra mạng/proxy Maven; `mvn -o` chỉ dùng được khi đã có đủ cache |
 | Login lỗi hoặc backend không khởi động | Kiểm tra `.env`, SQL Server/TCP/cổng, database, quyền DB và độ dài JWT secret; xem log cửa sổ backend |
-| Frontend trả 502 | Backend chưa chạy/chưa sẵn sàng hoặc `BACKEND_URL` sai |
+| Cổng bận | Dừng hai cửa sổ FE/BE cũ hoặc chọn `APP_PORT` khác; không chạy song song proxy cũ và ứng dụng chung trên cùng cổng |
+| Khởi động thất bại | Đọc `.local-run/application.log` và `application-error.log`; kiểm tra mật khẩu SQL, quyền migration và trạng thái database |
 | 401 | Phiên hết hạn, tài khoản bị khóa hoặc quyền đã đổi; đăng nhập lại bằng tài khoản còn hiệu lực |
 | 403 | Tài khoản không có quyền thao tác; không sửa userId/branchId để vượt quyền |
 | 409 / RETRY_REQUIRED | Dữ liệu hoặc khóa đã thay đổi; tải lại, đối chiếu trạng thái rồi thử lại |

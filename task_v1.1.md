@@ -47,6 +47,8 @@ Mỗi thành viên chịu trách nhiệm sửa lỗi và test cho module mình; 
 
 ### 3.1. Anh — nền tảng, tài khoản và hồ sơ nhân viên
 
+**Bổ sung 05/11/2026 — cấp tài khoản:** Admin tạo hồ sơ nhân viên đồng thời cấp tên đăng nhập và mật khẩu ban đầu. Nhân viên dùng tài khoản được cấp để đăng nhập, được tự đổi mật khẩu của chính mình sau khi xác nhận mật khẩu hiện tại; không có tự đăng ký hoặc quyền tạo tài khoản cho người khác. Bộ dữ liệu thử gồm `tuong.vdt@hrm.com`, `tuan.ntt@hrm.com`, `binh.ncb@hrm.com`, `anh.npxa@hrm.com`, `bao.dlhb@hrm.com`, mật khẩu ban đầu `Test@123`; chỉ nạp theo chủ đích, không seed tự động vào môi trường vận hành.
+
 - **A-01 — Chốt hợp đồng tích hợp:** cùng 4 thành viên thống nhất schema/ERD, ID, trạng thái, API/DTO, phân trang, bộ lọc, lỗi API, múi giờ và version chống ghi đè. Lập ma trận quyền Admin/Employee và các quyền quản lý cần dùng; để mở rộng Owner/HR/Scheduler/Attendance/Payroll/Learning/Department Manager.
 - **A-02 — Xác thực thật:** nối UI login/logout với API; cung cấp thông tin tài khoản hiện tại, xử lý token hết hạn/401/403; đổi mật khẩu qua backend, bỏ password rõ và chuyển tài khoản demo khỏi luồng thật. Khóa tài khoản phải ngăn tiếp tục sử dụng API dù token cũ còn hạn; định nghĩa rõ cơ chế vô hiệu hóa phiên và chính sách logout.
 - **A-03 — Phân quyền:** kiểm tra cả role/permission và quyền truy cập đối tượng, chi nhánh, nhân viên. Employee chỉ đọc/sửa tài nguyên của mình theo chính sách; không tin userId/actor do client gửi.
@@ -123,11 +125,11 @@ Mỗi thành viên chịu trách nhiệm sửa lỗi và test cho module mình; 
 |---|---|---|---|
 | MA-R01 — hoàn tất AC-09 | Bình; cả đội hỗ trợ | Thử trên **Windows Display Scale thật 125% hoặc 150%**. Máy kiểm thử hiện có system DPI 96 (100%). Đã đạt CSS viewport 320/360/390/768/1024/1280, DPR 1.25 và zoom 125%, nhưng chúng không thay thế OS scale. Kiểm tra login/navigation/bảng/form đăng ký/lịch/modal và iframe chấm công, kể cả bàn phím. | Ghi cấu hình Windows thực tế, bản mã, ngày/người kiểm tra và kết quả/ảnh; không tràn trang, nút bị che hoặc modal vượt khung. Sửa và test lại nếu phát hiện lỗi. |
 | MA-R02 — chốt hồ sơ nghiệm thu | Anh + Bình; senior xác nhận | Sau MA-R01, cập nhật ma trận AC-01…14, báo cáo và JSON evidence; đối chiếu đúng bản mã/manifest, không lấy log cũ chứng nhận bản mới. | Đủ bằng chứng toàn bộ AC, không còn lỗi chặn vận hành; mới đánh dấu mốc A hoàn tất 100%. |
-| MA-R03 — dọn review sau nghiệm thu | Anh | **Chỉ sau khi MA-R02 đạt**, xóa các file review theo yêu cầu; giữ `task_v1.1.md`, hướng dẫn chạy, báo cáo bàn giao và evidence cần thiết. Hiện vẫn giữ review vì chưa đạt 100%. | Không xóa nhầm task, dữ liệu, fixture, backup hay mã nguồn; tài liệu tham chiếu còn dùng được. |
+| MA-R03 — dọn review (đã hoàn tất 05/11/2026) | Anh | Theo yêu cầu cập nhật của người dùng, đã xóa các file review trong repo sau khi chuyển trạng thái và việc còn lại vào mục 3.6 này; giữ `task_v1.1.md`, hướng dẫn chạy, báo cáo bàn giao và evidence cần thiết. | Đã xóa review và cập nhật tham chiếu; không xóa task, dữ liệu, fixture, backup hay mã nguồn. MA-R01/MA-R02 vẫn chưa đóng. |
 
 **Giới hạn đã ghi nhận để senior tiếp tục xử lý:** engine heuristic chưa chứng minh tối ưu toàn cục; JWT logout/đổi mật khẩu chưa thu hồi từng token; V1 dùng Admin/Employee, chưa có ma trận role/scope mở rộng; workspace còn tập trung JS và chấm công dùng iframe; chưa có dashboard retry/dead-letter cho outbox. Chưa nghiệm thu load/HA hoặc triển khai HTTPS/secret manager/backup ngoài máy cho production. Những nội dung này cần được chốt theo phạm vi vận hành/mốc B, không được báo là đã triển khai đầy đủ. Khóa/lưu trữ tài khoản vẫn chặn token cũ qua kiểm tra trạng thái/quyền DB trên API production.
 
-Việc đưa bản **93% lên `main` theo yêu cầu người dùng không đồng nghĩa nghiệm thu 100%**, không đóng MA-R01…03 và không tự xóa review.
+Việc đưa bản **93% lên `main` và dọn review theo yêu cầu người dùng không đồng nghĩa nghiệm thu 100%**. MA-R03 đã hoàn tất theo yêu cầu ngày 05/11/2026; MA-R01/MA-R02 vẫn còn chờ thực hiện và nghiệm thu.
 
 ## 4. Cách triển khai song song và giảm xung đột
 

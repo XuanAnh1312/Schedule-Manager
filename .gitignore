@@ -6,4 +6,5 @@
 .review-moc-a/
 .moc-a-completion/
 .local-test/
+.local-run/
 node_modules/

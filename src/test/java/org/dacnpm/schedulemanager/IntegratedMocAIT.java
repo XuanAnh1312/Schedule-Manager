@@ -2,6 +2,7 @@ package org.dacnpm.schedulemanager;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 
@@ -76,6 +77,38 @@ class IntegratedMocAIT {
     @Autowired JwtUtil jwt;
     @Autowired org.dacnpm.schedulemanager.api.rules.RuleService ruleService;
     @Autowired PlanRepository planRepository;
+
+    @Test void onlyAdminCanIssueAnEmployeeAccountAndEmployeeCanChangeOnlyTheirOwnPassword() throws Exception {
+        var json=new com.fasterxml.jackson.databind.ObjectMapper();
+        String employeeToken=jwt.issue(A.id(),A.id(),"user"),adminToken=jwt.issue(ADMIN.id(),"admin","admin");
+        String username="issued.employee@hrm.com",initial="Test@123",updated="Changed-test-2026!";
+        String body=json.writeValueAsString(Map.of("employeeCode","ISSUED_TEST","username",username,"password",initial,"fullName","Employee issued by Admin","status","active","email",username,"role","admin"));
+        mvc.perform(post("/api/workspace/employees").contentType("application/json").content(body)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/workspace/employees").header("Authorization","Bearer "+employeeToken).contentType("application/json").content(body)).andExpect(status().isForbidden());
+        var created=mvc.perform(post("/api/workspace/employees").header("Authorization","Bearer "+adminToken).contentType("application/json").content(body)).andExpect(status().isOk()).andReturn();
+        String id=json.readTree(created.getResponse().getContentAsString()).get("id").asText();
+        var row=jdbc.queryForMap("SELECT role,password_hash FROM users WHERE id=?",id);
+        assertThat(row.get("role")).isEqualTo("user");
+        assertThat((String)row.get("password_hash")).isNotEqualTo(initial).startsWith("$2");
+        String loginBody=json.writeValueAsString(Map.of("username",username,"password",initial));
+        var login=mvc.perform(post("/api/auth/login").contentType("application/json").content(loginBody)).andExpect(status().isOk()).andReturn();
+        String issuedToken=json.readTree(login.getResponse().getContentAsString()).get("token").asText();
+        String otherHash=jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?",String.class,B.id());
+        mvc.perform(post("/api/auth/change-password").header("Authorization","Bearer "+issuedToken).contentType("application/json")
+            .content(json.writeValueAsString(Map.of("currentPassword",initial,"newPassword",updated,"userId",B.id())))).andExpect(status().isOk());
+        mvc.perform(post("/api/auth/login").contentType("application/json").content(loginBody)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").contentType("application/json").content(json.writeValueAsString(Map.of("username",username,"password",updated)))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT password_hash FROM users WHERE id=?",String.class,B.id())).isEqualTo(otherHash);
+        mvc.perform(post("/api/workspace/employees").header("Authorization","Bearer "+adminToken).contentType("application/json").content(body)).andExpect(status().isConflict());
+    }
+
+    @Test void selfRegistrationIsBlockedForAnonymousAndAuthenticatedEmployees() throws Exception {
+        String token=jwt.issue(A.id(),A.id(),"user");
+        for(String path:List.of("/api/auth/register","/api/auth/signup","/api/register","/api/signup")){
+            mvc.perform(post(path).contentType("application/json").content("{}")).andExpect(status().isUnauthorized());
+            mvc.perform(post(path).header("Authorization","Bearer "+token).contentType("application/json").content("{}")).andExpect(status().isForbidden());
+        }
+    }
 
     @Test void dashboardExportsAndCanonicalHoursAgreeForThe808Over740Fixture() throws Exception {
         jdbc.update("UPDATE periods SET end_date=? WHERE id=?",START.plusDays(30),PERIOD);

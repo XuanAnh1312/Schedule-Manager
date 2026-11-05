@@ -111,7 +111,8 @@
                              "windowsDisplayScaleNon100":  "PENDING"
                          },
     "milestoneAComplete":  false,
-    "reviewFilesDeleted":  false,
+    "reviewFilesDeleted":  true,
+    "reviewFilesCleanupDate":  "2026-11-05",
     "completionPercent":  93,
     "completionBasis":  "13/14 acceptance criteria closed, rounded; actual Windows Display Scale remains pending"
 }

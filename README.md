@@ -5,10 +5,10 @@ Quản lý kỳ đăng ký, thời gian rảnh, quy tắc, phân ca, duyệt/cô
 ## Chạy ứng dụng
 
 1. Chuẩn bị Java 21+, Maven và SQL Server; tạo `.env` theo `.env.example` với thông tin môi trường của bạn.
-2. Chạy `mvn spring-boot:run` từ thư mục dự án.
-3. Mở **http://localhost:8081/**. Giao diện và API dùng cùng origin; không cần chạy HTTP server riêng.
+2. Mở [CHAY_HE_THONG.bat](HUONG_DAN/CHAY_HE_THONG.bat). Một ứng dụng Spring Boot phục vụ cả giao diện lẫn API, chờ SQL Server sẵn sàng rồi tự mở trình duyệt.
+3. Truy cập **http://localhost:8080/**. Tạo/sửa dữ liệu qua API và lưu trực tiếp vào SQL Server theo `.env`.
 
-Trên Windows có thể dùng [CHAY_BACKEND.bat](HUONG_DAN/CHAY_BACKEND.bat) và [CHAY_FRONTEND.bat](HUONG_DAN/CHAY_FRONTEND.bat). Xem [hướng dẫn chạy chi tiết](HUONG_DAN/HUONG_DAN_CHAY_HE_THONG.md) và [báo cáo bàn giao/kế hoạch mốc B](HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md).
+Chỉ cần một file `.bat`, không cần Node.js hoặc server frontend riêng để sử dụng. Giữ cửa sổ chạy, nhấn Ctrl+C để dừng. Xem [hướng dẫn chạy chi tiết](HUONG_DAN/HUONG_DAN_CHAY_HE_THONG.md) và [báo cáo bàn giao/kế hoạch mốc B](HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md).
 
 Giao diện chính là `workspace.html`, đọc/ghi dữ liệu nghiệp vụ bằng API và chỉ lưu JWT của phiên trong sessionStorage. `demo.html` giữ giao diện localStorage cũ để tham khảo, không phải nguồn dữ liệu của ứng dụng chính.
 

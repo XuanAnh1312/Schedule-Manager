@@ -1,0 +1,37 @@
+﻿{
+    "at":  "2026-11-05T08:35:30.2420783Z",
+    "feature":  "Admin-issued employee accounts; employee self-service password change; no self-registration",
+    "database":  "ScheduleManager",
+    "javaTests":  {
+                      "scope":  "*Test,IntegratedMocAIT",
+                      "errors":  0,
+                      "tests":  349,
+                      "failures":  0,
+                      "skipped":  0,
+                      "result":  "PASS"
+                  },
+    "browser":  {
+                    "result":  "PASS",
+                    "proof":  [
+                                  "Employee changes own password through UI; mismatched confirmation is rejected; initial test password restored",
+                                  "Employee login and permission checks: tuong.vdt@hrm.com",
+                                  "Employee login and permission checks: tuan.ntt@hrm.com",
+                                  "Employee login and permission checks: binh.ncb@hrm.com",
+                                  "Employee login and permission checks: anh.npxa@hrm.com",
+                                  "Employee login and permission checks: bao.dlhb@hrm.com",
+                                  "Admin create-employee form requests the issued login and initial password"
+                              ],
+                    "runtimeErrors":  [
+
+                                      ]
+                },
+    "testUsers":  [
+                      "tuong.vdt@hrm.com",
+                      "tuan.ntt@hrm.com",
+                      "binh.ncb@hrm.com",
+                      "anh.npxa@hrm.com",
+                      "bao.dlhb@hrm.com"
+                  ],
+    "initialPasswordRestored":  true,
+    "jarSha256":  "9896AC06C4D4820155C387316BD920E4B59856C96E697311F36FE139978C9D9D"
+}

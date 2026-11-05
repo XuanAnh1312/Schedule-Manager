@@ -24,7 +24,7 @@ const server=http.createServer(async(req,res)=>{
       res.writeHead(reply.statusCode,reply.headers);reply.pipe(res);reply.on('error',()=>res.destroy());
     });
     upstream.on('timeout',()=>upstream.destroy(Error('Backend timeout')));
-    upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502,{'Content-Type':'application/json; charset=utf-8'}).end(JSON.stringify({error:'Backend chưa sẵn sàng. Hãy chạy CHAY_BACKEND.bat và kiểm tra cấu hình SQL Server.'}));else res.destroy();});
+    upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502,{'Content-Type':'application/json; charset=utf-8'}).end(JSON.stringify({error:'Ứng dụng chưa sẵn sàng. Hãy chạy CHAY_HE_THONG.bat và kiểm tra cấu hình SQL Server.'}));else res.destroy();});
     req.on('aborted',()=>upstream.destroy());req.pipe(upstream);return;
   }
   const file=publicFiles.get(path);

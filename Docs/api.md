@@ -4,6 +4,8 @@ Backend Spring Boot chạy ở `http://localhost:8081`, profile `sqlserver`. M�
 
 ## Bổ sung nền tảng mốc A — 04/11/2026
 
+**Bổ sung 05/11/2026:** chỉ Admin được truy cập `/api/workspace/**` để cấp tài khoản cùng hồ sơ nhân viên. Các đường dẫn tự đăng ký `/api/auth/register`, `/api/auth/signup`, `/api/register`, `/api/signup` bị chặn. `POST /api/auth/change-password` chỉ đổi mật khẩu của actor từ JWT sau khi kiểm tra mật khẩu hiện tại; không nhận `userId` để đổi tài khoản khác. Nhân viên có thể chủ động đổi mật khẩu, không bắt buộc đổi lần đầu. Dữ liệu 5 tài khoản thử nạp qua `tests/seed-test-employees.mjs`, không seed tự động bằng Flyway.
+
 | Endpoint | Quyền | Hợp đồng |
 |---|---|---|
 | `GET /api/me` | Đã đăng nhập | Hồ sơ hiện tại từ DB, không có password/hash |

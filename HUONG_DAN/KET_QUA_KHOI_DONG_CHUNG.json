@@ -1,0 +1,27 @@
+﻿{
+    "at":  "2026-11-05T09:41:09.8117345Z",
+    "launcher":  "CHAY_HE_THONG.bat",
+    "url":  "http://localhost:8080",
+    "database":  "ScheduleManager",
+    "singleJavaProcess":  "PASS",
+    "repeatedLaunchReusesProcess":  "PASS",
+    "stopAndRestart":  "PASS",
+    "cachedBuild":  "PASS",
+    "javaSourceFingerprint":  "8EF26299E825BEEDBDCE3F0C0915F577991D71834B7A798128E6FE86F617B384",
+    "jarSha256":  "DBD4EEB5CC911FA3765665139FA7CA1A80B02A231654AD9D2C04E599F360BFC7",
+    "browser":  {
+                    "at":  "2026-11-05T09:39:14.989Z",
+                    "proof":  [
+                                  "Admin edits an employee through the unified UI; refresh reads back the saved value",
+                                  "Direct SQL Server query confirms the UI mutation in ScheduleManager",
+                                  "A separate employee login reads the same persisted database value",
+                                  "Attendance iframe and API share the unified origin/session",
+                                  "Public assets load; private .env is protected"
+                              ],
+                    "runtimeErrors":  [
+
+                                      ]
+                },
+    "fiveEmployeeLogins":  "PASS",
+    "originalProfileRestoredAfterWriteCheck":  true
+}

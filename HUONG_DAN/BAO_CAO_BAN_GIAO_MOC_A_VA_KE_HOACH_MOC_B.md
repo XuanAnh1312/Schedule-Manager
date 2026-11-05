@@ -2,13 +2,17 @@
 
 Ngày: 04/11/2026. Người nhận: senior/phụ trách tích hợp. Chuẩn đối chiếu: `task_v1.1.md`, giữ nguyên nội dung tài liệu task.
 
+> Cập nhật 05/11/2026: đã làm rõ luồng chỉ Admin cấp tài khoản, bổ sung xác nhận mật khẩu mới và chặn tự đăng ký ở lớp bảo mật. Đã cấp 5 tài khoản test theo yêu cầu và xác minh đăng nhập/đổi mật khẩu trên frontend. Lượt kiểm thử cho cập nhật này đạt 349 test (`*Test,IntegratedMocAIT`) và browser; đây là phạm vi chạy riêng, không thay con số 355 của lượt nghiệm thu mốc A trước đó. Xem [tài khoản và kiểm tra chức năng](TAI_KHOAN_NHAN_VIEN_TEST.md), `KET_QUA_TAI_KHOAN_NHAN_VIEN.json`; manifest cũ vẫn nhận diện bản nghiệm thu ngày 04/11, không đại diện toàn bộ bản cập nhật 05/11.
+
+> Cập nhật cách chạy: hai `.bat` FE/BE đã được thay bằng **`CHAY_HE_THONG.bat`**, một tiến trình Spring Boot phục vụ giao diện và API cùng cổng 8080, ghi trực tiếp vào `ScheduleManager`. Launcher kiểm tra trạng thái ứng dụng/database trước khi mở browser, dùng lại build hợp lệ, chống chạy trùng bằng mutex và hỗ trợ `--stop`. Đã kiểm tra dừng/khởi động lại, đăng nhập 5 nhân viên, sửa hồ sơ từ UI rồi xác nhận trực tiếp bằng truy vấn SQL và đọc lại từ tài khoản khác. Dữ liệu dùng trong kiểm tra được khôi phục sau đó; không tạo lại database QA. Bằng chứng: `KET_QUA_KHOI_DONG_CHUNG.json`. Node proxy chỉ còn là công cụ kiểm thử phụ, không cần để sử dụng hệ thống.
+
 ## 1. Kết quả em bàn giao
 
 Em đã đưa bản tích hợp `4455742` vào nhánh làm việc hiện tại, tiếp nhận phần auth/hồ sơ của nhánh Anh và các sửa local đã có, sau đó sửa các lỗi phát hiện bằng SQL Server/HTTP/browser thật. Người dùng đã yêu cầu commit và đưa bản hiện tại lên `main` với mức hoàn thành tự đánh giá. Chốt **93% theo 13/14 AC đã nghiệm thu**, giữ bước Windows Scale ở trạng thái chờ. SHA nền `4455742` không đại diện toàn bộ bản hoàn thiện: dùng manifest SHA-256 để nhận diện đúng mã nguồn/test đã chạy. Commit/push không thay thế nghiệm thu 100%.
 
 **Phần tự động đã có kết quả đạt:** 355 Java test, gồm unit/controller/wiring và hai bộ SQL Server integration, không failure/error/skip; 20 nhóm kịch bản HTTP; browser Admin/Employee ở sáu viewport, DPR/zoom, dữ liệu sau refresh/logout/login và trình duyệt độc lập; frontend proxy; diễn tập backup/restore SQL Server.
 
-**Chưa đề nghị ký nghiệm thu mốc A 100%:** máy kiểm thử đang có Windows system DPI 96, tương ứng 100%. AC-09 còn yêu cầu thử Windows Display Scale thật khác 100%. DPR 1.25 và CSS zoom 125% đã được thử nhưng không được ghi thay cho kết quả OS scale. Em đã yêu cầu người dùng chuyển cấu hình và xác nhận để chạy tiếp. Các file review được giữ vì yêu cầu xóa chỉ có hiệu lực sau khi hoàn thành 100%; không xóa `task_v1.1.md`.
+**Chưa đề nghị ký nghiệm thu mốc A 100%:** máy kiểm thử đang có Windows system DPI 96, tương ứng 100%. AC-09 còn yêu cầu thử Windows Display Scale thật khác 100%. DPR 1.25 và CSS zoom 125% đã được thử nhưng không được ghi thay cho kết quả OS scale. Em đã yêu cầu người dùng chuyển cấu hình và xác nhận để chạy tiếp. Cập nhật 05/11/2026: theo yêu cầu mới của người dùng, đã xóa các file review sau khi ghi trạng thái và việc còn thiếu tại mục 3.6 của `task_v1.1.md`; vẫn giữ tài liệu task và hồ sơ bàn giao, không thay đổi kết luận AC-09.
 
 Những con số trên cần đọc cùng `KET_QUA_KIEM_THU.json` và log của lượt cuối. Không dùng log ngày 31/10 hoặc log chạy trước bản sửa để chứng nhận bản bàn giao hiện tại.
 
@@ -37,7 +41,7 @@ Giao diện thật là `workspace.html`, `js/workspace.js`, `attendance.html`, `
 6. **Dashboard/quyền:** số liệu đếm theo cùng employee filter; số người chưa xác nhận đếm distinct user; hiện thêm thông tin kỳ/hạn, active, ca hôm nay, nháp và các loại yêu cầu chờ. Danh sách kỳ báo cáo và API truy cập trực tiếp không lộ kỳ nháp/không áp dụng cho Employee.
 7. **Đồng thời:** bổ sung HTTP race archive ↔ tạo plan, duyệt request ↔ sửa lịch, hai người tranh chỗ cuối. Lỗi tranh khóa SQL Server trả `409 RETRY_REQUIRED` thay vì `500`, giao dịch thất bại rollback để người dùng tải lại/thử lại.
 8. **Giao diện:** sửa helper tạo textarea gán nhầm thuộc tính chỉ đọc, khiến form có ô nhiều dòng không mở được. Kiểm tra modal bằng bàn phím, shared JWT của iframe và dữ liệu bền vững qua browser độc lập.
-9. **Chạy hệ thống:** hai `.bat` trong `HUONG_DAN`, frontend host Node không cần thư viện ngoài; sửa forward Origin khi proxy để Spring không từ chối POST cùng origin của frontend; giới hạn danh sách file công khai.
+9. **Chạy hệ thống:** một `CHAY_HE_THONG.bat` trong `HUONG_DAN`, Spring Boot phục vụ cả UI/API trên localhost:8080 và lưu SQL Server thật. Không cần Node để chạy; có chờ readiness, cache build, kiểm tra cổng, chống khởi động trùng và dừng phiên do launcher quản lý. Node proxy trước đây vẫn được giữ cho bài kiểm thử riêng.
 
 ## 4. Quyết định nghiệp vụ và hợp đồng giữ cho mốc B
 
@@ -86,11 +90,11 @@ Không đưa `.env`, `browser-fixture.json`, cấu hình DB QA hay backup vào b
 
 ## 6. Ưu điểm và khuyết điểm em ghi nhận
 
-**Ưu điểm:** nghiệp vụ đi qua backend và SQL Server; validator dùng chung cho lịch và yêu cầu phát sinh; có ràng buộc hard/soft rõ; nhiều mutation đã có version/transaction/khóa, audit/outbox; thay rules có preview/confirm; báo cáo tách lịch/công thực tế/công duyệt; có test thật tái hiện tranh slot/lock và test phục hồi DB; hai script chạy giúp bàn giao trên Windows dễ hơn.
+**Ưu điểm:** nghiệp vụ đi qua backend và SQL Server; validator dùng chung cho lịch và yêu cầu phát sinh; có ràng buộc hard/soft rõ; nhiều mutation đã có version/transaction/khóa, audit/outbox; thay rules có preview/confirm; báo cáo tách lịch/công thực tế/công duyệt; có test thật tái hiện tranh slot/lock và test phục hồi DB; một file chạy chung giúp bàn giao trên Windows dễ hơn.
 
 **Khuyết điểm/giới hạn cần senior theo dõi:**
 
-- Chưa đóng bước Windows Scale thật nên chưa ký đủ AC-09 và chưa xóa review.
+- Chưa đóng bước Windows Scale thật nên chưa ký đủ AC-09. Review đã được dọn ngày 05/11/2026 theo yêu cầu; việc còn lại tiếp tục theo dõi trong `task_v1.1.md`.
 - Engine hiện là heuristic/greedy, không có cam kết tối ưu toàn cục hay chứng minh chi phí tối thiểu. Cần fixture thực tế và benchmark trước SC-01/SC-02.
 - Quản lý quyền V1 còn đơn giản Admin/Employee; chưa đủ ma trận role/scope cho các module chứa dữ liệu lương, hợp đồng và đánh giá.
 - JWT stateless chưa có deny-list/session registry; chính sách thu hồi phiên sau đổi mật khẩu cần thiết kế nếu senior yêu cầu ở mốc B.
@@ -124,6 +128,6 @@ Checklist cho **mỗi task B**: yêu cầu chi tiết được senior chốt; mi
 ## 8. Việc cần senior chốt ở điểm bàn giao
 
 1. Thực hiện và ghi nhận AC-09 tại Windows Display Scale 125%/150%, tách biệt DPR/zoom, rồi mới quyết định nghiệm thu mốc A 100%.
-2. Khi đủ điều kiện trên, xóa các file review đang giữ theo yêu cầu; giữ `task_v1.1.md`, báo cáo này, hướng dẫn chạy và evidence cần thiết.
+2. Các file review đã được xóa theo yêu cầu cập nhật ngày 05/11/2026; tiếp tục giữ `task_v1.1.md`, báo cáo này, hướng dẫn chạy và evidence. Việc dọn review không thay thế nghiệm thu AC-09.
 3. Review các quyết định ở mục 4, đặc biệt cửa sổ trần giờ khi kỳ chồng ngày, policy thiếu người, quyền Admin/Employee và JWT. Các quyết định này đã có kiểm thử tương ứng, cần duy trì khi mở rộng.
 4. Tạo baseline đã commit và nhận lại quyền sở hữu task B theo bảng; chốt chính sách tài chính/tài liệu/quyền trước khi triển khai. Không coi màn hình demo là tính năng B đã có.

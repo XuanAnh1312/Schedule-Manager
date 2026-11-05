@@ -86,4 +86,4 @@ Danh sách dưới đây đã có trong commit đã push `6a0df73`, nên không 
 
 ## 9. Quy tắc làm việc từ baseline này
 
-Mọi nhánh thành viên lấy `integration/moc-a-completion` commit `6a0df73` làm baseline (merge/rebase theo lịch sử nhánh của nhóm; không force push). Push sửa tiếp vào đúng nhánh feature đã ghi trong `Docs/review-task-3.2-3.5.md`. Version tiếp theo V18 phải hỏi Anh trước khi thêm migration. Nếu phát hiện bất đồng hợp đồng, mở commit sửa tài liệu này trước hoặc cùng commit code; không tự đổi schema giữa chừng.
+Baseline lịch sử của các nhánh thành viên là `integration/moc-a-completion` commit `6a0df73`. Khi tiếp tục phát triển, lấy bản tích hợp hiện hành và đối chiếu phân công cùng việc còn lại trong `task_v1.1.md`, mục 3.6, và [báo cáo bàn giao](../HUONG_DAN/BAO_CAO_BAN_GIAO_MOC_A_VA_KE_HOACH_MOC_B.md); các file review cũ đã được dọn theo yêu cầu ngày 05/11/2026. V18 đã được tích hợp, migration kế tiếp là V19 và do Anh điều phối. Nếu phát hiện bất đồng hợp đồng, mở commit sửa tài liệu trước hoặc cùng commit code; không tự đổi schema giữa chừng, không force push.

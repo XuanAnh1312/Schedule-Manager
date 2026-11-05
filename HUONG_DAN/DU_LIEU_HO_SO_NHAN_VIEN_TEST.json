@@ -1,0 +1,186 @@
+﻿{
+    "at":  "2026-11-05T09:04:42.8230996Z",
+    "database":  "ScheduleManager",
+    "synthetic":  true,
+    "credentialsUnchanged":  true,
+    "profileApiVerification":  "PASS",
+    "profileUiVerification":  {
+                                  "at":  "2026-11-05T09:03:38.790Z",
+                                  "results":  [
+                                                  {
+                                                      "username":  "anh.npxa@hrm.com",
+                                                      "result":  "PASS"
+                                                  },
+                                                  {
+                                                      "username":  "tuong.vdt@hrm.com",
+                                                      "result":  "PASS"
+                                                  },
+                                                  {
+                                                      "username":  "tuan.ntt@hrm.com",
+                                                      "result":  "PASS"
+                                                  },
+                                                  {
+                                                      "username":  "binh.ncb@hrm.com",
+                                                      "result":  "PASS"
+                                                  },
+                                                  {
+                                                      "username":  "bao.dlhb@hrm.com",
+                                                      "result":  "PASS"
+                                                  }
+                                              ]
+                              },
+    "contractFieldsSqlVerification":  "PASS",
+    "profiles":  [
+                     {
+                         "username":  "anh.npxa@hrm.com",
+                         "fullName":  "Nguyễn Phạm Xuân Anh",
+                         "phone":  "0900000104",
+                         "joinDate":  "2023-05-15",
+                         "level":  "lvl4",
+                         "branch":  "Chi nhánh TP. Hồ Chí Minh",
+                         "department":  "Nhân sự và vận hành",
+                         "group":  "Nhóm quản lý vận hành",
+                         "type":  "Toàn thời gian",
+                         "position":  "Trưởng nhóm vận hành",
+                         "skills":  [
+                                        "Quản lý nhóm",
+                                        "Điều phối ca",
+                                        "Excel và báo cáo"
+                                    ],
+                         "certificates":  [
+                                              "An toàn lao động",
+                                              "Điều phối vận hành"
+                                          ],
+                         "locations":  [
+                                           "Chi nhánh TP. Hồ Chí Minh",
+                                           "Chi nhánh Đà Nẵng"
+                                       ],
+                         "manager":  "admin",
+                         "targetRate":  100,
+                         "contractMaxHoursPerWeek":  40,
+                         "employeeId":  "usr_14ee43ef510a409a9551bd0fe7cb62f5",
+                         "employeeCode":  "NV_ANH",
+                         "verification":  "PASS"
+                     },
+                     {
+                         "username":  "tuong.vdt@hrm.com",
+                         "fullName":  "Võ Đình Tường",
+                         "phone":  "0900000101",
+                         "joinDate":  "2024-01-08",
+                         "level":  "lvl3",
+                         "branch":  "Chi nhánh TP. Hồ Chí Minh",
+                         "department":  "Nhân sự và vận hành",
+                         "group":  "Nhóm vận hành A",
+                         "type":  "Toàn thời gian",
+                         "position":  "Điều phối viên ca làm",
+                         "skills":  [
+                                        "Điều phối ca",
+                                        "Vận hành cơ bản",
+                                        "Excel và báo cáo"
+                                    ],
+                         "certificates":  [
+                                              "An toàn lao động",
+                                              "Điều phối vận hành"
+                                          ],
+                         "locations":  [
+                                           "Chi nhánh TP. Hồ Chí Minh",
+                                           "Chi nhánh Đà Nẵng"
+                                       ],
+                         "manager":  "anh.npxa@hrm.com",
+                         "targetRate":  100,
+                         "contractMaxHoursPerWeek":  40,
+                         "employeeId":  "usr_cd1f50193f984cf5b7904f73fe774446",
+                         "employeeCode":  "NV_TUONG",
+                         "verification":  "PASS"
+                     },
+                     {
+                         "username":  "tuan.ntt@hrm.com",
+                         "fullName":  "Nguyễn Thanh Tuấn",
+                         "phone":  "0900000102",
+                         "joinDate":  "2024-08-12",
+                         "level":  "lvl2",
+                         "branch":  "Chi nhánh TP. Hồ Chí Minh",
+                         "department":  "Vận hành cửa hàng",
+                         "group":  "Nhóm vận hành A",
+                         "type":  "Toàn thời gian",
+                         "position":  "Nhân viên vận hành",
+                         "skills":  [
+                                        "Vận hành cơ bản",
+                                        "Chăm sóc khách hàng",
+                                        "Excel và báo cáo"
+                                    ],
+                         "certificates":  [
+                                              "An toàn lao động",
+                                              "Dịch vụ khách hàng"
+                                          ],
+                         "locations":  [
+                                           "Chi nhánh TP. Hồ Chí Minh"
+                                       ],
+                         "manager":  "tuong.vdt@hrm.com",
+                         "targetRate":  100,
+                         "contractMaxHoursPerWeek":  40,
+                         "employeeId":  "usr_c4d7805a6b8a4d1daf1667d348600ef7",
+                         "employeeCode":  "NV_TUAN",
+                         "verification":  "PASS"
+                     },
+                     {
+                         "username":  "binh.ncb@hrm.com",
+                         "fullName":  "Nguyễn Công Bình",
+                         "phone":  "0900000103",
+                         "joinDate":  "2025-03-03",
+                         "level":  "lvl2",
+                         "branch":  "Chi nhánh Đà Nẵng",
+                         "department":  "Dịch vụ khách hàng",
+                         "group":  "Nhóm dịch vụ B",
+                         "type":  "Bán thời gian",
+                         "position":  "Nhân viên chăm sóc khách hàng",
+                         "skills":  [
+                                        "Chăm sóc khách hàng",
+                                        "Excel và báo cáo",
+                                        "Vận hành cơ bản"
+                                    ],
+                         "certificates":  [
+                                              "An toàn lao động",
+                                              "Dịch vụ khách hàng"
+                                          ],
+                         "locations":  [
+                                           "Chi nhánh Đà Nẵng"
+                                       ],
+                         "manager":  "anh.npxa@hrm.com",
+                         "targetRate":  60,
+                         "contractMaxHoursPerWeek":  24,
+                         "employeeId":  "usr_83f97d0de3254e28b0a296d025dac158",
+                         "employeeCode":  "NV_BINH",
+                         "verification":  "PASS"
+                     },
+                     {
+                         "username":  "bao.dlhb@hrm.com",
+                         "fullName":  "Đặng Lê Hoàng Bảo",
+                         "phone":  "0900000105",
+                         "joinDate":  "2025-09-15",
+                         "level":  "lvl1",
+                         "branch":  "Chi nhánh Đà Nẵng",
+                         "department":  "Dịch vụ khách hàng",
+                         "group":  "Nhóm dịch vụ B",
+                         "type":  "Bán thời gian",
+                         "position":  "Nhân viên hỗ trợ vận hành",
+                         "skills":  [
+                                        "Chăm sóc khách hàng",
+                                        "Vận hành cơ bản"
+                                    ],
+                         "certificates":  [
+                                              "An toàn lao động",
+                                              "Dịch vụ khách hàng"
+                                          ],
+                         "locations":  [
+                                           "Chi nhánh Đà Nẵng"
+                                       ],
+                         "manager":  "anh.npxa@hrm.com",
+                         "targetRate":  50,
+                         "contractMaxHoursPerWeek":  20,
+                         "employeeId":  "usr_5f6a4af22fe34aed920bf87b32b26738",
+                         "employeeCode":  "NV_BAO",
+                         "verification":  "PASS"
+                     }
+                 ]
+}

@@ -17,7 +17,7 @@ try{
   while(true){try{const response=await fetch(base);if(response.ok)break;}catch{}
     if(Date.now()>deadline)throw Error('Frontend host did not start');await new Promise(resolve=>setTimeout(resolve,100));
   }
-  for(const path of ['/.env','/pom.xml','/src/main/resources/application.properties','/.git/config','/HUONG_DAN/CHAY_BACKEND.bat','/demo.html'])assert.equal((await fetch(base+path)).status,404,path);
+  for(const path of ['/.env','/pom.xml','/src/main/resources/application.properties','/.git/config','/HUONG_DAN/CHAY_HE_THONG.bat','/demo.html'])assert.equal((await fetch(base+path)).status,404,path);
   assert.equal((await fetch(base+'/workspace.html',{method:'HEAD'})).status,200);
   assert.equal((await fetch(base+'/workspace.html',{method:'POST'})).status,405);
   assert.equal((await fetch(base+'/api/me')).status,401);

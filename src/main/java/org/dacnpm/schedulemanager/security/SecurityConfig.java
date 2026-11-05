@@ -92,6 +92,9 @@ public class SecurityConfig {
                 // Public: auth endpoints
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").permitAll()
+                // Accounts are issued by Admin; there is no self-registration flow.
+                .requestMatchers("/api/auth/register", "/api/auth/signup", "/api/register", "/api/signup").denyAll()
+                .requestMatchers("/api/workspace/**", "/api/audit").hasRole("ADMIN")
                 // Public: health checks
                 .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/health/database").permitAll()

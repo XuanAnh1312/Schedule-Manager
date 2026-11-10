@@ -3,6 +3,8 @@
 ### Dự án: Hệ thống Phân lịch Làm việc Tự động (Schedule Manager)
 *Cơ sở phân tích hiện trạng và tài liệu tiền đề cho việc mở rộng thành Hệ thống Quản trị Nguồn nhân lực (HRM)*
 
+> **Lưu ý (10/11/2026):** các sơ đồ trong file này mô tả hệ thống trước mốc A (SPA dùng `localStorage`, migration V1–V5). Sơ đồ theo code hiện tại xem [architecture.md](architecture.md), [use-cases.md](use-cases.md), [flows.md](flows.md), [database.md](database.md).
+
 ---
 
 **Thông tin tài liệu:**

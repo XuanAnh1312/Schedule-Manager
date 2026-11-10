@@ -132,7 +132,7 @@ Quy ước:
 | Cơ chế | Cách làm | File |
 |---|---|---|
 | Băm mật khẩu | BCrypt qua bean `PasswordEncoder` dùng chung | `SecurityConfig` |
-| Đăng nhập | Sai tài khoản / sai mật khẩu / bị khóa đều trả `401 Invalid credentials` (không lộ tài khoản có tồn tại hay không) | `AuthService` |
+| Đăng nhập | Sai tài khoản / sai mật khẩu / bị khóa đều trả cùng một lỗi `401 {"code": "INVALID_CREDENTIALS", "error": "Tên đăng nhập hoặc mật khẩu không đúng."}` (không lộ tài khoản có tồn tại hay không) | `AuthService` |
 | JWT | Ký HMAC, khóa `JWT_SECRET` ≥ 32 ký tự từ `.env`, có thời hạn `JWT_EXPIRATION_MS` | `JwtUtil` |
 | Kiểm tra lại mỗi request | Tài khoản bị khóa hoặc đổi role thì token cũ bị từ chối (`401 SESSION_INVALID`) | `IdentityGuard` |
 | Phân quyền | `/api/schedule/**` yêu cầu `ROLE_ADMIN`; quyền chi tiết kiểm tra trong Service (`CurrentUser.requireAdmin()`); Employee chỉ thấy dữ liệu của mình | `SecurityConfig`, các Service |

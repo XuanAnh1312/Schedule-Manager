@@ -116,7 +116,7 @@ Mọi use case đều cần đăng nhập trước (lược đồ ở mục 8).
 
 | Use case | Ghi chú |
 |---|---|
-| Đăng nhập | Mọi lỗi trả cùng một thông báo `Invalid credentials` |
+| Đăng nhập | Mọi lỗi trả cùng một thông báo: `401 INVALID_CREDENTIALS` — "Tên đăng nhập hoặc mật khẩu không đúng." |
 | Đổi mật khẩu | Phải nhập đúng mật khẩu hiện tại; mật khẩu mới ≥ 8 ký tự |
 | Đăng xuất | Xóa JWT phía trình duyệt |
 | Tạo hồ sơ nhân viên | **«include»** Cấp tài khoản đăng nhập; không có tự đăng ký |

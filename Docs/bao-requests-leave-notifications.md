@@ -59,6 +59,10 @@ Tất cả cần JWT. `userId` luôn lấy từ token, không nhận từ body (
 | GET | `/api/notifications/unread-count` | tất cả | |
 | POST | `/api/notifications/{id}/read`, `/read-all` | tất cả | chỉ thông báo của mình |
 | GET/PUT | `/api/notifications/settings` | Admin | `{"deadlineReminderHours":[48,24]}`; `[]` = tắt |
+| GET | `/api/admin/events?status=&type=&from=&to=&page=&size=` | Admin | BAO-01. `status`: `problem` (mặc định = failed + dead), `all` hoặc 1 trạng thái; `from/to` là ngày theo `app.timezone` |
+| GET | `/api/admin/events/summary` | Admin | BAO-01. Số sự kiện theo trạng thái |
+| POST | `/api/admin/events/{id}/retry` | Admin | BAO-01. `{reason, dispatchNow?=true}`; chỉ sự kiện `failed`/`dead` |
+| POST | `/api/admin/events/retry` | Admin | BAO-01. `{status: problem\|dead\|failed, type?, reason}`; tối đa 200 sự kiện/lần |
 
 ## 4. Cơ sở dữ liệu — `V6__requests_leave_notifications.sql`
 
@@ -122,3 +126,26 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 - KPI (PE-01).
 - Duyệt theo quản lý trực tiếp: hiện chỉ Admin duyệt, chờ phân quyền theo phạm vi của Anh.
 - Chọn người tự động theo quy tắc cho ca trống.
+
+## 9. BAO-01 — Vận hành outbox (13/11/2026)
+
+Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi lại có kiểm soát. Đây là điều kiện trước khi mở email/kênh ngoài (CO-02).
+
+**Code:** `api/events/` — `OutboxAdminController`, `OutboxAdminService`, `OutboxEventRepository`, `OutboxEventView`, `OutboxEventPage`, `OutboxEventFilter`. Giao diện: route `events` ("Sự kiện thông báo") trong `js/workspace.js`, chỉ Admin. **Không có migration mới** (dùng bảng `domain_events`, `notifications`, `history` sẵn có).
+
+**Quy tắc:**
+
+- Chỉ Admin (`CurrentUser.requireAdmin()`); actor lấy từ JWT.
+- Chỉ gửi lại sự kiện `failed`/`dead`. `pending`/`processing`/`processed` → `409 EVENT_NOT_RETRYABLE`. Dòng sự kiện được khóa (`UPDLOCK, ROWLOCK`) trước khi kiểm tra; nếu trạng thái đổi chen giữa → `409 EVENT_CHANGED`.
+- Bắt buộc lý do 5–500 ký tự (`400 REASON_REQUIRED`). Mỗi lần gửi lại ghi `history` (`outbox_event_retry` hoặc `outbox_event_retry_bulk`) với trạng thái/số lần thử/lỗi trước và sau.
+- Gửi lại = đưa về `pending`, `attempts = 0`, thử ngay; giữ `last_error` cho tới khi gửi thành công. Đặt lại và audit nằm trong 1 giao dịch; `dispatchNow` chạy **sau commit**, nên lỗi khi gửi không làm mất audit, sự kiện quay về `failed` như luồng tự động.
+- Không tạo thông báo trùng: người đã nhận ở lần thử trước không nhận thêm (UNIQUE `event_id + recipient_id`). Cột `notificationsCreated` trên màn hình để đối chiếu.
+- Gửi lại hàng loạt chỉ đưa về hàng đợi (dispatcher định kỳ gửi), tối đa 200 sự kiện/lần, 1 bản audit liệt kê id.
+
+**Kiểm thử:**
+
+- Unit: `OutboxAdminServiceTest` (quyền, lọc/phân trang, đổi ngày nghiệp vụ sang UTC, lý do, 404/409, dispatch sau commit, rollback, bulk).
+- SQL Server: `OutboxAdminIT` (cần `SM_RUN_SQL_TESTS=true`): sự kiện `dead` đã có 1 thông báo → gửi lại thành `processed`, vẫn 1 thông báo, có 1 audit; gửi lại lần 2 → 409.
+- Browser: thêm route `events` vào `tests/moc-a-browser.mjs`; `tests/employee-accounts-browser.mjs` kiểm tra Employee không thấy menu và API trả 403.
+
+**Đề xuất cho Anh (file dùng chung, chưa sửa):** thêm `"/api/admin/**"` vào dòng `hasRole("ADMIN")` trong `SecurityConfig` để chặn thêm ở lớp bảo mật. Hiện tại service đã chặn bằng `requireAdmin()` (Employee nhận 403).

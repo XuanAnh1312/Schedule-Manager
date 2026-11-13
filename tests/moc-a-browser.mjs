@@ -19,7 +19,7 @@ async function route(page,id){await page.locator(`[data-route="${id}"]`).click()
 async function noOverflow(page,label){assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),`Page overflow: ${label}`);}
 try {
   await login(page,fixture.adminUsername,fixture.adminPassword);
-  const routes=['periods','availability','rules','shifts','plans','calendar','requests','leave','openShifts','notifications','reports','directory','audit'];
+  const routes=['periods','availability','rules','shifts','plans','calendar','requests','leave','openShifts','notifications','reports','directory','audit','events'];
   for(const width of [320,360,390,768,1024,1280]){
     await page.setViewportSize({width,height:900});
     for(const id of routes){await route(page,id);await noOverflow(page,`admin ${id} ${width}px`);}

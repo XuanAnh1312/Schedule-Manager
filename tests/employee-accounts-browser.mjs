@@ -26,9 +26,10 @@ try{
   for(const username of usernames){
     const context=await browser.newContext({viewport:{width:390,height:844}}),page=await context.newPage();page.on('pageerror',error=>runtimeErrors.push(error.message));
     await login(page,username,initial);
-    assert.equal(await page.locator('[data-route=directory]').count(),0);assert.equal(await page.locator('[data-route=plans]').count(),0);
+    assert.equal(await page.locator('[data-route=directory]').count(),0);assert.equal(await page.locator('[data-route=plans]').count(),0);assert.equal(await page.locator('[data-route=events]').count(),0);
     const token=await page.evaluate(()=>sessionStorage.getItem('attendance_jwt'));
     const forbidden=await page.request.post(new URL('/api/workspace/employees',base).href,{headers:{Authorization:'Bearer '+token},data:{}});assert.equal(forbidden.status(),403);
+    const eventsForbidden=await page.request.get(new URL('/api/admin/events',base).href,{headers:{Authorization:'Bearer '+token}});assert.equal(eventsForbidden.status(),403);
     const signup=await page.request.post(new URL('/api/auth/register',base).href,{headers:{Authorization:'Bearer '+token},data:{}});assert.equal(signup.status(),403);
     if(username===usernames[0]){
       changeToken=token;await page.locator('#change-password').click();

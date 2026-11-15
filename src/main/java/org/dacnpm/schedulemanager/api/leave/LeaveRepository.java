@@ -42,7 +42,9 @@ public class LeaveRepository {
             rs.getString("decision_note"),
             rs.getInt("affected_assignment_count"),
             rs.getInt("version"),
-            ts(rs.getTimestamp("created_at")));
+            ts(rs.getTimestamp("created_at")),
+            rs.getBoolean("half_day"),
+            rs.getBigDecimal("days_requested"));
 
     private final JdbcTemplate jdbc;
 
@@ -52,11 +54,11 @@ public class LeaveRepository {
 
     public List<LeaveType> findTypes(boolean activeOnly) {
         return jdbc.query("""
-                SELECT id, name, description, paid, requires_document, min_notice_days, active
+                SELECT id, name, description, paid, requires_document, min_notice_days, active, tracks_balance
                 FROM leave_types WHERE (? = 0 OR active = 1) ORDER BY sort_order
                 """, (rs, i) -> new LeaveType(rs.getString("id"), rs.getString("name"), rs.getString("description"),
                 rs.getBoolean("paid"), rs.getBoolean("requires_document"), rs.getInt("min_notice_days"),
-                rs.getBoolean("active")), activeOnly ? 1 : 0);
+                rs.getBoolean("active"), rs.getBoolean("tracks_balance")), activeOnly ? 1 : 0);
     }
 
     public Optional<LeaveType> findType(String id) {
@@ -64,11 +66,22 @@ public class LeaveRepository {
     }
 
     public void insert(String id, String userId, String typeId, LocalDate start, LocalDate end,
-                       String reason, String documentUrl) {
+                       String reason, String documentUrl, boolean halfDay, java.math.BigDecimal days) {
         jdbc.update("""
-                INSERT INTO leave_requests (id, user_id, leave_type_id, start_date, end_date, reason, document_url, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-                """, id, userId, typeId, start, end, reason, documentUrl);
+                INSERT INTO leave_requests (id, user_id, leave_type_id, start_date, end_date, reason, document_url, status,
+                                            half_day, days_requested)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                """, id, userId, typeId, start, end, reason, documentUrl, halfDay, days);
+    }
+
+    /** BAO-03: Admin hủy đơn đã duyệt (chưa tới ngày nghỉ) → cancelled. */
+    public int revoke(String id, int expectedVersion, String deciderId, String note) {
+        return jdbc.update("""
+                UPDATE leave_requests
+                SET status = 'cancelled', decided_by = ?, decided_at = SYSUTCDATETIME(), decision_note = ?,
+                    version = version + 1, updated_at = SYSUTCDATETIME()
+                WHERE id = ? AND version = ? AND status = 'approved'
+                """, deciderId, note, id, expectedVersion);
     }
 
     public Optional<LeaveView> findById(String id) {

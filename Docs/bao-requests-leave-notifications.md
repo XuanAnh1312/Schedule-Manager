@@ -121,7 +121,7 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 
 ## 8. Chưa làm (mốc B hoặc phụ thuộc người khác)
 
-- Số ngày phép được hưởng / đã dùng / còn lại (CO-01).
+- ~~Số ngày phép được hưởng / đã dùng / còn lại (CO-01)~~ → đã làm ở BAO-03 (mục 11).
 - Email và kênh gửi khác (CO-02).
 - KPI (PE-01).
 - Duyệt theo quản lý trực tiếp: hiện chỉ Admin duyệt, chờ phân quyền theo phạm vi của Anh.
@@ -177,3 +177,26 @@ Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi l�
 - `OpenShiftAutoSelectTest` (8 test): thứ tự ưu tiên; không vượt chỗ; ứng viên vi phạm bị bỏ qua; không chạy lần hai; khóa dòng trước khi đọc; chưa hết hạn/chế độ manual bị từ chối.
 - `OfficialScheduleSwapExceptionTest` (4 test, validator thật): xem trước đổi chéo theo trạng thái cuối, đổi có token ghi ngoại lệ, token cũ → 409, không có quyền → 403, tính giờ trong kỳ.
 - SQL Server IT: chưa có — cần chạy migration V19 trên DB test của nhóm.
+
+## 11. BAO-03 — Sổ phép (CO-01 phần 1)
+
+**Migration:** `V20__leave_balances.sql` — **số tạm, xin Anh xác nhận**. Thêm `leave_types.tracks_balance` (bật cho `leave_annual`), `leave_requests.half_day`, `leave_requests.days_requested`, bảng `leave_policies`, `leave_balances`, `leave_balance_ledger`; seed chính sách chung 12 ngày/năm (BLLĐ 2019 Điều 113 — giả định chờ nhóm chốt).
+
+**Code:** `api/leave/` — `LeaveBalanceService`, `LeaveBalanceRepository`, `LeaveBalanceController`, `LeaveBalanceView`, `LeavePolicyView`, `LeaveLedgerEntry`; `LeaveService` gọi sổ phép trong cùng giao dịch.
+
+**Vòng đời số ngày** (chỉ loại nghỉ có `tracks_balance`): gửi đơn → `reserve` (đang chờ +) · duyệt → `consume` (đang chờ −, đã dùng +) · từ chối/hủy khi chờ → `release` · Admin hủy đơn đã duyệt (`POST /api/leave/{id}/revoke`, chỉ trước ngày nghỉ) → `restore`. Admin điều chỉnh → `adjust_up/adjust_down`. Cấp phép năm → `grant`.
+
+**Quy tắc:**
+
+- Số dư = tổng sổ cái (kiểm thử bằng cách tính lại từ sổ cái). CHECK `entitled + adjusted − used − pending ≥ 0` ở DB là lớp chặn cuối; mọi UPDATE số dư có điều kiện + khóa dòng.
+- Hai Admin duyệt cùng lúc: đơn chỉ chuyển trạng thái được một lần (`decide` có điều kiện version) nên chỉ trừ một lần.
+- Không đủ phép → `422 INSUFFICIENT_BALANCE` kèm "Năm X: cần A ngày, còn B ngày"; đơn bị rollback.
+- Chính sách: loại nghỉ × loại nhân viên (`users.employee_type_id`) × ngày hiệu lực; không có chính sách riêng thì dùng chính sách chung; không có gì → `422 POLICY_MISSING` (không tự điền số ngày). **Không** mặc định Part-time mất phép. Chính sách không xóa, chỉ kết thúc hiệu lực; tạo chính sách chồng thời gian → `409 POLICY_OVERLAP`.
+- Đơn vắt qua năm trừ vào số dư từng năm. Nửa ngày = 0,5, chỉ cho đơn một ngày.
+- Đơn tạo trước V20 (chưa giữ chỗ) khi duyệt: giữ chỗ bổ sung rồi trừ, không đủ → 422.
+
+**Giả định chờ nhóm chốt:** đếm ngày lịch (chưa trừ ngày nghỉ tuần/lễ); không chuyển phép sang năm sau; không chia phép theo ngày vào làm; nguồn loại nhân viên tạm dùng `users.employee_type_id`, khi Anh làm HR-02 (hợp đồng) có thể đổi nguồn.
+
+**API:** `GET /api/leave/balances/me`, `GET /api/leave/balances?userId=&year=` (Admin), `GET /api/leave/balances/{id}/ledger`, `POST /api/leave/balances/adjust`, `GET|POST /api/leave/policies`, `POST /api/leave/policies/{id}/end`, `POST /api/leave/{id}/revoke`; `POST /api/leave` nhận thêm `halfDay`.
+
+**Kiểm thử:** `LeaveBalanceServiceTest` (14 test, sổ phép trong bộ nhớ mô phỏng điều kiện SQL): chia ngày theo năm, nửa ngày, giữ chỗ/trừ/trả/hoàn khớp sổ cái, không đủ phép, duyệt hai lần chỉ trừ một lần, đơn cũ, chính sách Part-time/chung/thiếu, chồng chính sách, điều chỉnh (lý do, version, không âm, bội số 0,5), ẩn sổ cái người khác. SQL Server IT: chưa có.

@@ -2,6 +2,7 @@ package org.dacnpm.schedulemanager.domain.events;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dacnpm.schedulemanager.api.comms.EmailOutbox;
 import org.dacnpm.schedulemanager.api.notifications.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,19 +44,22 @@ public class OutboxDispatcher {
     private final ObjectMapper objectMapper;
     private final int batchSize;
     private final int maxAttempts;
+    private final EmailOutbox email;
 
     public OutboxDispatcher(JdbcTemplate jdbc,
                             NotificationRepository notifications,
                             TransactionTemplate tx,
                             ObjectMapper objectMapper,
                             @Value("${app.events.batch-size:50}") int batchSize,
-                            @Value("${app.events.max-attempts:8}") int maxAttempts) {
+                            @Value("${app.events.max-attempts:8}") int maxAttempts,
+                            EmailOutbox email) {
         this.jdbc = jdbc;
         this.notifications = notifications;
         this.tx = tx;
         this.objectMapper = objectMapper;
         this.batchSize = batchSize;
         this.maxAttempts = maxAttempts;
+        this.email = email;
     }
 
     @Scheduled(fixedDelayString = "${app.events.poll-ms:5000}")
@@ -96,7 +100,8 @@ public class OutboxDispatcher {
                 SELECT id, event_type, entity_type, entity_id, recipients_json, title, body, link_route
                 FROM domain_events WHERE id = ?
                 """, eventId);
-        for (String recipient : resolveRecipients((String) row.get("recipients_json"))) {
+        Set<String> recipients = resolveRecipients((String) row.get("recipients_json"));
+        for (String recipient : recipients) {
             notifications.insertIfAbsent(
                     eventId, recipient,
                     (String) row.get("event_type"),
@@ -106,6 +111,10 @@ public class OutboxDispatcher {
                     (String) row.get("entity_id"),
                     (String) row.get("link_route"));
         }
+        // BAO-05: kênh email là một hàng đợi riêng (email_deliveries) trong cùng giao dịch xử lý sự kiện; lỗi gửi SMTP
+        // được retry độc lập, không làm hỏng thông báo in-app. Kênh tắt (mặc định) → không xếp gì.
+        email.enqueue(eventId, (String) row.get("event_type"), (String) row.get("entity_id"),
+                (String) row.get("title"), (String) row.get("body"), recipients);
         jdbc.update("""
                 UPDATE domain_events SET status = 'processed', processed_at = SYSUTCDATETIME(), last_error = NULL
                 WHERE id = ?

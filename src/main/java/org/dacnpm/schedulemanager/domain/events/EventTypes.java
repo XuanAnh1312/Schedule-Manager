@@ -33,6 +33,24 @@ public final class EventTypes {
     // Đăng ký kỳ (job nhắc hạn của Bảo, dữ liệu kỳ của Tuấn)
     public static final String PERIOD_DEADLINE_REMINDER = "period.deadline_reminder";
 
+    // Giao tiếp nội bộ + email (Bảo, BAO-05)
+    public static final String ANNOUNCEMENT_PUBLISHED = "announcement.published";
+    public static final String ATTENDANCE_MISSING_CHECKIN = "attendance.missing_checkin";
+    /** Do module LMS (Tuấn) phát khi có khóa học sắp hạn — module thông báo đã định tuyến sẵn kênh email. */
+    public static final String LMS_COURSE_REMINDER = "lms.course_reminder";
+    /** Do module HR (Anh) phát khi hợp đồng/chứng chỉ sắp hết hạn. */
+    public static final String HR_CONTRACT_EXPIRING = "hr.contract_expiring";
+    public static final String HR_CERTIFICATE_EXPIRING = "hr.certificate_expiring";
+
+    // Hiệu suất / KPI (Bảo, BAO-06). Đề xuất thưởng → Payroll (Bình) nhận; đề xuất đào tạo → LMS (Tuấn) nhận.
+    public static final String REVIEW_OPENED = "review.opened";
+    public static final String REVIEW_SELF_SUBMITTED = "review.self_submitted";
+    public static final String REVIEW_MANAGER_SUBMITTED = "review.manager_submitted";
+    public static final String PERFORMANCE_BONUS_PROPOSED = "performance.bonus_proposed";
+    public static final String PERFORMANCE_TRAINING_PROPOSED = "performance.training_proposed";
+    public static final String PERFORMANCE_PROMOTION_PROPOSED = "performance.promotion_proposed";
+    public static final String PERFORMANCE_COMMENDATION = "performance.commendation";
+
     // Lịch (Tường phát sau commit công bố/sửa phân công)
     public static final String SCHEDULE_PUBLISHED = "schedule.published";
     public static final String SCHEDULE_CHANGED = "schedule.changed";

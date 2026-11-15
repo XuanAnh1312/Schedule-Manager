@@ -122,8 +122,8 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 ## 8. Chưa làm (mốc B hoặc phụ thuộc người khác)
 
 - ~~Số ngày phép được hưởng / đã dùng / còn lại (CO-01)~~ → đã làm ở BAO-03 (mục 11).
-- Email và kênh gửi khác (CO-02).
-- KPI (PE-01).
+- ~~Email và kênh gửi khác (CO-02)~~ → đã làm ở BAO-05 (mục 13).
+- ~~KPI (PE-01)~~ → đã làm ở BAO-06 (mục 14).
 - ~~Duyệt theo quản lý trực tiếp~~ → đã làm ở BAO-04 (mục 12), theo `users.manager_id`; ma trận role/scope đầy đủ vẫn chờ B0 của Anh.
 - ~~Chọn người tự động theo quy tắc cho ca trống~~ → đã làm ở BAO-02 (mục 10).
 
@@ -221,3 +221,48 @@ Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi l�
 **API khác:** `GET|PUT /api/approval-flows`, `GET /api/approval-flows/me`, `GET /api/leave/{id}/steps`, `GET /api/requests/{id}/steps`, `GET /api/leave?scope=team|approvals`, `GET /api/requests?scope=approvals`. Giao diện: route mới **Hộp duyệt** (Admin và nhân viên có cấp dưới).
 
 **Kiểm thử:** `ApprovalFlowServiceTest` (10), `LeaveApprovalStepsTest` (9), `ShiftRequestApprovalStepsTest` (3): quản lý ngoài phạm vi không duyệt/không xem; lịch không đổi ở bước quản lý; Admin là bước cuối; không có quản lý → Admin; tài liệu kiểm tra mỗi bước; báo cáo theo phạm vi, theo bộ phận, mẫu số 0; CSV chống công thức. Đổi ở test cũ: `ShiftRequestServiceTest.approve_requiresAdmin` nay đọc yêu cầu trước khi xét quyền (quyền phụ thuộc bước), vẫn 403 và không đổi lịch.
+
+## 13. BAO-05 — Giao tiếp nội bộ + email (CO-02)
+
+**Migration:** `V22__internal_comms_email.sql` — **số tạm, xin Anh xác nhận**. Bảng `announcement_templates`, `announcements`, `email_deliveries`, `notification_preferences`.
+
+**Code:** package mới `api/comms/` — `AnnouncementService/Repository`, `EmailOutbox`, `EmailDispatcher`, `EmailRepository`, `EmailAdminService`, `SmtpEmailTransport`, `LogEmailTransport`, `MailSettings`, `NotificationPreferenceService`, `AttendanceReminderJob`, `CommsController`. Sửa `domain/events/OutboxDispatcher` (gọi `EmailOutbox`) và `EventTypes`.
+
+**Thông báo chung:** Admin gửi theo phạm vi `company` / `branch` / `department` / `group` / `users`, có thể dùng mẫu tin. Gửi = ghi `announcements` + 1 sự kiện `announcement.published` trong cùng giao dịch; outbox tạo thông báo in-app cho từng người (chống trùng như cũ). Nội dung đầy đủ lưu ở `announcements` (4000 ký tự), thông báo in-app hiển thị 1000 ký tự đầu. Lịch sử đọc lấy từ `notifications.is_read/read_at`, kèm trạng thái email từng người.
+
+**Kênh email:**
+
+- Mỗi kênh một hàng đợi riêng: outbox xử lý sự kiện đã commit → tạo thông báo in-app **và** xếp `email_deliveries` trong cùng giao dịch xử lý. Giao dịch nghiệp vụ rollback → không có sự kiện → không có email.
+- Chống trùng: UNIQUE `(event_id, recipient_id)` + INSERT … WHERE NOT EXISTS. Outbox chạy lại/gửi lại sự kiện không tạo email thứ hai.
+- `EmailDispatcher` claim từng email bằng UPDATE có điều kiện, gửi ngoài giao dịch; lỗi → `failed`, thử lại sau 2^n phút; quá `app.mail.max-attempts` (6) → `dead`. Lease kẹt được trả về hàng đợi.
+- Email lỗi hiện trong màn hình **Sự kiện thông báo** (BAO-01), phần "Email gửi đi"; Admin gửi lại có lý do (5–500 ký tự), có audit `email_retry`, gửi ngay sau commit.
+- Loại sự kiện có email: cấu hình `app.mail.event-types` (mặc định: kết quả đơn nghỉ, đổi ca, nhận ca trống, nhắc chấm công, nhắc khóa học, hợp đồng/chứng chỉ sắp hết hạn). Thông báo chung chỉ gửi email khi tick "Gửi kèm email".
+- Người dùng tắt/bật email theo loại (`GET|PUT /api/notifications/preferences`); loại bắt buộc (`app.mail.mandatory-types`, mặc định `hr.contract_expiring`) và thông báo chung đánh dấu bắt buộc luôn gửi. Người chưa có email → `skipped` kèm lý do, không retry.
+- **Không thêm thư viện mới:** gửi bằng client SMTP tối giản (STARTTLS + AUTH LOGIN, UTF-8). Kênh **mặc định tắt** (`MAIL_ENABLED=false`); `MAIL_TRANSPORT=log` để demo không cần máy chủ; `smtp` + Mailpit (`localhost:1025`, xem thư tại `http://localhost:8025`) để demo thật. Cấu hình trong `.env` (mẫu ở `.env.example`), **không commit mật khẩu**.
+
+**Nhắc tự động:**
+
+- Chưa chấm công: `AttendanceReminderJob` (10 phút/lần) nhắc phân công confirmed của ca đã công bố, đã bắt đầu quá 15 phút (trong 12 giờ gần nhất) mà chưa có bản ghi chấm công; mỗi phân công nhắc một lần.
+- Khóa học (Tuấn) và hợp đồng/chứng chỉ sắp hết hạn (Anh): đã có hằng số `lms.course_reminder`, `hr.contract_expiring`, `hr.certificate_expiring` và định tuyến email. **Chưa có nơi phát** vì module LMS/HR mở rộng chưa có — module đó chỉ cần `events.publish(...)` với loại tương ứng.
+
+**Kiểm thử:** `SmtpEmailTransportTest` (4, máy chủ SMTP giả trong tiến trình: AUTH, UTF-8, từ chối RCPT, không lộ mật khẩu), `EmailChannelTest` (7: kênh tắt, định tuyến, thiếu email → skipped, tắt email/bắt buộc, thông báo chung, dispatcher sent/failed/đã bị instance khác nhận, gửi lại), `AnnouncementServiceTest` (5: phạm vi, cắt nội dung, không có người nhận, lịch sử đọc, tùy chọn bắt buộc). SQL Server IT: chưa có.
+
+## 14. BAO-06 — Hiệu suất và KPI (PE-01)
+
+**Migration:** `V23__performance_kpi.sql` — **số tạm, xin Anh xác nhận**. Bảng `kpi_definitions`, `review_cycles`, `reviews`, `review_items`, `achievements`.
+
+**Code:** package mới `api/performance/` — `PerformanceService`, `PerformanceRepository`, `PerformanceController`, `PerformanceModels`, `KpiCalculator`. Giao diện: route **Hiệu suất & KPI**.
+
+**Luồng:** Admin định nghĩa KPI → tạo kỳ (nháp) → **mở kỳ**: tạo phiếu cho mọi nhân viên đang hoạt động, người đánh giá = quản lý trực tiếp (không có → Admin), chụp KPI áp dụng (chung hoặc đúng bộ phận) và tự tính số liệu → nhân viên tự chấm (`pending_self`) → quản lý chấm + nhận xét + kế hoạch cải thiện (`pending_manager`) → nhân viên xác nhận/phản hồi (`pending_ack`) → hoàn tất. Đóng kỳ khi mọi phiếu xong (hoặc hủy phiếu dở có xác nhận).
+
+**KPI tự tính** (chuẩn hóa theo lịch của chính người đó nên **Part-time làm đủ lịch đạt 100% như Full-time**): `hours_vs_schedule` (giờ chấm công đã kết thúc / giờ được phân), `attendance_rate` (ca có chấm công / ca được phân), `absence_rate` (vắng đột xuất / ca được phân, thấp là tốt); `manual` do quản lý nhập. Mẫu số 0 → "chưa đủ dữ liệu", không hiển thị 0 giả. Mỗi kết quả có cột "Căn cứ" (tử số / mẫu số).
+
+**Điểm:** thang 1–`score_scale_max` (mặc định 5), tối đa 1 chữ số thập phân; điểm tổng = trung bình có trọng số điểm quản lý. Sửa KPI sau khi mở kỳ không làm đổi phiếu cũ (phiếu lưu bản chụp).
+
+**Quyền:** nhân viên chỉ xem phiếu của mình; quản lý xem/chấm phiếu mà mình là người đánh giá; Admin xem tất cả và chấm thay (audit ghi "Admin chấm thay"). Người khác → 404. Không tự chấm điểm quản lý cho chính mình. Chuyển trạng thái phiếu là UPDATE có điều kiện (version + status).
+
+**Thành tích & đề xuất:** quản lý trực tiếp hoặc Admin ghi `commendation`, `bonus_proposal` (bắt buộc số tiền đề xuất VND), `promotion_proposal`, `training_proposal`. **Không tính tiền thưởng ở đây:** phát sự kiện `performance.bonus_proposed` cho Payroll (Bình), `performance.training_proposed` cho LMS (Tuấn), `performance.promotion_proposed`; eventId theo id thành tích nên bên nhận chỉ nhận **đúng một lần** (outbox chống trùng).
+
+**Giả định chờ nhóm chốt:** thang điểm, trọng số, chu kỳ đánh giá, ai được xem kết quả (hiện: nhân viên + người đánh giá + Admin), cách Payroll/LMS tiêu thụ sự kiện.
+
+**Kiểm thử:** `PerformanceServiceTest` (12): Part-time = Full-time khi làm đủ lịch, mẫu số 0, điểm có trọng số, kiểm tra KPI, mở kỳ (người đánh giá, KPI theo bộ phận, thông báo), không có KPI, quyền xem phiếu, tự đánh giá (đủ mục, thang điểm), quản lý chấm (đúng người, KPI nhập tay cần kết quả, KPI tự tính không nhập tay, điểm tổng), phản hồi, đề xuất thưởng → 1 sự kiện tất định, phạm vi thành tích. SQL Server IT: chưa có.

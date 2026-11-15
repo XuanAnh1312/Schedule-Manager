@@ -44,6 +44,10 @@ public class OfficialScheduleService {
     public record ExceptionOverride(String reason, String previewToken, Boolean confirm) {
     }
 
+    /** Giờ đã phân trong kỳ và giờ mục tiêu kỳ (null nếu chưa tính được) — BAO-02. */
+    public record WorkloadSnapshot(double scheduledHours, Double targetHours) {
+    }
+
     /** @param exceptionId ngoại lệ được ghi cho thay đổi này, null nếu không cần */
     public record ChangeResult(String assignmentId, String shiftId, String userId, String exceptionId,
                                List<String> warnings) {
@@ -212,6 +216,59 @@ public class OfficialScheduleService {
     @Transactional
     public List<ChangeResult> swap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
                                    String secondUserId, String actorId, String reason, boolean notify) {
+        return swap(firstAssignmentId, firstUserId, secondAssignmentId, secondUserId, actorId, reason, null, null, notify);
+    }
+
+    /**
+     * Xem trước hai vị trí của thao tác đổi chéo theo trạng thái cuối (BAO-02), cùng ngữ cảnh mà {@link #swap} dùng để
+     * kiểm tra, nên token xem trước khớp với lúc duyệt nếu dữ liệu không đổi. Phần tử 0: {@code secondUserId} nhận ca
+     * của phân công thứ nhất; phần tử 1: {@code firstUserId} nhận ca của phân công thứ hai. Không ghi gì.
+     */
+    @Transactional(readOnly = true)
+    public List<Preview> previewSwap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
+                                     String secondUserId, String actorId) {
+        OfficialAssignment first = confirmed(firstAssignmentId);
+        OfficialAssignment second = confirmed(secondAssignmentId);
+        requireHolder(first, firstUserId);
+        requireHolder(second, secondUserId);
+        ShiftDetail firstShift = activeShift(first.shiftId());
+        ShiftDetail secondShift = activeShift(second.shiftId());
+        Set<String> removed = Set.of(first.id(), second.id());
+        return List.of(
+                exceptions.previewOfficial(first.shiftId(), secondUserId, validateFinal(firstShift, secondUserId,
+                        firstUserId, removed, new Assignment("swap_pending", second.shiftId(), firstUserId,
+                                Assignment.CONFIRMED)), actorId),
+                exceptions.previewOfficial(second.shiftId(), firstUserId, validateFinal(secondShift, firstUserId,
+                        secondUserId, removed, new Assignment("swap_pending", first.shiftId(), secondUserId,
+                                Assignment.CONFIRMED)), actorId));
+    }
+
+    /**
+     * Giờ đã phân của nhân viên trong kỳ chứa ca và giờ mục tiêu kỳ theo quy tắc hiệu lực (BAO-02, dùng xếp hạng ca
+     * trống tự chọn). Giờ mục tiêu null khi quy tắc chưa đủ để tính.
+     */
+    @Transactional(readOnly = true)
+    public WorkloadSnapshot workload(String userId, String shiftId) {
+        ShiftDetail shift = activeShift(shiftId);
+        ScheduleContext ctx = load(shift).context(Set.of());
+        double hours = 0;
+        for (Assignment a : ctx.activeAssignmentsOfUser(userId)) {
+            ShiftInfo s = ctx.shiftOf(a);
+            if (s != null) hours += java.time.Duration.between(s.startAt(), s.endAt()).toMinutes() / 60.0;
+        }
+        Employee employee = ctx.employee(userId);
+        Double target = employee == null ? null : ctx.rulesFor(employee, shift.shift().date()).targetHours();
+        return new WorkloadSnapshot(hours, target);
+    }
+
+    /**
+     * Đổi ca nguyên tử, mỗi vị trí có thể kèm ngoại lệ (BAO-02). Vị trí có vi phạm thuộc nhóm ngoại lệ chỉ đi tiếp khi
+     * có override hợp lệ của đúng vị trí đó; ràng buộc cứng luôn bị từ chối.
+     */
+    @Transactional
+    public List<ChangeResult> swap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
+                                   String secondUserId, String actorId, String reason,
+                                   ExceptionOverride firstOverride, ExceptionOverride secondOverride, boolean notify) {
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("Lý do đổi ca không được để trống.");
         }
@@ -229,9 +286,9 @@ public class OfficialScheduleService {
 
         Set<String> removed = Set.of(first.id(), second.id());
         guard(first.shiftId(), secondUserId, validateFinal(firstShift, secondUserId, firstUserId, removed,
-                new Assignment("swap_pending", second.shiftId(), firstUserId, Assignment.CONFIRMED)), null, actorId);
+                new Assignment("swap_pending", second.shiftId(), firstUserId, Assignment.CONFIRMED)), firstOverride, actorId);
         guard(second.shiftId(), firstUserId, validateFinal(secondShift, firstUserId, secondUserId, removed,
-                new Assignment("swap_pending", first.shiftId(), secondUserId, Assignment.CONFIRMED)), null, actorId);
+                new Assignment("swap_pending", first.shiftId(), secondUserId, Assignment.CONFIRMED)), secondOverride, actorId);
 
         String cleanReason = reason.trim();
         if (!official.cancel(first.id(), firstUserId, first.version(), cleanReason)

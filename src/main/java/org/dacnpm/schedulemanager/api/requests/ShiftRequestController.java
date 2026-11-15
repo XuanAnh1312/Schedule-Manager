@@ -24,7 +24,8 @@ import java.util.Map;
  * GET  /api/requests?scope=mine|all&status=   danh sách (all: admin)
  * GET  /api/requests/{id}
  * POST /api/requests/{id}/accept | decline    người nhận phản hồi
- * POST /api/requests/{id}/approve | reject    admin quyết định
+ * GET  /api/requests/{id}/approval-preview    admin xem trước vi phạm/ngoại lệ (BAO-02)
+ * POST /api/requests/{id}/approve | reject    admin quyết định (approve có thể kèm ngoại lệ)
  * POST /api/requests/{id}/cancel              người gửi hủy
  * GET  /api/requests/cover-candidates?assignmentId=
  * GET  /api/requests/swap-options?targetUserId=
@@ -44,6 +45,13 @@ public class ShiftRequestController {
     }
 
     public record DecisionRequest(Integer expectedVersion, String note) {}
+
+    /**
+     * Duyệt, có thể kèm ngoại lệ (BAO-02): {@code exceptionReason}, {@code confirmException} và
+     * {@code previewTokens} lấy từ {@code GET /{id}/approval-preview}.
+     */
+    public record ApproveRequest(Integer expectedVersion, String note, String exceptionReason,
+                                 Boolean confirmException, Map<String, String> previewTokens) {}
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -89,10 +97,19 @@ public class ShiftRequestController {
         return service.peerRespond(CurrentUser.require(), id, false, b.expectedVersion(), b.note());
     }
 
+    @GetMapping("/{id}/approval-preview")
+    public ShiftRequestService.ApprovalPreview approvalPreview(@PathVariable String id) {
+        return service.previewApproval(CurrentUser.require(), id);
+    }
+
     @PostMapping("/{id}/approve")
-    public ShiftRequestView approve(@PathVariable String id, @RequestBody(required = false) DecisionRequest body) {
-        DecisionRequest b = orEmpty(body);
-        return service.approve(CurrentUser.require(), id, b.expectedVersion(), b.note());
+    public ShiftRequestView approve(@PathVariable String id, @RequestBody(required = false) ApproveRequest body) {
+        ApproveRequest b = body == null ? new ApproveRequest(null, null, null, null, null) : body;
+        boolean withException = b.exceptionReason() != null || Boolean.TRUE.equals(b.confirmException())
+                || (b.previewTokens() != null && !b.previewTokens().isEmpty());
+        return service.approve(CurrentUser.require(), id, b.expectedVersion(), b.note(), withException
+                ? new ShiftRequestService.ExceptionApproval(b.exceptionReason(), b.confirmException(), b.previewTokens())
+                : null);
     }
 
     @PostMapping("/{id}/reject")

@@ -14,5 +14,7 @@ public record ClaimView(
         String decisionNote,
         String assignmentId,
         int version,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Integer autoRank,
+        String autoNote
 ) {}

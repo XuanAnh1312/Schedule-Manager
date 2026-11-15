@@ -28,6 +28,7 @@ import java.util.Map;
  * POST   /api/open-shifts/{id}/claims/{claimId}/approve    admin chọn
  * POST   /api/open-shifts/{id}/claims/{claimId}/reject     admin từ chối
  * POST   /api/open-shifts/{id}/close | cancel              admin đóng/hủy
+ * POST   /api/open-shifts/{id}/auto-select                 admin chạy chọn tự động (ca auto đã hết hạn, BAO-02)
  * </pre>
  */
 @Profile("sqlserver")
@@ -85,6 +86,12 @@ public class OpenShiftController {
     public ClaimView reject(@PathVariable String id, @PathVariable String claimId,
                             @RequestBody(required = false) OpenShiftService.Decision body) {
         return service.rejectClaim(CurrentUser.require(), id, claimId, orEmpty(body));
+    }
+
+    /** BAO-02: Admin chạy ngay lượt chọn tự động cho ca trống auto đã hết hạn. */
+    @PostMapping("/{id}/auto-select")
+    public OpenShiftService.AutoSelection autoSelect(@PathVariable String id) {
+        return service.runAutoSelection(CurrentUser.require(), id);
     }
 
     @PostMapping("/{id}/close")

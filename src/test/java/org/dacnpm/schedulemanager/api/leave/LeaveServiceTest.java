@@ -53,7 +53,8 @@ class LeaveServiceTest {
         schedule = mock(AssignmentMutationService.class);
         events = mock(DomainEventPublisher.class);
         Clock clock = Clock.fixed(Instant.parse("2026-11-01T01:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
-        service = new LeaveService(repository, schedule, events, mock(AuditTrail.class), clock);
+        service = new LeaveService(repository, schedule, events, mock(AuditTrail.class), clock,
+                mock(LeaveBalanceService.class));
 
         when(repository.findType("leave_annual")).thenReturn(Optional.of(
                 new LeaveType("leave_annual", "Nghỉ phép năm", null, true, false, 0, true)));
@@ -183,6 +184,7 @@ class LeaveServiceTest {
 
     static LeaveView view(String status, int version) {
         return new LeaveView("leave1", "nv001", "Trần Văn An", "leave_annual", "Nghỉ phép năm", D5, D5,
-                "Về quê", null, status, null, null, null, null, 0, version, LocalDateTime.of(2026, 11, 1, 1, 0));
+                "Về quê", null, status, null, null, null, null, 0, version, LocalDateTime.of(2026, 11, 1, 1, 0),
+                false, null);
     }
 }

@@ -48,18 +48,26 @@ public class LeaveService {
     private final DomainEventPublisher events;
     private final AuditTrail audit;
     private final Clock clock;
+    private final LeaveBalanceService balances;
 
     public LeaveService(LeaveRepository repository, AssignmentMutationService schedule,
-                        DomainEventPublisher events, AuditTrail audit, Clock clock) {
+                        DomainEventPublisher events, AuditTrail audit, Clock clock, LeaveBalanceService balances) {
         this.repository = repository;
         this.schedule = schedule;
         this.events = events;
         this.audit = audit;
         this.clock = clock;
+        this.balances = balances;
     }
 
+    /** @param halfDay nghỉ nửa ngày (chỉ đơn một ngày) — 0,5 ngày phép (BAO-03) */
     public record CreateLeave(String leaveTypeId, LocalDate startDate, LocalDate endDate, String reason,
-                              String documentUrl) {}
+                              String documentUrl, Boolean halfDay) {
+        public CreateLeave(String leaveTypeId, LocalDate startDate, LocalDate endDate, String reason,
+                           String documentUrl) {
+            this(leaveTypeId, startDate, endDate, reason, documentUrl, false);
+        }
+    }
 
     public record AbsenceInput(String assignmentId, String reason) {}
 
@@ -103,8 +111,16 @@ public class LeaveService {
         if (repository.overlapsActive(me.id(), in.startDate(), in.endDate())) {
             throw ApiException.conflict("LEAVE_OVERLAP", "Bạn đã có đơn nghỉ chờ duyệt/đã duyệt trùng khoảng ngày này.");
         }
+        boolean halfDay = Boolean.TRUE.equals(in.halfDay());
+        if (halfDay && !in.startDate().equals(in.endDate())) {
+            throw ApiException.badRequest("INVALID_HALF_DAY", "Nghỉ nửa ngày chỉ áp dụng cho đơn một ngày.");
+        }
+        java.math.BigDecimal days = LeaveBalanceService.total(
+                LeaveBalanceService.daysByYear(in.startDate(), in.endDate(), halfDay));
         String id = Ids.next("leave");
-        repository.insert(id, me.id(), type.id(), in.startDate(), in.endDate(), reason, document);
+        repository.insert(id, me.id(), type.id(), in.startDate(), in.endDate(), reason, document, halfDay, days);
+        // BAO-03: giữ chỗ sổ phép trong cùng giao dịch; không đủ phép → 422 và rollback đơn vừa tạo.
+        balances.reserve(type, me.id(), id, in.startDate(), in.endDate(), halfDay, me.id());
         LeaveView view = load(id);
         LeaveImpact impact = computeImpact(view);
         audit.record("leave_create", "Gửi đơn nghỉ", describe(view), me.id(), null, snapshot(view), reason);
@@ -140,6 +156,9 @@ public class LeaveService {
             if ("approved".equals(latest.status())) return latest;
             throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
         }
+
+        // BAO-03: trừ sổ phép (chuyển giữ chỗ thành đã dùng) trong cùng giao dịch.
+        balances.consume(typeOf(current), current, me.id());
 
         // Cập nhật lịch: gỡ người nghỉ khỏi các ca trong khoảng nghỉ (qua service lịch).
         LeaveImpact impact = computeImpact(current);
@@ -186,6 +205,7 @@ public class LeaveService {
         if (repository.decide(id, current.version(), "rejected", me.id(), reason) != 1) {
             throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
         }
+        balances.release(typeOf(current), current, me.id(), "Đơn nghỉ bị từ chối");
         LeaveView updated = load(id);
         audit.record("leave_reject", "Từ chối đơn nghỉ", describe(updated), me.id(),
                 snapshot(current), snapshot(updated), reason);
@@ -209,10 +229,41 @@ public class LeaveService {
         if (repository.cancel(id, current.version()) != 1) {
             throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
         }
+        balances.release(typeOf(current), current, me.id(), "Nhân viên hủy đơn nghỉ");
         LeaveView updated = load(id);
         audit.record("leave_cancel", "Hủy đơn nghỉ", describe(updated), me.id(), snapshot(current), snapshot(updated), null);
         events.publish(event(updated, EventTypes.LEAVE_CANCELLED, me.id(), List.of(DomainEvent.ROLE_ADMIN),
                 "Đơn nghỉ đã được rút", updated.userName() + " đã hủy đơn " + range(updated) + ".", "approvals"));
+        return updated;
+    }
+
+    /**
+     * BAO-03: Admin hủy đơn đã duyệt khi chưa tới ngày nghỉ → hoàn phép vào sổ. Ca đã gỡ lúc duyệt KHÔNG tự xếp lại
+     * (lịch có thể đã có người thay): thông báo yêu cầu Admin xếp lại ca nếu cần.
+     */
+    @Transactional
+    public LeaveView revoke(CurrentUser me, String id, Integer expectedVersion, String note) {
+        me.requireAdmin();
+        LeaveView current = load(id);
+        if ("cancelled".equals(current.status())) return current;
+        if (!"approved".equals(current.status())) {
+            throw ApiException.conflict("INVALID_STATE", "Chỉ hủy được đơn đã duyệt; đơn chờ duyệt hãy từ chối.");
+        }
+        if (!current.startDate().isAfter(LocalDate.now(clock))) {
+            throw ApiException.conflict("LEAVE_STARTED", "Đơn nghỉ đã bắt đầu hoặc đã qua, không hủy được.");
+        }
+        checkVersion(current, expectedVersion);
+        String reason = requireText(note, "Lý do hủy đơn đã duyệt");
+        if (repository.revoke(id, current.version(), me.id(), reason) != 1) {
+            throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
+        }
+        balances.restore(typeOf(current), current, me.id(), "Admin hủy đơn đã duyệt: " + reason);
+        LeaveView updated = load(id);
+        audit.record("leave_revoke", "Hủy đơn nghỉ đã duyệt", describe(updated), me.id(), snapshot(current),
+                snapshot(updated), reason);
+        events.publish(event(updated, EventTypes.LEAVE_CANCELLED, me.id(), List.of(updated.userId()),
+                "Đơn nghỉ đã duyệt bị hủy", updated.leaveTypeName() + " " + range(updated) + ": " + reason
+                        + ". Ngày phép đã được hoàn. Liên hệ quản lý để được xếp lại ca nếu cần.", "leave"));
         return updated;
     }
 
@@ -301,6 +352,11 @@ public class LeaveService {
         if (!me.admin() && !view.userId().equals(me.id())) {
             throw ApiException.notFound("đơn nghỉ");
         }
+    }
+
+    LeaveType typeOf(LeaveView view) {
+        return repository.findType(view.leaveTypeId())
+                .orElseThrow(() -> ApiException.badRequest("INVALID_LEAVE_TYPE", "Loại nghỉ không còn tồn tại."));
     }
 
     private LeaveView load(String id) {

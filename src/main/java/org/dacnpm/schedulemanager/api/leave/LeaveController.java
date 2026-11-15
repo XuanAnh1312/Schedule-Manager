@@ -103,6 +103,13 @@ public class LeaveController {
         return service.reject(CurrentUser.require(), id, b.expectedVersion(), b.note());
     }
 
+    /** BAO-03: Admin hủy đơn đã duyệt (chưa tới ngày nghỉ), hoàn phép. */
+    @PostMapping("/{id}/revoke")
+    public LeaveView revoke(@PathVariable String id, @RequestBody(required = false) DecisionRequest body) {
+        DecisionRequest b = body == null ? new DecisionRequest(null, null) : body;
+        return service.revoke(CurrentUser.require(), id, b.expectedVersion(), b.note());
+    }
+
     @PostMapping("/{id}/cancel")
     public LeaveView cancel(@PathVariable String id, @RequestBody(required = false) DecisionRequest body) {
         return service.cancel(CurrentUser.require(), id, body == null ? null : body.expectedVersion());

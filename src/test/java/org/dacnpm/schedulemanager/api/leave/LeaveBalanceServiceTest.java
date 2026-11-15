@@ -56,7 +56,7 @@ class LeaveBalanceServiceTest {
         AssignmentMutationService schedule = mock(AssignmentMutationService.class);
         when(schedule.findConfirmedAssignments(anyString(), any(), any())).thenReturn(List.of());
         service = new LeaveService(leaves, schedule, mock(DomainEventPublisher.class), mock(AuditTrail.class), clock,
-                balances);
+                balances, new org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService(mock(org.dacnpm.schedulemanager.api.approvals.ApprovalRepository.class), mock(AuditTrail.class)));
         when(leaves.findType("leave_annual")).thenReturn(Optional.of(ANNUAL));
         when(leaves.findType("leave_unpaid")).thenReturn(Optional.of(UNPAID));
         when(leaves.overlapsActive(anyString(), any(), any())).thenReturn(false);

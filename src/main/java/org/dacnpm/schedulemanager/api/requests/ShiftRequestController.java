@@ -97,6 +97,12 @@ public class ShiftRequestController {
         return service.peerRespond(CurrentUser.require(), id, false, b.expectedVersion(), b.note());
     }
 
+    /** BAO-04: các bước duyệt của yêu cầu. */
+    @GetMapping("/{id}/steps")
+    public List<org.dacnpm.schedulemanager.api.approvals.ApprovalStep> steps(@PathVariable String id) {
+        return service.steps(CurrentUser.require(), id);
+    }
+
     @GetMapping("/{id}/approval-preview")
     public ShiftRequestService.ApprovalPreview approvalPreview(@PathVariable String id) {
         return service.previewApproval(CurrentUser.require(), id);

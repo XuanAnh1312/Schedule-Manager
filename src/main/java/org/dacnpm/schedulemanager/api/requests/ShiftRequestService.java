@@ -1,5 +1,6 @@
 package org.dacnpm.schedulemanager.api.requests;
 
+import org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService;
 import org.dacnpm.schedulemanager.common.ApiException;
 import org.dacnpm.schedulemanager.common.AuditTrail;
 import org.dacnpm.schedulemanager.common.CurrentUser;
@@ -63,6 +64,7 @@ public class ShiftRequestService {
     private final DomainEventPublisher events;
     private final AuditTrail audit;
     private final Clock clock;
+    private final ApprovalFlowService flows;
 
     public ShiftRequestService(ShiftRequestRepository repository,
                                AssignmentMutationService schedule,
@@ -70,7 +72,8 @@ public class ShiftRequestService {
                                UserDirectory users,
                                DomainEventPublisher events,
                                AuditTrail audit,
-                               Clock clock) {
+                               Clock clock,
+                               ApprovalFlowService flows) {
         this.repository = repository;
         this.schedule = schedule;
         this.validator = validator;
@@ -78,6 +81,7 @@ public class ShiftRequestService {
         this.events = events;
         this.audit = audit;
         this.clock = clock;
+        this.flows = flows;
     }
 
     public record CreateRequest(String type, String sourceAssignmentId, String targetUserId,
@@ -196,8 +200,11 @@ public class ShiftRequestService {
                 accept ? "Đồng ý đổi/làm thay ca" : "Từ chối đổi/làm thay ca", describe(updated), me.id(),
                 snapshot(current), snapshot(updated), cleanNote);
         if (accept) {
-            events.publish(event(updated, EventTypes.SHIFT_REQUEST_PEER_ACCEPTED, me.id(),
-                    List.of(DomainEvent.ROLE_ADMIN, updated.requesterId()),
+            // BAO-04: tạo bước duyệt; người duyệt đầu tiên là quản lý trực tiếp của người gửi hoặc Admin.
+            List<String> approvers = new ArrayList<>(flows.start(ApprovalFlowService.SHIFT_REQUEST, id,
+                    updated.requesterId(), null));
+            approvers.add(updated.requesterId());
+            events.publish(event(updated, EventTypes.SHIFT_REQUEST_PEER_ACCEPTED, me.id(), approvers,
                     "Yêu cầu " + typeLabel(updated.type()) + " chờ duyệt",
                     updated.targetUserName() + " đã đồng ý " + typeLabel(updated.type()) + " với "
                             + updated.requesterName() + " (" + label(updated.sourceShift()) + ").",
@@ -225,7 +232,6 @@ public class ShiftRequestService {
     @Transactional
     public ShiftRequestView approve(CurrentUser me, String id, Integer expectedVersion, String note,
                                     ExceptionApproval exception) {
-        me.requireAdmin();
         ShiftRequestView current = load(id);
         if (APPROVED.equals(current.status())) {
             return current; // duyệt lặp: không thay đổi gì thêm
@@ -234,6 +240,18 @@ public class ShiftRequestService {
             throw ApiException.conflict("INVALID_STATE", "Chỉ duyệt được yêu cầu mà người nhận đã đồng ý.");
         }
         checkVersion(current, expectedVersion);
+        // BAO-04: quản lý trực tiếp duyệt bước của mình; lịch chỉ đổi ở bước cuối. Admin duyệt = bước cuối.
+        ApprovalFlowService.Decision step = flows.approve(me, ApprovalFlowService.SHIFT_REQUEST, id, optionalText(note));
+        if (step.outcome() == ApprovalFlowService.Outcome.STEP_APPROVED) {
+            audit.record("shift_request_step_approve", "Duyệt bước " + step.step().stepNo() + " " + typeLabel(current.type()),
+                    describe(current), me.id(), snapshot(current), Map.of("request", snapshot(current),
+                            "step", step.step().stepNo()), optionalText(note));
+            events.publish(new DomainEvent(EventTypes.SHIFT_REQUEST_STEP_APPROVED + ":" + id + ":s" + step.step().stepNo(),
+                    EventTypes.SHIFT_REQUEST_STEP_APPROVED, "shift_request", id, current.version(), me.id(),
+                    step.nextRecipients(), "Yêu cầu " + typeLabel(current.type()) + " chờ duyệt bước tiếp theo",
+                    describe(current) + ": quản lý đã duyệt, chờ bạn duyệt.", "approvals"));
+            return current;
+        }
 
         // Kiểm tra lại tại thời điểm duyệt: lịch có thể đã đổi từ lúc gửi.
         requireScheduleUnchanged(id);
@@ -373,7 +391,6 @@ public class ShiftRequestService {
 
     @Transactional
     public ShiftRequestView reject(CurrentUser me, String id, Integer expectedVersion, String note) {
-        me.requireAdmin();
         ShiftRequestView current = load(id);
         if (REJECTED.equals(current.status())) {
             return current;
@@ -383,6 +400,11 @@ public class ShiftRequestService {
         }
         checkVersion(current, expectedVersion);
         String reason = requireText(note, "Lý do từ chối");
+        if (PENDING_PEER.equals(current.status())) {
+            me.requireAdmin(); // chưa vào bước duyệt: chỉ Admin từ chối thay đồng nghiệp
+        } else {
+            flows.reject(me, ApprovalFlowService.SHIFT_REQUEST, id, reason); // Admin hoặc người duyệt bước hiện tại
+        }
         if (repository.decide(id, current.version(), List.of(PENDING_PEER, PENDING_APPROVAL), REJECTED, me.id(),
                 reason, null) != 1) {
             throw ApiException.conflict("STALE_VERSION", "Yêu cầu vừa thay đổi, vui lòng tải lại.");
@@ -414,6 +436,7 @@ public class ShiftRequestService {
         if (repository.cancel(id, current.version()) != 1) {
             throw ApiException.conflict("STALE_VERSION", "Yêu cầu vừa thay đổi, vui lòng tải lại.");
         }
+        flows.close(ApprovalFlowService.SHIFT_REQUEST, id, me.id(), "Người gửi đã hủy yêu cầu.");
         ShiftRequestView updated = load(id);
         audit.record("shift_request_cancel", "Hủy yêu cầu " + typeLabel(current.type()), describe(updated), me.id(),
                 snapshot(current), snapshot(updated), null);
@@ -430,17 +453,30 @@ public class ShiftRequestService {
 
     public ShiftRequestView get(CurrentUser me, String id) {
         ShiftRequestView view = load(id);
-        if (!me.admin() && !view.requesterId().equals(me.id()) && !view.targetUserId().equals(me.id())) {
+        if (!view.targetUserId().equals(me.id())
+                && !flows.canView(me, ApprovalFlowService.SHIFT_REQUEST, id, view.requesterId())) {
             throw ApiException.notFound("yêu cầu"); // không lộ yêu cầu của người khác
         }
         return view;
     }
 
-    /** scope = mine (mặc định) | all (chỉ admin). */
+    /** scope = mine (mặc định) | all (chỉ admin) | approvals (đang chờ tôi duyệt bước quản lý — BAO-04). */
     public List<ShiftRequestView> list(CurrentUser me, String scope, String status) {
+        if ("approvals".equalsIgnoreCase(scope)) {
+            List<ShiftRequestView> result = new ArrayList<>();
+            for (String requestId : flows.pendingFor(me, ApprovalFlowService.SHIFT_REQUEST)) {
+                repository.findById(requestId).filter(r -> PENDING_APPROVAL.equals(r.status())).ifPresent(result::add);
+            }
+            return result;
+        }
         boolean all = "all".equalsIgnoreCase(scope);
         if (all) me.requireAdmin();
         return repository.find(all ? null : me.id(), blankToNull(status), MAX_LIST);
+    }
+
+    public List<org.dacnpm.schedulemanager.api.approvals.ApprovalStep> steps(CurrentUser me, String id) {
+        get(me, id);
+        return flows.steps(ApprovalFlowService.SHIFT_REQUEST, id);
     }
 
     /** Gợi ý đồng nghiệp có thể làm thay một ca của tôi (kèm lý do không đủ điều kiện). */
@@ -479,6 +515,7 @@ public class ShiftRequestService {
     public Map<String, Long> pendingCounts(CurrentUser me) {
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("incomingPeer", repository.countIncomingForPeer(me.id()));
+        counts.put("awaitingMyStep", (long) flows.pendingFor(me, ApprovalFlowService.SHIFT_REQUEST).size());
         if (me.admin()) {
             counts.put("awaitingApproval", repository.countByStatus(PENDING_APPROVAL));
         }

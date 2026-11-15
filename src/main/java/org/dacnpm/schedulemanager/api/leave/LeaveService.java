@@ -1,5 +1,6 @@
 package org.dacnpm.schedulemanager.api.leave;
 
+import org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService;
 import org.dacnpm.schedulemanager.common.ApiException;
 import org.dacnpm.schedulemanager.common.AuditTrail;
 import org.dacnpm.schedulemanager.common.CurrentUser;
@@ -49,15 +50,18 @@ public class LeaveService {
     private final AuditTrail audit;
     private final Clock clock;
     private final LeaveBalanceService balances;
+    private final ApprovalFlowService flows;
 
     public LeaveService(LeaveRepository repository, AssignmentMutationService schedule,
-                        DomainEventPublisher events, AuditTrail audit, Clock clock, LeaveBalanceService balances) {
+                        DomainEventPublisher events, AuditTrail audit, Clock clock, LeaveBalanceService balances,
+                        ApprovalFlowService flows) {
         this.repository = repository;
         this.schedule = schedule;
         this.events = events;
         this.audit = audit;
         this.clock = clock;
         this.balances = balances;
+        this.flows = flows;
     }
 
     /** @param halfDay nghỉ nửa ngày (chỉ đơn một ngày) — 0,5 ngày phép (BAO-03) */
@@ -121,10 +125,12 @@ public class LeaveService {
         repository.insert(id, me.id(), type.id(), in.startDate(), in.endDate(), reason, document, halfDay, days);
         // BAO-03: giữ chỗ sổ phép trong cùng giao dịch; không đủ phép → 422 và rollback đơn vừa tạo.
         balances.reserve(type, me.id(), id, in.startDate(), in.endDate(), halfDay, me.id());
+        // BAO-04: tạo các bước duyệt theo cấu hình; người nhận thông báo đầu tiên là quản lý trực tiếp hoặc Admin.
+        List<String> firstApprovers = flows.start(ApprovalFlowService.LEAVE, id, me.id(), type.id());
         LeaveView view = load(id);
         LeaveImpact impact = computeImpact(view);
         audit.record("leave_create", "Gửi đơn nghỉ", describe(view), me.id(), null, snapshot(view), reason);
-        events.publish(event(view, EventTypes.LEAVE_REQUESTED, me.id(), List.of(DomainEvent.ROLE_ADMIN),
+        events.publish(event(view, EventTypes.LEAVE_REQUESTED, me.id(), firstApprovers,
                 "Đơn nghỉ chờ duyệt",
                 view.userName() + " xin " + view.leaveTypeName().toLowerCase() + " " + range(view)
                         + (impact.shifts().isEmpty() ? "" : " — ảnh hưởng " + impact.shifts().size() + " ca, "
@@ -139,9 +145,13 @@ public class LeaveService {
         return computeImpact(view);
     }
 
+    /**
+     * Duyệt đơn (BAO-04: theo bước). Người duyệt bước hiện tại (quản lý trực tiếp) chỉ hoàn tất bước của mình; lịch và
+     * số dư phép chỉ thay đổi ở bước cuối. Admin duyệt ở bước nào cũng là duyệt cuối. Loại nghỉ yêu cầu tài liệu được
+     * kiểm tra lại ở mọi bước.
+     */
     @Transactional
     public LeaveView approve(CurrentUser me, String id, Integer expectedVersion, String note) {
-        me.requireAdmin();
         LeaveView current = load(id);
         if ("approved".equals(current.status())) {
             return current; // duyệt lặp không hủy ca lần hai
@@ -151,6 +161,23 @@ public class LeaveService {
         }
         checkVersion(current, expectedVersion);
         String cleanNote = optionalText(note);
+        LeaveType type = typeOf(current);
+        if (type.requiresDocument() && current.documentUrl() == null) {
+            throw ApiException.unprocessable("DOCUMENT_REQUIRED",
+                    type.name() + " cần tài liệu đính kèm trước khi duyệt.", List.of());
+        }
+        ApprovalFlowService.Decision decision = flows.approve(me, ApprovalFlowService.LEAVE, id, cleanNote);
+        if (decision.outcome() == ApprovalFlowService.Outcome.STEP_APPROVED) {
+            audit.record("leave_step_approve", "Duyệt bước " + decision.step().stepNo() + " đơn nghỉ", describe(current),
+                    me.id(), snapshot(current), Map.of("leave", snapshot(current), "step", decision.step().stepNo()),
+                    cleanNote);
+            events.publish(new DomainEvent(EventTypes.LEAVE_STEP_APPROVED + ":" + id + ":s" + decision.step().stepNo(),
+                    EventTypes.LEAVE_STEP_APPROVED, "leave_request", id, current.version(), me.id(),
+                    decision.nextRecipients(), "Đơn nghỉ chờ duyệt bước tiếp theo",
+                    current.userName() + " — " + current.leaveTypeName() + " " + range(current)
+                            + ": quản lý đã duyệt, chờ bạn duyệt.", "approvals"));
+            return current;
+        }
         if (repository.decide(id, current.version(), "approved", me.id(), cleanNote) != 1) {
             LeaveView latest = load(id);
             if ("approved".equals(latest.status())) return latest;
@@ -158,7 +185,7 @@ public class LeaveService {
         }
 
         // BAO-03: trừ sổ phép (chuyển giữ chỗ thành đã dùng) trong cùng giao dịch.
-        balances.consume(typeOf(current), current, me.id());
+        balances.consume(type, current, me.id());
 
         // Cập nhật lịch: gỡ người nghỉ khỏi các ca trong khoảng nghỉ (qua service lịch).
         LeaveImpact impact = computeImpact(current);
@@ -194,7 +221,6 @@ public class LeaveService {
 
     @Transactional
     public LeaveView reject(CurrentUser me, String id, Integer expectedVersion, String note) {
-        me.requireAdmin();
         LeaveView current = load(id);
         if ("rejected".equals(current.status())) return current;
         if (!"pending".equals(current.status())) {
@@ -202,6 +228,8 @@ public class LeaveService {
         }
         checkVersion(current, expectedVersion);
         String reason = requireText(note, "Lý do từ chối");
+        // BAO-04: Admin hoặc người duyệt của bước hiện tại; các bước còn lại bị bỏ qua.
+        flows.reject(me, ApprovalFlowService.LEAVE, id, reason);
         if (repository.decide(id, current.version(), "rejected", me.id(), reason) != 1) {
             throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
         }
@@ -230,6 +258,7 @@ public class LeaveService {
             throw ApiException.conflict("STALE_VERSION", "Đơn nghỉ vừa thay đổi, vui lòng tải lại.");
         }
         balances.release(typeOf(current), current, me.id(), "Nhân viên hủy đơn nghỉ");
+        flows.close(ApprovalFlowService.LEAVE, id, me.id(), "Người gửi đã hủy đơn.");
         LeaveView updated = load(id);
         audit.record("leave_cancel", "Hủy đơn nghỉ", describe(updated), me.id(), snapshot(current), snapshot(updated), null);
         events.publish(event(updated, EventTypes.LEAVE_CANCELLED, me.id(), List.of(DomainEvent.ROLE_ADMIN),
@@ -273,16 +302,38 @@ public class LeaveService {
         return view;
     }
 
+    /**
+     * scope = mine (mặc định) | all (Admin) | team (đơn của cấp dưới trực tiếp) | approvals (đơn có bước đang chờ tôi
+     * duyệt — BAO-04).
+     */
     public List<LeaveView> list(CurrentUser me, String scope, String status) {
+        String s = status == null || status.isBlank() ? null : status.trim();
+        if ("team".equalsIgnoreCase(scope)) {
+            return repository.findByManager(me.id(), s, 200);
+        }
+        if ("approvals".equalsIgnoreCase(scope)) {
+            List<LeaveView> result = new ArrayList<>();
+            for (String id : flows.pendingFor(me, ApprovalFlowService.LEAVE)) {
+                repository.findById(id).filter(v -> "pending".equals(v.status())).ifPresent(result::add);
+            }
+            return result;
+        }
         boolean all = "all".equalsIgnoreCase(scope);
         if (all) me.requireAdmin();
-        String s = status == null || status.isBlank() ? null : status.trim();
         return repository.find(all ? null : me.id(), s, 200);
     }
 
+    /** Các bước duyệt của một đơn (người xem được đơn mới xem được bước). */
+    public List<org.dacnpm.schedulemanager.api.approvals.ApprovalStep> steps(CurrentUser me, String id) {
+        LeaveView view = load(id);
+        requireOwnerOrAdmin(me, view);
+        return flows.steps(ApprovalFlowService.LEAVE, id);
+    }
+
+    /** Admin: mọi đơn chờ; quản lý: đơn đang chờ đúng mình duyệt. */
     public long pendingCount(CurrentUser me) {
-        me.requireAdmin();
-        return repository.countPending();
+        if (me.admin()) return repository.countPending();
+        return flows.pendingFor(me, ApprovalFlowService.LEAVE).size();
     }
 
     /* ── Vắng đột xuất ─────────────────────────────────────────────────── */
@@ -330,6 +381,136 @@ public class LeaveService {
                 repository.countApprovedLeaveDays(from, to), items);
     }
 
+    /* ── BAO-04: báo cáo vắng mặt theo quyền ─────────────────────────── */
+
+    /** Một dòng báo cáo; {@code key}/{@code label} theo nhóm (nhân viên, bộ phận, loại nghỉ). */
+    public record AbsenceSummaryRow(String key, String label, String department, int employees,
+                                    Map<String, java.math.BigDecimal> leaveDaysByType, java.math.BigDecimal leaveDays,
+                                    long absences, long assignments, Double absenceRatePercent) {}
+
+    public record AbsenceSummary(LocalDate from, LocalDate to, String groupBy, String scope,
+                                 List<AbsenceSummaryRow> rows) {}
+
+    static final java.util.Set<String> GROUPS = java.util.Set.of("employee", "department", "leaveType");
+
+    /**
+     * Báo cáo vắng mặt theo nhân viên / bộ phận / loại nghỉ (BAO-04, cung cấp cho Dashboard của Bình). Admin xem toàn công
+     * ty; quản lý chỉ cấp dưới trực tiếp; nhân viên thường → 403. Tỷ lệ vắng = vắng đột xuất / phân công confirmed; mẫu
+     * số 0 → null (không hiển thị số giả).
+     */
+    public AbsenceSummary absenceSummary(CurrentUser me, LocalDate from, LocalDate to, String groupBy) {
+        if (from == null || to == null || to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > MAX_SPAN_DAYS) {
+            throw ApiException.badRequest("INVALID_RANGE", "Khoảng ngày không hợp lệ (tối đa " + MAX_SPAN_DAYS + " ngày).");
+        }
+        String group = groupBy == null || groupBy.isBlank() ? "employee" : groupBy.trim();
+        if (!GROUPS.contains(group)) {
+            throw ApiException.badRequest("INVALID_GROUP", "Nhóm theo phải là employee, department hoặc leaveType.");
+        }
+        String managerScope = null;
+        if (!me.admin()) {
+            if (!flows.isManager(me)) throw ApiException.forbidden("Chỉ Admin hoặc quản lý trực tiếp xem báo cáo vắng mặt.");
+            managerScope = me.id();
+        }
+        List<Map<String, Object>> people = repository.absenceByEmployee(from, to, managerScope);
+        Map<String, Map<String, java.math.BigDecimal>> byUser = new java.util.HashMap<>();
+        Map<String, String> typeNames = new java.util.TreeMap<>();
+        for (Map<String, Object> r : repository.approvedLeaveDaysByType(from, to, managerScope)) {
+            String type = (String) r.get("leaveTypeName");
+            typeNames.put((String) r.get("leaveTypeId"), type);
+            byUser.computeIfAbsent((String) r.get("userId"), k -> new java.util.TreeMap<>())
+                    .merge(type, decimal(r.get("days")), java.math.BigDecimal::add);
+        }
+        List<AbsenceSummaryRow> rows = new ArrayList<>();
+        if ("employee".equals(group)) {
+            for (Map<String, Object> p : people) {
+                Map<String, java.math.BigDecimal> leave = byUser.getOrDefault((String) p.get("userId"), Map.of());
+                rows.add(row((String) p.get("userId"), (String) p.get("fullName"), (String) p.get("departmentName"), 1,
+                        leave, number(p.get("absences")), number(p.get("assignments"))));
+            }
+        } else if ("department".equals(group)) {
+            Map<String, List<Map<String, Object>>> byDept = new java.util.TreeMap<>();
+            for (Map<String, Object> p : people) {
+                String dept = p.get("departmentName") == null ? "(Chưa có bộ phận)" : (String) p.get("departmentName");
+                byDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(p);
+            }
+            for (var e : byDept.entrySet()) {
+                Map<String, java.math.BigDecimal> leave = new java.util.TreeMap<>();
+                long absences = 0, assignments = 0;
+                for (Map<String, Object> p : e.getValue()) {
+                    byUser.getOrDefault((String) p.get("userId"), Map.of())
+                            .forEach((k, v) -> leave.merge(k, v, java.math.BigDecimal::add));
+                    absences += number(p.get("absences"));
+                    assignments += number(p.get("assignments"));
+                }
+                rows.add(row(e.getKey(), e.getKey(), e.getKey(), e.getValue().size(), leave, absences, assignments));
+            }
+        } else {
+            for (var t : typeNames.entrySet()) {
+                java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+                int employees = 0;
+                for (Map<String, java.math.BigDecimal> leave : byUser.values()) {
+                    java.math.BigDecimal d = leave.get(t.getValue());
+                    if (d != null) {
+                        total = total.add(d);
+                        employees++;
+                    }
+                }
+                rows.add(new AbsenceSummaryRow(t.getKey(), t.getValue(), null, employees, Map.of(t.getValue(), total),
+                        total, 0, 0, null));
+            }
+        }
+        return new AbsenceSummary(from, to, group, me.admin() ? "company" : "direct_reports", rows);
+    }
+
+    /** CSV (UTF-8 có BOM để Excel đọc đúng tiếng Việt) của {@link #absenceSummary}. */
+    public String absenceSummaryCsv(CurrentUser me, LocalDate from, LocalDate to, String groupBy) {
+        AbsenceSummary summary = absenceSummary(me, from, to, groupBy);
+        java.util.Set<String> types = new java.util.TreeSet<>();
+        summary.rows().forEach(r -> types.addAll(r.leaveDaysByType().keySet()));
+        StringBuilder csv = new StringBuilder("\uFEFF");
+        List<String> header = new ArrayList<>(List.of("Nhóm", "Bộ phận", "Số nhân viên"));
+        types.forEach(t -> header.add("Ngày nghỉ: " + t));
+        header.addAll(List.of("Tổng ngày nghỉ đã duyệt", "Vắng đột xuất", "Phân công", "Tỷ lệ vắng (%)"));
+        csv.append(csvLine(header));
+        for (AbsenceSummaryRow r : summary.rows()) {
+            List<String> line = new ArrayList<>(List.of(r.label(), r.department() == null ? "" : r.department(),
+                    String.valueOf(r.employees())));
+            types.forEach(t -> line.add(r.leaveDaysByType().getOrDefault(t, java.math.BigDecimal.ZERO).toPlainString()));
+            line.addAll(List.of(r.leaveDays().toPlainString(), String.valueOf(r.absences()),
+                    String.valueOf(r.assignments()), r.absenceRatePercent() == null ? "" : r.absenceRatePercent().toString()));
+            csv.append(csvLine(line));
+        }
+        return csv.toString();
+    }
+
+    private static AbsenceSummaryRow row(String key, String label, String dept, int employees,
+                                         Map<String, java.math.BigDecimal> leave, long absences, long assignments) {
+        java.math.BigDecimal total = leave.values().stream().reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        Double rate = assignments == 0 ? null : Math.round(absences * 1000.0 / assignments) / 10.0;
+        return new AbsenceSummaryRow(key, label, dept, employees, leave, total, absences, assignments, rate);
+    }
+
+    static String csvLine(List<String> cells) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < cells.size(); i++) {
+            if (i > 0) b.append(',');
+            String c = cells.get(i) == null ? "" : cells.get(i);
+            // Chặn công thức khi mở bằng Excel (CSV injection) và thoát dấu ngoặc kép.
+            if (!c.isEmpty() && "=+-@".indexOf(c.charAt(0)) >= 0 && !c.matches("-?\\d+(\\.\\d+)?")) c = "'" + c;
+            b.append('"').append(c.replace("\"", "\"\"")).append('"');
+        }
+        return b.append("\r\n").toString();
+    }
+
+    private static long number(Object v) {
+        return v == null ? 0 : ((Number) v).longValue();
+    }
+
+    private static java.math.BigDecimal decimal(Object v) {
+        if (v == null) return java.math.BigDecimal.ZERO;
+        return v instanceof java.math.BigDecimal d ? d : new java.math.BigDecimal(v.toString());
+    }
+
     /* ── Hỗ trợ ──────────────────────────────────────────────────────── */
 
     LeaveImpact computeImpact(LeaveView view) {
@@ -349,7 +530,8 @@ public class LeaveService {
     }
 
     private void requireOwnerOrAdmin(CurrentUser me, LeaveView view) {
-        if (!me.admin() && !view.userId().equals(me.id())) {
+        // BAO-04: thêm quản lý trực tiếp và người duyệt của một bước; người khác không thấy (404, không lộ đơn).
+        if (!flows.canView(me, ApprovalFlowService.LEAVE, view.id(), view.userId())) {
             throw ApiException.notFound("đơn nghỉ");
         }
     }

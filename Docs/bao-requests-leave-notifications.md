@@ -124,7 +124,7 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 - ~~Số ngày phép được hưởng / đã dùng / còn lại (CO-01)~~ → đã làm ở BAO-03 (mục 11).
 - Email và kênh gửi khác (CO-02).
 - KPI (PE-01).
-- Duyệt theo quản lý trực tiếp: hiện chỉ Admin duyệt, chờ phân quyền theo phạm vi của Anh.
+- ~~Duyệt theo quản lý trực tiếp~~ → đã làm ở BAO-04 (mục 12), theo `users.manager_id`; ma trận role/scope đầy đủ vẫn chờ B0 của Anh.
 - ~~Chọn người tự động theo quy tắc cho ca trống~~ → đã làm ở BAO-02 (mục 10).
 
 ## 9. BAO-01 — Vận hành outbox (13/11/2026)
@@ -200,3 +200,24 @@ Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi l�
 **API:** `GET /api/leave/balances/me`, `GET /api/leave/balances?userId=&year=` (Admin), `GET /api/leave/balances/{id}/ledger`, `POST /api/leave/balances/adjust`, `GET|POST /api/leave/policies`, `POST /api/leave/policies/{id}/end`, `POST /api/leave/{id}/revoke`; `POST /api/leave` nhận thêm `halfDay`.
 
 **Kiểm thử:** `LeaveBalanceServiceTest` (14 test, sổ phép trong bộ nhớ mô phỏng điều kiện SQL): chia ngày theo năm, nửa ngày, giữ chỗ/trừ/trả/hoàn khớp sổ cái, không đủ phép, duyệt hai lần chỉ trừ một lần, đơn cũ, chính sách Part-time/chung/thiếu, chồng chính sách, điều chỉnh (lý do, version, không âm, bội số 0,5), ẩn sổ cái người khác. SQL Server IT: chưa có.
+
+## 12. BAO-04 — Duyệt nhiều bước theo quản lý + báo cáo vắng (CO-01 phần 2)
+
+**Migration:** `V21__approval_flows.sql` — **số tạm, xin Anh xác nhận**. Bảng `approval_flows` (cấu hình) và `approval_steps` (các bước của từng đơn). Seed cả hai đối tượng ở chế độ `admin_only` → **hành vi cũ giữ nguyên** cho tới khi Admin đổi.
+
+**Code:** package mới `api/approvals/` — `ApprovalFlowService`, `ApprovalRepository`, `ApprovalFlowController`, `ApprovalStep`, `ApprovalFlow`. `LeaveService` và `ShiftRequestService` gọi chung một dịch vụ.
+
+**Quy trình** (theo đối tượng; đơn nghỉ có thể riêng theo loại nghỉ): `admin_only` · `manager` (1 bước) · `manager_then_admin` (2 bước).
+
+- Bước quản lý chốt người duyệt = `users.manager_id` lúc đơn bắt đầu chờ duyệt (đơn nghỉ: lúc gửi; đổi ca: lúc đồng nghiệp đồng ý). Không có quản lý đang hoạt động → bước quản lý `skipped` kèm lý do, chuyển Admin.
+- Quản lý chỉ duyệt/từ chối đơn có bước đang chờ đúng mình (`403` nếu không); người không liên quan xem đơn → `404`. Quản lý trực tiếp và người duyệt của một bước được xem đơn.
+- **Lịch và số dư phép chỉ đổi ở bước cuối.** Bước giữa chỉ ghi bước + audit `leave_step_approve` / `shift_request_step_approve` và thông báo người duyệt kế tiếp (`leave.step_approved`, `shift_request.step_approved`).
+- Admin (toàn quyền V1) duyệt ở bước nào cũng là duyệt cuối; các bước còn lại `skipped` "Admin duyệt thay". Ngoại lệ đổi ca (BAO-02) vẫn cần quyền `schedule.exception.approve`.
+- Loại nghỉ yêu cầu tài liệu: kiểm tra lại ở mọi bước (`422 DOCUMENT_REQUIRED`).
+- Chuyển trạng thái bước là UPDATE có điều kiện (version + status) → hai người duyệt cùng lúc: một bên `409 STALE_STEP`.
+
+**Báo cáo vắng mặt:** `GET /api/leave/absences/summary?from=&to=&groupBy=employee|department|leaveType` và bản CSV `.../summary.csv` (UTF-8 có BOM, chặn công thức Excel). Admin: toàn công ty; quản lý: cấp dưới trực tiếp; nhân viên thường: `403`. Tỷ lệ vắng = vắng đột xuất / phân công confirmed; mẫu số 0 → `null` ("Chưa đủ dữ liệu"). API này để Bình dùng cho Dashboard.
+
+**API khác:** `GET|PUT /api/approval-flows`, `GET /api/approval-flows/me`, `GET /api/leave/{id}/steps`, `GET /api/requests/{id}/steps`, `GET /api/leave?scope=team|approvals`, `GET /api/requests?scope=approvals`. Giao diện: route mới **Hộp duyệt** (Admin và nhân viên có cấp dưới).
+
+**Kiểm thử:** `ApprovalFlowServiceTest` (10), `LeaveApprovalStepsTest` (9), `ShiftRequestApprovalStepsTest` (3): quản lý ngoài phạm vi không duyệt/không xem; lịch không đổi ở bước quản lý; Admin là bước cuối; không có quản lý → Admin; tài liệu kiểm tra mỗi bước; báo cáo theo phạm vi, theo bộ phận, mẫu số 0; CSV chống công thức. Đổi ở test cũ: `ShiftRequestServiceTest.approve_requiresAdmin` nay đọc yêu cầu trước khi xét quyền (quyền phụ thuộc bước), vẫn 403 và không đổi lịch.

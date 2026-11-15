@@ -69,7 +69,8 @@ class ShiftRequestServiceTest {
         events = mock(DomainEventPublisher.class);
         audit = mock(AuditTrail.class);
         Clock clock = Clock.fixed(Instant.parse("2026-11-01T01:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
-        service = new ShiftRequestService(repository, schedule, validator, users, events, audit, clock);
+        service = new ShiftRequestService(repository, schedule, validator, users, events, audit, clock,
+                new org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService(mock(org.dacnpm.schedulemanager.api.approvals.ApprovalRepository.class), mock(AuditTrail.class)));
 
         when(users.find("nv002")).thenReturn(Optional.of(
                 new UserDirectory.Employee("nv002", "Lê Thị Bích", "lvl1", "user", "active")));
@@ -316,9 +317,13 @@ class ShiftRequestServiceTest {
 
     @Test
     void approve_requiresAdmin() {
+        // BAO-04: quyền duyệt phụ thuộc bước duyệt của yêu cầu nên yêu cầu được đọc trước; không có bước quản lý
+        // (admin_only) thì nhân viên thường vẫn bị 403 và lịch không đổi.
+        when(repository.findById("req1")).thenReturn(Optional.of(view("pending_approval", "cover", 1)));
         ApiException ex = assertThrows(ApiException.class, () -> service.approve(AN, "req1", 1, null));
         assertEquals("FORBIDDEN", ex.getCode());
-        verify(repository, never()).findById(any());
+        verify(repository, never()).decide(anyString(), anyInt(), anyList(), anyString(), any(), any(), any());
+        verify(schedule, never()).reassign(anyString(), anyString(), anyString(), anyString(), anyString());
     }
 
     @Test

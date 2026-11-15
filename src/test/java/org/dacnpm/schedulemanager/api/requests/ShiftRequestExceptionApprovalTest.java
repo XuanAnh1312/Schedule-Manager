@@ -65,7 +65,8 @@ class ShiftRequestExceptionApprovalTest {
         audit = mock(AuditTrail.class);
         UserDirectory users = mock(UserDirectory.class);
         Clock clock = Clock.fixed(Instant.parse("2026-11-01T01:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
-        service = new ShiftRequestService(repository, schedule, validator, users, events, audit, clock);
+        service = new ShiftRequestService(repository, schedule, validator, users, events, audit, clock,
+                new org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService(mock(org.dacnpm.schedulemanager.api.approvals.ApprovalRepository.class), mock(AuditTrail.class)));
         when(users.find("nv002")).thenReturn(Optional.of(
                 new UserDirectory.Employee("nv002", "Lê Thị Bích", "lvl1", "user", "active")));
         when(schedule.findAssignment("asg_an")).thenReturn(Optional.of(

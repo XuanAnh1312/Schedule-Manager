@@ -105,6 +105,19 @@ public class LeaveRepository {
     }
 
     /** Có đơn pending/approved khác của cùng người chồng lên khoảng ngày? */
+    /** BAO-04: đơn của các nhân viên mà {@code managerId} là quản lý trực tiếp. */
+    public List<LeaveView> findByManager(String managerId, String status, int limit) {
+        StringBuilder sql = new StringBuilder(SELECT).append(" WHERE u.manager_id = ?");
+        List<Object> args = new ArrayList<>(List.of(managerId));
+        if (status != null) {
+            sql.append(" AND l.status = ?");
+            args.add(status);
+        }
+        sql.append(" ORDER BY l.created_at DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY");
+        args.add(limit);
+        return jdbc.query(sql.toString(), MAPPER, args.toArray());
+    }
+
     public boolean overlapsActive(String userId, LocalDate start, LocalDate end) {
         Integer n = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM leave_requests
@@ -180,6 +193,43 @@ public class LeaveRepository {
                 WHERE status = 'approved' AND start_date <= ? AND end_date >= ?
                 """, Long.class, from, from, to, to, to, from);
         return n == null ? 0 : n;
+    }
+
+    /* ── BAO-04: báo cáo vắng mặt ─────────────────────────────────────── */
+
+    /**
+     * Mỗi nhân viên (trong phạm vi): số lần vắng đột xuất và số phân công confirmed trong khoảng ngày.
+     * {@code managerId} khác null → chỉ cấp dưới trực tiếp của người đó.
+     */
+    public List<Map<String, Object>> absenceByEmployee(LocalDate from, LocalDate to, String managerId) {
+        return jdbc.queryForList("""
+                SELECT u.id AS userId, u.full_name AS fullName, u.employee_code AS employeeCode,
+                       u.department_id AS departmentId, d.name AS departmentName,
+                       (SELECT COUNT(*) FROM absence_records a JOIN shifts s ON s.id = a.shift_id
+                         WHERE a.user_id = u.id AND s.shift_date BETWEEN ? AND ?) AS absences,
+                       (SELECT COUNT(*) FROM assignments x JOIN shifts s ON s.id = x.shift_id
+                         WHERE x.user_id = u.id AND x.status = 'confirmed' AND s.shift_date BETWEEN ? AND ?) AS assignments
+                FROM users u LEFT JOIN departments d ON d.id = u.department_id
+                WHERE u.role = 'user' AND u.archived_at IS NULL AND (? IS NULL OR u.manager_id = ?)
+                ORDER BY u.full_name, u.id
+                """, from, to, from, to, managerId, managerId);
+    }
+
+    /** Ngày nghỉ đã duyệt theo nhân viên × loại nghỉ, cắt theo khoảng ngày (nửa ngày = 0,5). */
+    public List<Map<String, Object>> approvedLeaveDaysByType(LocalDate from, LocalDate to, String managerId) {
+        return jdbc.queryForList("""
+                SELECT l.user_id AS userId, l.leave_type_id AS leaveTypeId, t.name AS leaveTypeName,
+                       SUM(CASE WHEN l.half_day = 1 THEN CAST(0.5 AS DECIMAL(9, 1))
+                                ELSE CAST(DATEDIFF(DAY,
+                                       CASE WHEN l.start_date > ? THEN l.start_date ELSE ? END,
+                                       CASE WHEN l.end_date < ? THEN l.end_date ELSE ? END) + 1 AS DECIMAL(9, 1)) END) AS days
+                FROM leave_requests l
+                JOIN leave_types t ON t.id = l.leave_type_id
+                JOIN users u ON u.id = l.user_id
+                WHERE l.status = 'approved' AND l.start_date <= ? AND l.end_date >= ?
+                  AND (? IS NULL OR u.manager_id = ?)
+                GROUP BY l.user_id, l.leave_type_id, t.name
+                """, from, from, to, to, to, from, managerId, managerId);
     }
 
     private static LocalDateTime ts(Timestamp t) {

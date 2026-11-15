@@ -12,12 +12,15 @@ public final class EventTypes {
     public static final String SHIFT_REQUEST_APPROVED = "shift_request.approved";
     public static final String SHIFT_REQUEST_REJECTED = "shift_request.rejected";
     public static final String SHIFT_REQUEST_CANCELLED = "shift_request.cancelled";
+    public static final String SHIFT_REQUEST_STEP_APPROVED = "shift_request.step_approved";
 
     // Nghỉ phép (Bảo)
     public static final String LEAVE_REQUESTED = "leave.requested";
     public static final String LEAVE_APPROVED = "leave.approved";
     public static final String LEAVE_REJECTED = "leave.rejected";
     public static final String LEAVE_CANCELLED = "leave.cancelled";
+    /** BAO-04: một bước duyệt (không phải bước cuối) đã xong, chờ người duyệt kế tiếp. */
+    public static final String LEAVE_STEP_APPROVED = "leave.step_approved";
     public static final String COVERAGE_WARNING = "schedule.coverage_warning";
     public static final String ABSENCE_RECORDED = "absence.recorded";
 

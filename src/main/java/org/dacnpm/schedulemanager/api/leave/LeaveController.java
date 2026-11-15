@@ -68,6 +68,33 @@ public class LeaveController {
         return Map.of("pending", service.pendingCount(CurrentUser.require()));
     }
 
+    /** BAO-04: báo cáo vắng mặt theo nhân viên/bộ phận/loại nghỉ (Admin: toàn công ty; quản lý: cấp dưới). */
+    @GetMapping("/absences/summary")
+    public LeaveService.AbsenceSummary absenceSummary(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(defaultValue = "employee") String groupBy) {
+        return service.absenceSummary(CurrentUser.require(), from, to, groupBy);
+    }
+
+    @GetMapping(value = "/absences/summary.csv", produces = "text/csv;charset=UTF-8")
+    public org.springframework.http.ResponseEntity<String> absenceSummaryCsv(
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @RequestParam(defaultValue = "employee") String groupBy) {
+        String body = service.absenceSummaryCsv(CurrentUser.require(), from, to, groupBy);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"bao-cao-vang-" + from + "_" + to + ".csv\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType("text/csv;charset=UTF-8"))
+                .body(body);
+    }
+
+    /** BAO-04: các bước duyệt của đơn. */
+    @GetMapping("/{id}/steps")
+    public List<org.dacnpm.schedulemanager.api.approvals.ApprovalStep> steps(@PathVariable String id) {
+        return service.steps(CurrentUser.require(), id);
+    }
+
     @GetMapping("/absences/report")
     public LeaveService.AbsenceReport absenceReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

@@ -54,7 +54,7 @@ class LeaveServiceTest {
         events = mock(DomainEventPublisher.class);
         Clock clock = Clock.fixed(Instant.parse("2026-11-01T01:00:00Z"), ZoneId.of("Asia/Ho_Chi_Minh"));
         service = new LeaveService(repository, schedule, events, mock(AuditTrail.class), clock,
-                mock(LeaveBalanceService.class));
+                mock(LeaveBalanceService.class), new org.dacnpm.schedulemanager.api.approvals.ApprovalFlowService(mock(org.dacnpm.schedulemanager.api.approvals.ApprovalRepository.class), mock(AuditTrail.class)));
 
         when(repository.findType("leave_annual")).thenReturn(Optional.of(
                 new LeaveType("leave_annual", "Nghỉ phép năm", null, true, false, 0, true)));

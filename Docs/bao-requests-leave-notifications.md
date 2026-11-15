@@ -123,7 +123,7 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 
 - ~~Số ngày phép được hưởng / đã dùng / còn lại (CO-01)~~ → đã làm ở BAO-03 (mục 11).
 - ~~Email và kênh gửi khác (CO-02)~~ → đã làm ở BAO-05 (mục 13).
-- KPI (PE-01).
+- ~~KPI (PE-01)~~ → đã làm ở BAO-06 (mục 14).
 - ~~Duyệt theo quản lý trực tiếp~~ → đã làm ở BAO-04 (mục 12), theo `users.manager_id`; ma trận role/scope đầy đủ vẫn chờ B0 của Anh.
 - ~~Chọn người tự động theo quy tắc cho ca trống~~ → đã làm ở BAO-02 (mục 10).
 
@@ -246,3 +246,23 @@ Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi l�
 - Khóa học (Tuấn) và hợp đồng/chứng chỉ sắp hết hạn (Anh): đã có hằng số `lms.course_reminder`, `hr.contract_expiring`, `hr.certificate_expiring` và định tuyến email. **Chưa có nơi phát** vì module LMS/HR mở rộng chưa có — module đó chỉ cần `events.publish(...)` với loại tương ứng.
 
 **Kiểm thử:** `SmtpEmailTransportTest` (4, máy chủ SMTP giả trong tiến trình: AUTH, UTF-8, từ chối RCPT, không lộ mật khẩu), `EmailChannelTest` (7: kênh tắt, định tuyến, thiếu email → skipped, tắt email/bắt buộc, thông báo chung, dispatcher sent/failed/đã bị instance khác nhận, gửi lại), `AnnouncementServiceTest` (5: phạm vi, cắt nội dung, không có người nhận, lịch sử đọc, tùy chọn bắt buộc). SQL Server IT: chưa có.
+
+## 14. BAO-06 — Hiệu suất và KPI (PE-01)
+
+**Migration:** `V23__performance_kpi.sql` — **số tạm, xin Anh xác nhận**. Bảng `kpi_definitions`, `review_cycles`, `reviews`, `review_items`, `achievements`.
+
+**Code:** package mới `api/performance/` — `PerformanceService`, `PerformanceRepository`, `PerformanceController`, `PerformanceModels`, `KpiCalculator`. Giao diện: route **Hiệu suất & KPI**.
+
+**Luồng:** Admin định nghĩa KPI → tạo kỳ (nháp) → **mở kỳ**: tạo phiếu cho mọi nhân viên đang hoạt động, người đánh giá = quản lý trực tiếp (không có → Admin), chụp KPI áp dụng (chung hoặc đúng bộ phận) và tự tính số liệu → nhân viên tự chấm (`pending_self`) → quản lý chấm + nhận xét + kế hoạch cải thiện (`pending_manager`) → nhân viên xác nhận/phản hồi (`pending_ack`) → hoàn tất. Đóng kỳ khi mọi phiếu xong (hoặc hủy phiếu dở có xác nhận).
+
+**KPI tự tính** (chuẩn hóa theo lịch của chính người đó nên **Part-time làm đủ lịch đạt 100% như Full-time**): `hours_vs_schedule` (giờ chấm công đã kết thúc / giờ được phân), `attendance_rate` (ca có chấm công / ca được phân), `absence_rate` (vắng đột xuất / ca được phân, thấp là tốt); `manual` do quản lý nhập. Mẫu số 0 → "chưa đủ dữ liệu", không hiển thị 0 giả. Mỗi kết quả có cột "Căn cứ" (tử số / mẫu số).
+
+**Điểm:** thang 1–`score_scale_max` (mặc định 5), tối đa 1 chữ số thập phân; điểm tổng = trung bình có trọng số điểm quản lý. Sửa KPI sau khi mở kỳ không làm đổi phiếu cũ (phiếu lưu bản chụp).
+
+**Quyền:** nhân viên chỉ xem phiếu của mình; quản lý xem/chấm phiếu mà mình là người đánh giá; Admin xem tất cả và chấm thay (audit ghi "Admin chấm thay"). Người khác → 404. Không tự chấm điểm quản lý cho chính mình. Chuyển trạng thái phiếu là UPDATE có điều kiện (version + status).
+
+**Thành tích & đề xuất:** quản lý trực tiếp hoặc Admin ghi `commendation`, `bonus_proposal` (bắt buộc số tiền đề xuất VND), `promotion_proposal`, `training_proposal`. **Không tính tiền thưởng ở đây:** phát sự kiện `performance.bonus_proposed` cho Payroll (Bình), `performance.training_proposed` cho LMS (Tuấn), `performance.promotion_proposed`; eventId theo id thành tích nên bên nhận chỉ nhận **đúng một lần** (outbox chống trùng).
+
+**Giả định chờ nhóm chốt:** thang điểm, trọng số, chu kỳ đánh giá, ai được xem kết quả (hiện: nhân viên + người đánh giá + Admin), cách Payroll/LMS tiêu thụ sự kiện.
+
+**Kiểm thử:** `PerformanceServiceTest` (12): Part-time = Full-time khi làm đủ lịch, mẫu số 0, điểm có trọng số, kiểm tra KPI, mở kỳ (người đánh giá, KPI theo bộ phận, thông báo), không có KPI, quyền xem phiếu, tự đánh giá (đủ mục, thang điểm), quản lý chấm (đúng người, KPI nhập tay cần kết quả, KPI tự tính không nhập tay, điểm tổng), phản hồi, đề xuất thưởng → 1 sự kiện tất định, phạm vi thành tích. SQL Server IT: chưa có.

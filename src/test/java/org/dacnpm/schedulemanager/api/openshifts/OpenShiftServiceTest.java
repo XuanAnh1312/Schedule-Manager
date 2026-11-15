@@ -102,7 +102,7 @@ class OpenShiftServiceTest {
                 LocalDateTime.of(2026, 11, 4, 18, 0), "Cần gấp"));
         // 18:00 giờ VN = 11:00 UTC
         verify(repository).insert(anyString(), eq("sh_1"), eq(2), eq(null),
-                eq(LocalDateTime.of(2026, 11, 4, 11, 0)), eq("Cần gấp"), eq("admin"));
+                eq(LocalDateTime.of(2026, 11, 4, 11, 0)), eq("Cần gấp"), eq("admin"), eq("manual"));
     }
 
     @Test
@@ -163,7 +163,7 @@ class OpenShiftServiceTest {
     void claim_afterDeadline_isRejected() {
         OpenShiftView expired = new OpenShiftView("os1", "sh_1", "Ca tối", D5, LocalTime.of(14, 30),
                 LocalTime.of(22, 30), 2, 0, null, LocalDateTime.of(2026, 10, 31, 0, 0), null, "open", 0,
-                null, null, 0, null);
+                null, null, 0, null, "manual", null);
         when(repository.findById("os1", "nv001")).thenReturn(Optional.of(expired));
         ApiException ex = assertThrows(ApiException.class, () -> service.claim(AN, "os1", null));
         assertEquals("DEADLINE_PASSED", ex.getCode());
@@ -172,11 +172,11 @@ class OpenShiftServiceTest {
     static OpenShiftView openShift(String status, int slots, int filled) {
         return new OpenShiftView("os1", "sh_1", "Ca tối", D5, LocalTime.of(14, 30), LocalTime.of(22, 30),
                 slots, filled, null, LocalDateTime.of(2026, 11, 4, 11, 0), null, status, 1, null, null,
-                filled, LocalDateTime.of(2026, 11, 1, 1, 0));
+                filled, LocalDateTime.of(2026, 11, 1, 1, 0), "manual", null);
     }
 
     static ClaimView claim(String status) {
         return new ClaimView("c1", "os1", "nv001", "Trần Văn An", status, null, null, null, null, null, 0,
-                LocalDateTime.of(2026, 11, 1, 1, 0));
+                LocalDateTime.of(2026, 11, 1, 1, 0), null, null);
     }
 }

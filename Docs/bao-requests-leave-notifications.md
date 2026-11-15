@@ -125,7 +125,7 @@ Mốc nhắc hạn **không** đặt trong file cấu hình; Admin cấu hình q
 - Email và kênh gửi khác (CO-02).
 - KPI (PE-01).
 - Duyệt theo quản lý trực tiếp: hiện chỉ Admin duyệt, chờ phân quyền theo phạm vi của Anh.
-- Chọn người tự động theo quy tắc cho ca trống.
+- ~~Chọn người tự động theo quy tắc cho ca trống~~ → đã làm ở BAO-02 (mục 10).
 
 ## 9. BAO-01 — Vận hành outbox (13/11/2026)
 
@@ -149,3 +149,31 @@ Mục tiêu: Admin xem được sự kiện thông báo gửi lỗi và gửi l�
 - Browser: thêm route `events` vào `tests/moc-a-browser.mjs`; `tests/employee-accounts-browser.mjs` kiểm tra Employee không thấy menu và API trả 403.
 
 **Đề xuất cho Anh (file dùng chung, chưa sửa):** thêm `"/api/admin/**"` vào dòng `hasRole("ADMIN")` trong `SecurityConfig` để chặn thêm ở lớp bảo mật. Hiện tại service đã chặn bằng `requireAdmin()` (Employee nhận 403).
+
+## 10. BAO-02 — Duyệt đổi/thay ca có ngoại lệ + ca trống tự chọn người
+
+**Migration:** `V19__open_shift_selection_mode.sql` — **số tạm, phải xin Anh xác nhận trước khi commit**. Thêm `open_shifts.selection_mode` (`manual` | `auto`, mặc định `manual`), `open_shifts.auto_processed_at`, `open_shift_claims.auto_rank`, `open_shift_claims.auto_note`.
+
+### 10.1 Duyệt có ngoại lệ (đổi chéo và làm thay)
+
+- Vi phạm chia 2 nhóm theo `ViolationCode.overridable()` của lõi lịch (Tường): **nhóm ngoại lệ** (`NOT_AVAILABLE_TIME`, `UNAVAILABLE`) và **ràng buộc cứng** (còn lại: trùng giờ, nghỉ tối thiểu, trần giờ, Level…).
+- Gửi yêu cầu / đồng nghiệp đồng ý: chỉ ràng buộc cứng chặn; vi phạm nhóm ngoại lệ để người duyệt quyết định. Gợi ý người làm thay hiện nhãn "(cần ngoại lệ khi duyệt)".
+- Duyệt không kèm ngoại lệ mà có vi phạm nhóm ngoại lệ → `422 EXCEPTION_REQUIRED`. Ràng buộc cứng → `422 VALIDATION_FAILED` kể cả khi gửi ngoại lệ.
+- `GET /api/requests/{id}/approval-preview` (Admin có quyền `schedule.exception.approve`): trả từng vị trí (`source` = người nhận lấy ca gốc; `target` = người gửi lấy ca của người nhận, chỉ khi đổi chéo) với vi phạm và `previewToken`. Đổi chéo được xem trước **theo trạng thái cuối** (cả hai ca cũ đã gỡ), đúng ngữ cảnh lõi lịch dùng khi đổi.
+- `POST /api/requests/{id}/approve` nhận thêm `exceptionReason`, `confirmException: true`, `previewTokens: {source, target}`. Lõi lịch kiểm tra lại vi phạm, token và quyền trong cùng giao dịch; dữ liệu đổi giữa lúc xem và lúc duyệt → `409 STALE_PREVIEW`. Ngoại lệ được ghi vào `schedule_exceptions` + `history`; audit của yêu cầu có loại `shift_request_approve_exception` và lý do ngoại lệ.
+- **File dùng chung có sửa (cần Anh/Tường review):** `domain/schedule/Violation` (thêm cờ `overridable`, giữ constructor cũ), `AssignmentMutationService` (thêm phương thức `default`, không phá bản cài đặt cũ), `OfficialJdbcScheduleAdapter`, `OfficialScheduleService` (thêm `previewSwap`, `swap(...)` có override từng vị trí, `workload`; `swap` cũ gọi qua bản mới với override `null` nên hành vi cũ giữ nguyên).
+
+### 10.2 Ca trống tự chọn người
+
+- Tạo ca trống chọn `selectionMode = auto`. Hết hạn nhận → `OpenShiftAutoSelectJob` (mặc định mỗi phút, `app.open-shifts.auto-select-cron`) gọi `OpenShiftService.autoSelect`. Admin có thể chạy ngay: `POST /api/open-shifts/{id}/auto-select`.
+- Thứ tự ưu tiên (giả định chờ nhóm chốt): (1) Level đúng yêu cầu trước Level cao hơn được phép thay; (2) tỷ lệ giờ đã phân trong kỳ / giờ mục tiêu kỳ thấp hơn (thiếu giờ mục tiêu → so số giờ); (3) đăng ký sớm hơn.
+- Mỗi ứng viên được kiểm tra lại ràng buộc lúc chọn. **Tự động không duyệt ngoại lệ**: vi phạm nhóm ngoại lệ cũng bị loại. Mỗi đăng ký có `auto_rank` + `auto_note` giải thích.
+- An toàn đồng thời: khóa dòng `open_shifts` trước, kiểm tra `auto_processed_at`, giữ chỗ bằng `UPDATE ... WHERE filled_count < slots`. Hai job song song chỉ một lượt xử lý; không vượt `slots`. Chưa đủ người → ca trống chuyển `closed` và gửi cảnh báo thiếu người cho Admin.
+- Actor ghi lịch/audit là người tạo ca trống (hệ thống chọn thay mặt theo quy tắc đã công bố).
+
+### 10.3 Kiểm thử
+
+- `ShiftRequestExceptionApprovalTest` (10 test): ngoại lệ không lý do/không xác nhận bị chặn; ràng buộc cứng không override được; override đúng token cho từng vị trí; preview gộp hai vị trí; Employee không xem trước được.
+- `OpenShiftAutoSelectTest` (8 test): thứ tự ưu tiên; không vượt chỗ; ứng viên vi phạm bị bỏ qua; không chạy lần hai; khóa dòng trước khi đọc; chưa hết hạn/chế độ manual bị từ chối.
+- `OfficialScheduleSwapExceptionTest` (4 test, validator thật): xem trước đổi chéo theo trạng thái cuối, đổi có token ghi ngoại lệ, token cũ → 409, không có quyền → 403, tính giờ trong kỳ.
+- SQL Server IT: chưa có — cần chạy migration V19 trên DB test của nhóm.

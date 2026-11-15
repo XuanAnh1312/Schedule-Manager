@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.dacnpm.schedulemanager.common.ApiException;
+import org.dacnpm.schedulemanager.schedule.exception.ExceptionService;
 import org.dacnpm.schedulemanager.schedule.official.OfficialScheduleService;
 import org.dacnpm.schedulemanager.schedule.plan.PlanException;
 import org.dacnpm.schedulemanager.schedule.shift.ShiftNotFoundException;
@@ -35,7 +36,59 @@ public class OfficialJdbcScheduleAdapter extends InterimJdbcScheduleAdapter {
     public List<Violation> validate(String userId, String shiftId, String replacingUserId,
                                     Set<String> ignoreAssignmentIds, String requiredLevelId) {
         return translated(() -> schedule.validate(userId, shiftId, replacingUserId, ignoreAssignmentIds, requiredLevelId)
-                .violations().stream().map(v -> Violation.block(v.code().name(), v.message())).toList());
+                .violations().stream().map(v -> v.code().overridable()
+                        ? Violation.exceptionable(v.code().name(), v.message())
+                        : Violation.block(v.code().name(), v.message())).toList());
+    }
+
+    /* BAO-02: ngoại lệ khi duyệt đổi/thay ca — dùng cùng cơ chế preview/token của lõi lịch (TW-06). */
+
+    @Override
+    public ExceptionPreview previewReassign(String assignmentId, String newUserId, String actorId) {
+        return translated(() -> {
+            String shiftId = findAssignment(assignmentId)
+                    .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "NOT_FOUND", "Không tìm thấy phân công."))
+                    .shiftId();
+            return toPreview(schedule.preview(shiftId, newUserId, assignmentId, actorId));
+        });
+    }
+
+    @Override
+    public List<ExceptionPreview> previewSwap(String firstAssignmentId, String firstUserId, String secondAssignmentId,
+                                              String secondUserId, String actorId) {
+        return translated(() -> schedule.previewSwap(firstAssignmentId, firstUserId, secondAssignmentId, secondUserId,
+                actorId).stream().map(OfficialJdbcScheduleAdapter::toPreview).toList());
+    }
+
+    @Override
+    public void reassign(String id, String expected, String next, String actor, String reason, ExceptionOverride override) {
+        run(() -> schedule.reassign(id, expected, next, actor, reason, core(override), false));
+    }
+
+    @Override
+    public void swap(String firstAssignmentId, String firstUserId, String secondAssignmentId, String secondUserId,
+                     String actorId, String reason, ExceptionOverride firstOverride, ExceptionOverride secondOverride) {
+        run(() -> schedule.swap(firstAssignmentId, firstUserId, secondAssignmentId, secondUserId, actorId, reason,
+                core(firstOverride), core(secondOverride), false));
+    }
+
+    @Override
+    public Workload workload(String userId, String shiftId) {
+        return translated(() -> {
+            OfficialScheduleService.WorkloadSnapshot w = schedule.workload(userId, shiftId);
+            return new Workload(w.scheduledHours(), w.targetHours());
+        });
+    }
+
+    private static OfficialScheduleService.ExceptionOverride core(ExceptionOverride o) {
+        return o == null ? null : new OfficialScheduleService.ExceptionOverride(o.reason(), o.previewToken(), o.confirm());
+    }
+
+    private static ExceptionPreview toPreview(ExceptionService.Preview p) {
+        return new ExceptionPreview(p.shiftId(), p.userId(), p.exceptionNeeded(), p.allowed(),
+                p.blocking().stream().map(org.dacnpm.schedulemanager.schedule.validation.Violation::message).toList(),
+                p.exceptionable().stream().map(org.dacnpm.schedulemanager.schedule.validation.Violation::message).toList(),
+                p.previewToken(), p.message());
     }
     @Override
     public void reassign(String id, String expected, String next, String actor, String reason) {

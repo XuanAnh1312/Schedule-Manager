@@ -25,5 +25,15 @@ public record OpenShiftView(
         String myClaimId,
         String myClaimStatus,
         int version,
-        LocalDateTime createdAt
-) {}
+        LocalDateTime createdAt,
+        String selectionMode,
+        LocalDateTime autoProcessedAt
+) {
+    /** Chế độ chọn người (BAO-02): manual = Admin chọn; auto = hết hạn nhận thì hệ thống tự chọn. */
+    public static final String MANUAL = "manual";
+    public static final String AUTO = "auto";
+
+    public boolean auto() {
+        return AUTO.equals(selectionMode);
+    }
+}

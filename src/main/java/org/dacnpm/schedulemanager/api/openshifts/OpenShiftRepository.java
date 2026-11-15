@@ -42,7 +42,9 @@ public class OpenShiftRepository {
             rs.getString("my_claim_id"),
             rs.getString("my_claim_status"),
             rs.getInt("version"),
-            ts(rs.getTimestamp("created_at")));
+            ts(rs.getTimestamp("created_at")),
+            rs.getString("selection_mode"),
+            ts(rs.getTimestamp("auto_processed_at")));
 
     private static final RowMapper<ClaimView> CLAIM_MAPPER = (rs, i) -> new ClaimView(
             rs.getString("id"),
@@ -56,7 +58,9 @@ public class OpenShiftRepository {
             rs.getString("decision_note"),
             rs.getString("assignment_id"),
             rs.getInt("version"),
-            ts(rs.getTimestamp("created_at")));
+            ts(rs.getTimestamp("created_at")),
+            (Integer) rs.getObject("auto_rank"),
+            rs.getString("auto_note"));
 
     private final JdbcTemplate jdbc;
 
@@ -65,11 +69,45 @@ public class OpenShiftRepository {
     }
 
     public void insert(String id, String shiftId, int slots, String levelId, LocalDateTime deadlineUtc,
-                       String note, String createdBy) {
+                       String note, String createdBy, String selectionMode) {
         jdbc.update("""
-                INSERT INTO open_shifts (id, shift_id, slots, required_level_id, claim_deadline, note, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, 'open', ?)
-                """, id, shiftId, slots, levelId, deadlineUtc, note, createdBy);
+                INSERT INTO open_shifts (id, shift_id, slots, required_level_id, claim_deadline, note, status, created_by,
+                                         selection_mode)
+                VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)
+                """, id, shiftId, slots, levelId, deadlineUtc, note, createdBy, selectionMode);
+    }
+
+    /* ── BAO-02: chọn tự động ───────────────────────────────────────────── */
+
+    /** Ca trống auto đã hết hạn nhận, còn mở và chưa được xử lý (đầu vào của job). */
+    public List<String> findAutoDue(LocalDateTime nowUtc, int limit) {
+        return jdbc.queryForList("""
+                SELECT TOP (?) id FROM open_shifts
+                WHERE selection_mode = 'auto' AND status = 'open' AND auto_processed_at IS NULL AND claim_deadline <= ?
+                ORDER BY claim_deadline, id
+                """, String.class, limit, nowUtc);
+    }
+
+    /** Đánh dấu đã chạy chọn tự động; điều kiện IS NULL bảo đảm chỉ một lượt chạy được ghi nhận. */
+    public int markAutoProcessed(String id) {
+        return jdbc.update("""
+                UPDATE open_shifts SET auto_processed_at = SYSUTCDATETIME(), version = version + 1,
+                       updated_at = SYSUTCDATETIME()
+                WHERE id = ? AND auto_processed_at IS NULL
+                """, id);
+    }
+
+    /** Ghi thứ hạng và lý do chọn/loại để Admin/nhân viên xem được vì sao (giải thích kết quả). */
+    public void setAutoResult(String claimId, int rank, String note) {
+        jdbc.update("UPDATE open_shift_claims SET auto_rank = ?, auto_note = ? WHERE id = ?", rank, note, claimId);
+    }
+
+    /** Đóng ca trống còn mở sau khi chọn tự động mà chưa đủ người (không còn ai nhận được nữa). */
+    public int closeIfOpen(String id) {
+        return jdbc.update("""
+                UPDATE open_shifts SET status = 'closed', version = version + 1, updated_at = SYSUTCDATETIME()
+                WHERE id = ? AND status = 'open'
+                """, id);
     }
 
     public boolean hasOpenForShift(String shiftId) {

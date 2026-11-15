@@ -85,6 +85,27 @@ public class ShiftRequestService {
 
     public record Candidate(String userId, String fullName, boolean eligible, List<String> reasons) {}
 
+    /**
+     * Ngoại lệ khi duyệt (BAO-02). {@code previewTokens} theo vị trí: {@code source} = người nhận lấy ca gốc,
+     * {@code target} = người gửi lấy ca của người nhận (chỉ có khi đổi chéo).
+     */
+    public record ExceptionApproval(String reason, Boolean confirm, Map<String, String> previewTokens) {}
+
+    /** Một vị trí cần kiểm tra khi duyệt. */
+    public record ApprovalSide(String side, String userId, String userName, ShiftSummary shift,
+                               AssignmentMutationService.ExceptionPreview preview) {}
+
+    /**
+     * Bản xem trước khi duyệt: {@code exceptionNeeded} = có vi phạm thuộc nhóm ngoại lệ; {@code allowed} = có thể duyệt
+     * (không còn ràng buộc cứng). Không ghi gì.
+     */
+    public record ApprovalPreview(String requestId, int version, boolean exceptionNeeded, boolean allowed,
+                                  List<String> blocking, List<String> exceptionable, List<ApprovalSide> sides,
+                                  String message) {}
+
+    static final String SIDE_SOURCE = "source";
+    static final String SIDE_TARGET = "target";
+
     /* ── Gửi yêu cầu ─────────────────────────────────────────────────────── */
 
     @Transactional
@@ -115,8 +136,9 @@ public class ShiftRequestService {
             throw ApiException.badRequest("INVALID_TARGET", "Yêu cầu làm thay không kèm ca của người nhận.");
         }
 
-        // Kiểm tra sớm để báo ngay cho người gửi; vẫn kiểm tra lại khi duyệt.
-        List<String> blocking = blockingViolations(type, me.id(), target.id(), source, targetAssignment);
+        // Kiểm tra sớm để báo ngay cho người gửi; vẫn kiểm tra lại khi duyệt. Vi phạm thuộc nhóm ngoại lệ (thời gian
+        // rảnh, ngày không thể làm) không chặn ở bước này: người duyệt sẽ xem trước và quyết định ngoại lệ (BAO-02).
+        List<String> blocking = hardViolations(type, me.id(), target.id(), source, targetAssignment);
         if (!blocking.isEmpty()) {
             throw ApiException.unprocessable("VALIDATION_FAILED", "Yêu cầu vi phạm ràng buộc lịch.", blocking);
         }
@@ -159,7 +181,7 @@ public class ShiftRequestService {
         String cleanNote = optionalText(note);
         if (accept) {
             requireScheduleUnchanged(id);
-            List<String> blocking = blockingViolations(current);
+            List<String> blocking = hardViolations(current);
             if (!blocking.isEmpty()) {
                 throw ApiException.unprocessable("VALIDATION_FAILED",
                         "Bạn không thể nhận ca này do vi phạm ràng buộc lịch.", blocking);
@@ -193,6 +215,16 @@ public class ShiftRequestService {
 
     @Transactional
     public ShiftRequestView approve(CurrentUser me, String id, Integer expectedVersion, String note) {
+        return approve(me, id, expectedVersion, note, null);
+    }
+
+    /**
+     * Duyệt, có thể kèm ngoại lệ (BAO-02). Không có ngoại lệ mà lịch vi phạm nhóm ngoại lệ → 422
+     * {@code EXCEPTION_REQUIRED}; ràng buộc cứng → 422 {@code VALIDATION_FAILED} dù có ngoại lệ.
+     */
+    @Transactional
+    public ShiftRequestView approve(CurrentUser me, String id, Integer expectedVersion, String note,
+                                    ExceptionApproval exception) {
         me.requireAdmin();
         ShiftRequestView current = load(id);
         if (APPROVED.equals(current.status())) {
@@ -210,11 +242,31 @@ public class ShiftRequestService {
         AssignmentInfo targetAssignment = TYPE_SWAP.equals(current.type())
                 ? requireOwnFutureAssignment(current.targetAssignmentId(), current.targetUserId(), "Ca của người nhận")
                 : null;
-        List<String> blocking = blockingViolations(current.type(), current.requesterId(), current.targetUserId(),
+        List<String> blocking = hardViolations(current.type(), current.requesterId(), current.targetUserId(),
                 source, targetAssignment);
         if (!blocking.isEmpty()) {
             throw ApiException.unprocessable("VALIDATION_FAILED",
-                    "Không thể duyệt: lịch hiện tại vi phạm ràng buộc.", blocking);
+                    "Không thể duyệt: lịch hiện tại vi phạm ràng buộc bắt buộc.", blocking);
+        }
+        List<String> exceptionable = exceptionViolations(current.type(), current.requesterId(),
+                current.targetUserId(), source, targetAssignment);
+        AssignmentMutationService.ExceptionOverride sourceOverride = null;
+        AssignmentMutationService.ExceptionOverride targetOverride = null;
+        String exceptionReason = null;
+        if (!exceptionable.isEmpty()) {
+            if (exception == null) {
+                throw ApiException.unprocessable("EXCEPTION_REQUIRED",
+                        "Duyệt yêu cầu này cần ngoại lệ: xem trước vi phạm rồi xác nhận kèm lý do.", exceptionable);
+            }
+            if (!Boolean.TRUE.equals(exception.confirm())) {
+                throw ApiException.badRequest("CONFIRM_REQUIRED", "Cần xác nhận ngoại lệ trước khi duyệt.");
+            }
+            exceptionReason = requireText(exception.reason(), "Lý do ngoại lệ");
+            Map<String, String> tokens = exception.previewTokens() == null ? Map.of() : exception.previewTokens();
+            sourceOverride = new AssignmentMutationService.ExceptionOverride(exceptionReason, tokens.get(SIDE_SOURCE), true);
+            if (targetAssignment != null) {
+                targetOverride = new AssignmentMutationService.ExceptionOverride(exceptionReason, tokens.get(SIDE_TARGET), true);
+            }
         }
 
         String cleanNote = optionalText(note);
@@ -231,10 +283,19 @@ public class ShiftRequestService {
         String auditReason = "Duyệt yêu cầu " + id;
         if (targetAssignment != null) {
             // Lõi lịch đổi nguyên tử theo trạng thái cuối và chỉ phát một sự kiện lịch (TW-R4, BA-R3).
-            schedule.swap(source.assignmentId(), current.requesterId(), targetAssignment.assignmentId(),
-                    current.targetUserId(), me.id(), auditReason);
-        } else {
+            if (exceptionReason == null) {
+                schedule.swap(source.assignmentId(), current.requesterId(), targetAssignment.assignmentId(),
+                        current.targetUserId(), me.id(), auditReason);
+            } else {
+                // Lõi lịch tự kiểm tra lại vi phạm, token và quyền ngoại lệ trong cùng giao dịch (TW-06).
+                schedule.swap(source.assignmentId(), current.requesterId(), targetAssignment.assignmentId(),
+                        current.targetUserId(), me.id(), auditReason, sourceOverride, targetOverride);
+            }
+        } else if (exceptionReason == null) {
             schedule.reassign(source.assignmentId(), current.requesterId(), current.targetUserId(), me.id(), auditReason);
+        } else {
+            schedule.reassign(source.assignmentId(), current.requesterId(), current.targetUserId(), me.id(), auditReason,
+                    sourceOverride);
         }
 
         ShiftRequestView updated = load(id);
@@ -246,9 +307,17 @@ public class ShiftRequestService {
             before.put(targetAssignment.assignmentId(), current.targetUserId());
             after.put(targetAssignment.assignmentId(), current.requesterId());
         }
-        audit.record("shift_request_approve", "Duyệt " + typeLabel(current.type()), describe(updated), me.id(),
-                Map.of("request", snapshot(current), "assignments", before),
-                Map.of("request", snapshot(updated), "assignments", after), cleanNote);
+        Map<String, Object> afterAudit = new LinkedHashMap<>();
+        afterAudit.put("request", snapshot(updated));
+        afterAudit.put("assignments", after);
+        if (exceptionReason != null) {
+            afterAudit.put("exception", Map.of("reason", exceptionReason, "violations", exceptionable));
+        }
+        audit.record(exceptionReason == null ? "shift_request_approve" : "shift_request_approve_exception",
+                "Duyệt " + typeLabel(current.type()) + (exceptionReason == null ? "" : " có ngoại lệ"), describe(updated),
+                me.id(), Map.of("request", snapshot(current), "assignments", before), afterAudit,
+                exceptionReason == null ? cleanNote
+                        : "Ngoại lệ: " + exceptionReason + (cleanNote == null ? "" : " · Ghi chú: " + cleanNote));
         events.publish(event(updated, EventTypes.SHIFT_REQUEST_APPROVED, me.id(),
                 List.of(updated.requesterId(), updated.targetUserId()),
                 "Đã duyệt " + typeLabel(updated.type()),
@@ -256,6 +325,50 @@ public class ShiftRequestService {
                         + (updated.targetShift() == null ? "" : "; " + updated.requesterName() + " phụ trách "
                         + label(updated.targetShift())) + ".", "my-schedule"));
         return updated;
+    }
+
+    /**
+     * Xem trước vi phạm của từng vị trí trước khi duyệt (BAO-02). Chỉ Admin có quyền ngoại lệ mới xem được (lõi lịch
+     * kiểm tra quyền {@code schedule.exception.approve}). Không ghi gì.
+     */
+    @Transactional(readOnly = true)
+    public ApprovalPreview previewApproval(CurrentUser me, String id) {
+        me.requireAdmin();
+        ShiftRequestView current = load(id);
+        if (!PENDING_APPROVAL.equals(current.status())) {
+            throw ApiException.conflict("INVALID_STATE", "Chỉ xem trước được yêu cầu đang chờ duyệt.");
+        }
+        AssignmentInfo source = requireOwnFutureAssignment(current.sourceAssignmentId(), current.requesterId(),
+                "Ca gốc");
+        List<ApprovalSide> sides = new ArrayList<>();
+        if (TYPE_SWAP.equals(current.type())) {
+            AssignmentInfo target = requireOwnFutureAssignment(current.targetAssignmentId(), current.targetUserId(),
+                    "Ca của người nhận");
+            List<AssignmentMutationService.ExceptionPreview> previews = schedule.previewSwap(source.assignmentId(),
+                    current.requesterId(), target.assignmentId(), current.targetUserId(), me.id());
+            sides.add(new ApprovalSide(SIDE_SOURCE, current.targetUserId(), current.targetUserName(),
+                    current.sourceShift(), previews.get(0)));
+            sides.add(new ApprovalSide(SIDE_TARGET, current.requesterId(), current.requesterName(),
+                    current.targetShift(), previews.get(1)));
+        } else {
+            sides.add(new ApprovalSide(SIDE_SOURCE, current.targetUserId(), current.targetUserName(),
+                    current.sourceShift(), schedule.previewReassign(source.assignmentId(), current.targetUserId(),
+                    me.id())));
+        }
+        List<String> blocking = new ArrayList<>();
+        List<String> exceptionable = new ArrayList<>();
+        for (ApprovalSide side : sides) {
+            String who = side.userName() + ": ";
+            side.preview().blocking().forEach(m -> blocking.add(who + m));
+            side.preview().exceptionable().forEach(m -> exceptionable.add(who + m));
+        }
+        boolean needed = !exceptionable.isEmpty();
+        boolean allowed = blocking.isEmpty();
+        String message = !allowed ? "Có vi phạm ràng buộc bắt buộc; không thể duyệt kể cả bằng ngoại lệ."
+                : needed ? "Có thể duyệt bằng ngoại lệ: xác nhận và nhập lý do."
+                : "Không có vi phạm, có thể duyệt bình thường.";
+        return new ApprovalPreview(current.id(), current.version(), needed, allowed, blocking, exceptionable, sides,
+                message);
     }
 
     @Transactional
@@ -336,8 +449,15 @@ public class ShiftRequestService {
         List<Candidate> result = new ArrayList<>();
         for (UserDirectory.Employee e : users.activeEmployees()) {
             if (e.id().equals(me.id())) continue;
-            List<String> reasons = blockingMessages(validator.validate(e.id(), source.shiftId(), me.id(), Set.of(), null));
-            result.add(new Candidate(e.id(), e.fullName(), reasons.isEmpty(), reasons));
+            List<Violation> found = validator.validate(e.id(), source.shiftId(), me.id(), Set.of(), null);
+            List<String> reasons = new ArrayList<>();
+            for (Violation v : found) {
+                if (!v.blocking()) continue;
+                reasons.add(v.overridable() ? v.message() + " (cần ngoại lệ khi duyệt)" : v.message());
+            }
+            // Chỉ ràng buộc cứng làm mất tư cách; vi phạm nhóm ngoại lệ vẫn gửi được, người duyệt quyết định (BAO-02).
+            boolean eligible = found.stream().noneMatch(Violation::hard);
+            result.add(new Candidate(e.id(), e.fullName(), eligible, reasons));
         }
         result.sort((a, b) -> Boolean.compare(b.eligible(), a.eligible()));
         return result;
@@ -385,33 +505,41 @@ public class ShiftRequestService {
         return a;
     }
 
-    private List<String> blockingViolations(ShiftRequestView r) {
+    private List<String> hardViolations(ShiftRequestView r) {
         AssignmentInfo source = requireOwnFutureAssignment(r.sourceAssignmentId(), r.requesterId(), "Ca gốc");
         AssignmentInfo target = TYPE_SWAP.equals(r.type())
                 ? requireOwnFutureAssignment(r.targetAssignmentId(), r.targetUserId(), "Ca của người nhận") : null;
-        return blockingViolations(r.type(), r.requesterId(), r.targetUserId(), source, target);
+        return hardViolations(r.type(), r.requesterId(), r.targetUserId(), source, target);
     }
 
-    private List<String> blockingViolations(String type, String requesterId, String targetUserId,
-                                            AssignmentInfo source, AssignmentInfo targetAssignment) {
+    /** Ràng buộc cứng của cả hai vị trí — không bao giờ được duyệt. */
+    private List<String> hardViolations(String type, String requesterId, String targetUserId,
+                                        AssignmentInfo source, AssignmentInfo targetAssignment) {
+        return violations(type, requesterId, targetUserId, source, targetAssignment, Violation::hard);
+    }
+
+    /** Vi phạm thuộc nhóm ngoại lệ — chỉ duyệt được qua xem trước + xác nhận + lý do (BAO-02). */
+    private List<String> exceptionViolations(String type, String requesterId, String targetUserId,
+                                             AssignmentInfo source, AssignmentInfo targetAssignment) {
+        return violations(type, requesterId, targetUserId, source, targetAssignment,
+                v -> v.blocking() && v.overridable());
+    }
+
+    private List<String> violations(String type, String requesterId, String targetUserId, AssignmentInfo source,
+                                    AssignmentInfo targetAssignment, java.util.function.Predicate<Violation> filter) {
         List<String> result = new ArrayList<>();
         // Người nhận lấy ca gốc; khi đổi chéo, ca của chính họ sẽ được gỡ nên bỏ qua khi kiểm tra.
         Set<String> targetIgnores = targetAssignment == null ? Set.of() : Set.of(targetAssignment.assignmentId());
-        for (String m : blockingMessages(validator.validate(targetUserId, source.shiftId(), requesterId,
-                targetIgnores, null))) {
-            result.add("Người nhận: " + m);
+        for (Violation v : validator.validate(targetUserId, source.shiftId(), requesterId, targetIgnores, null)) {
+            if (filter.test(v)) result.add("Người nhận: " + v.message());
         }
         if (TYPE_SWAP.equals(type) && targetAssignment != null) {
-            for (String m : blockingMessages(validator.validate(requesterId, targetAssignment.shiftId(), targetUserId,
-                    Set.of(source.assignmentId()), null))) {
-                result.add("Người gửi: " + m);
+            for (Violation v : validator.validate(requesterId, targetAssignment.shiftId(), targetUserId,
+                    Set.of(source.assignmentId()), null)) {
+                if (filter.test(v)) result.add("Người gửi: " + v.message());
             }
         }
         return result;
-    }
-
-    private static List<String> blockingMessages(List<Violation> violations) {
-        return violations.stream().filter(Violation::blocking).map(Violation::message).toList();
     }
 
     private ShiftRequestView load(String id) {
